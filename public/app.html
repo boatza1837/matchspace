@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="th">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MatchSpace | App</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <div class="topbar">
+        <div class="brand">
+          <div class="brand-mark">♥</div>
+          <span>MatchSpace</span>
+        </div>
+        <nav class="nav">
+          <a href="/report">รายงานปัญหา</a>
+          <button id="logoutBtn" class="button secondary-action" type="button">ออกจากระบบ</button>
+        </nav>
+      </div>
+
+      <div id="appRoot" class="app-root">
+        <div class="tab-header">
+          <button class="tab-button active" data-tab="discover">Discover</button>
+          <button class="tab-button" data-tab="chat">Chat</button>
+          <button class="tab-button" data-tab="profile">Profile</button>
+          <button class="tab-button" data-tab="activity">Activity board</button>
+        </div>
+
+        <section id="tab-discover" class="tab-panel active">
+          <div class="panel discover-panel">
+            <div id="discoverUserCard" class="discover-card"></div>
+          </div>
+        </section>
+
+        <section id="tab-chat" class="tab-panel">
+          <div class="chat-layout">
+            <div class="panel">
+              <h2>แชท</h2>
+              <div id="chatList" class="list-card"></div>
+            </div>
+            <div class="panel">
+              <h2>ข้อความ</h2>
+              <div id="messageThread" class="chat-box"></div>
+              <div class="composer">
+                <input id="messageInput" type="text" placeholder="พิมพ์ข้อความ..." />
+                <button id="sendMessageBtn" class="button primary" type="button">ส่ง</button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section id="tab-profile" class="tab-panel">
+          <div class="panel">
+            <h2>โปรไฟล์ของฉัน</h2>
+            <form id="profileForm">
+              <div class="profile-header">
+                <img id="profileImagePreview" class="profile-avatar" alt="profile" />
+                <div class="profile-meta">
+                  <div class="form-group">
+                    <label>อีเมล</label>
+                    <div id="profileEmail" class="readonly-box"></div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="form-grid profile-grid">
+                <div class="form-group">
+                  <label for="profileName">ชื่อ-นามสกุล</label>
+                  <input id="profileName" type="text" />
+                </div>
+
+                <div class="form-group">
+                  <label for="profileNickname">ชื่อเล่น</label>
+                  <input id="profileNickname" type="text" />
+                </div>
+
+                <div class="form-group">
+                  <label for="profileMajor">คณะ</label>
+                  <input id="profileMajor" type="text" />
+                </div>
+
+                <div class="form-group">
+                  <label for="profileYear">ชั้นปี</label>
+                  <input id="profileYear" type="text" />
+                </div>
+
+                <div class="form-group">
+                  <label for="profileAge">อายุ</label>
+                  <input id="profileAge" type="number" min="18" max="60" />
+                </div>
+
+                <div class="form-group">
+                  <label for="profileImageInput">เปลี่ยนรูปโปรไฟล์</label>
+                  <input id="profileImageInput" type="file" accept="image/*" />
+                </div>
+
+                <div class="form-group full">
+                  <label>ความสนใจ</label>
+                  <div id="profileInterestsTags" class="tags-container"></div>
+                  <input type="hidden" id="profileInterests" />
+                </div>
+
+                <div class="form-group full">
+                  <label for="profileBio">ประวัติโดยย่อ</label>
+                  <textarea id="profileBio"></textarea>
+                </div>
+              </div>
+
+              <button type="submit" class="button primary" style="width:100%;">บันทึกโปรไฟล์</button>
+              <div id="profileStatus" class="message success" style="display:block; background:rgba(27,157,105,0.08); color:var(--success);"></div>
+            </form>
+          </div>
+        </section>
+
+        <section id="tab-activity" class="tab-panel">
+          <div class="panel">
+            <div class="board-header">
+              <h2>Activity board</h2>
+              <button id="newActivityBtn" class="button primary" type="button">＋</button>
+            </div>
+
+            <form id="activityForm" class="activity-form hidden">
+              <div class="form-grid">
+                <div class="form-group full">
+                  <label for="activityName">ชื่อกิจกรรม</label>
+                  <input id="activityName" type="text" placeholder="เช่น Run for Campus" required />
+                </div>
+
+                <div class="form-group full">
+                  <label for="activityDescription">รายละเอียด</label>
+                  <textarea id="activityDescription" placeholder="อธิบายกิจกรรมให้ชัดเจน"></textarea>
+                </div>
+
+                <div class="form-group">
+                  <label for="activityMemberCount">จำนวนคนเข้าร่วม</label>
+                  <input id="activityMemberCount" type="number" min="0" value="0" />
+                </div>
+              </div>
+
+              <div class="activity-form-actions">
+                <button type="submit" class="button primary">ส่งคำขออนุมัติ</button>
+              </div>
+            </form>
+
+            <div id="activityBoardList" class="activity-board"></div>
+          </div>
+        </section>
+      </div>
+    </div>
+
+    <script src="script.js"></script>
+  </body>
+</html>

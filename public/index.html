@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="th">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MatchSpace | Login</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="container">
+      <header>
+        <div class="brand">
+          <div class="brand-mark">♥</div>
+          <span>MatchSpace</span>
+        </div>
+        <nav class="nav">
+          <a href="/register">สมัครสมาชิก</a>
+          <a href="/report">รายงานปัญหา</a>
+          <a href="/admin">ผู้ดูแล</a>
+        </nav>
+      </header>
+
+      <main class="grid">
+        <section class="card hero">
+          <h1>พบคนที่ใช่ สำหรับการเริ่มต้นใหม่</h1>
+          <p>
+            MatchSpace ช่วยให้ผู้ใช้ค้นหาคนที่มีความสนใจและไลฟ์สไตล์ใกล้เคียงกันได้ง่ายขึ้น
+            พร้อมระบบรายงานปัญหาและการตรวจสอบของผู้ดูแลแบบ real-time
+          </p>
+
+          <div class="stats">
+            <div class="stat">
+              <strong>1.2k+</strong>
+              <span>ผู้ใช้งาน</span>
+            </div>
+            <div class="stat">
+              <strong>96%</strong>
+              <span>ความพอใจ</span>
+            </div>
+            <div class="stat">
+              <strong>24/7</strong>
+              <span>ตรวจสอบรายงาน</span>
+            </div>
+          </div>
+        </section>
+
+        <section class="card form-card">
+          <h2>เข้าสู่ระบบ</h2>
+          <form id="loginForm">
+            <div class="form-group">
+              <label for="loginEmail">อีเมล</label>
+              <input id="loginEmail" name="email" type="email" placeholder="name@email.com" required />
+            </div>
+
+            <div class="form-group">
+              <label for="loginPassword">รหัสผ่าน</label>
+              <input id="loginPassword" name="password" type="password" placeholder="********" required />
+            </div>
+
+            <button type="submit" class="button primary" style="width: 100%;">เข้าสู่ระบบ</button>
+          </form>
+
+          <div style="margin-top: 16px; text-align: center; color: var(--muted);">
+            หรือ <a href="/register" style="color: var(--purple); font-weight: 700;">สมัครสมาชิกใหม่</a>
+          </div>
+
+          <div id="loginMessage" class="message"></div>
+        </section>
+      </main>
+    </div>
+
+    <script src="script.js"></script>
+  </body>
+</html>

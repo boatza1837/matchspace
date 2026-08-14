@@ -1,0 +1,12 @@
+# Database
+matchspace.db
+*.db
+
+# Dependencies
+node_modules/
+
+# Environment secrets
+.env
+
+# OS/editor junk
+.DS_Store

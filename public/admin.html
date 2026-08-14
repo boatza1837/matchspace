@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="th">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MatchSpace | Admin</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="container">
+      <header>
+        <div class="brand">
+          <div class="brand-mark">⚙</div>
+          <span>MatchSpace Admin</span>
+        </div>
+        <nav class="nav">
+          <a href="/app">หน้า user</a>
+          <a href="/report">รายงานปัญหา</a>
+          <button class="button secondary-action" id="logoutButton" type="button">ออกจากระบบ</button>
+        </nav>
+      </header>
+
+      <section class="page-head">
+        <h1>Dashboard ผู้ดูแล</h1>
+        <p>ตรวจสอบผู้ใช้งานและจัดการรายงานปัญหาแบบละเอียด</p>
+      </section>
+
+      <section class="summary-row">
+        <div class="summary-box">
+          <span class="number" id="totalUsers">0</span>
+          <span class="label">ผู้ใช้งานทั้งหมด</span>
+        </div>
+        <div class="summary-box">
+          <span class="number" id="totalReports">0</span>
+          <span class="label">รายงานทั้งหมด</span>
+        </div>
+        <div class="summary-box">
+          <span class="number" id="pendingReports">0</span>
+          <span class="label">รอดำเนินการ</span>
+        </div>
+        <div class="summary-box">
+          <span class="number" id="resolvedReports">0</span>
+          <span class="label">เสร็จสิ้น</span>
+        </div>
+      </section>
+
+      <section class="card" style="padding: 18px; margin-top: 20px;">
+        <h2 style="margin-top: 0; color: var(--purple);">รายชื่อผู้ใช้งาน</h2>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>ชื่อ</th>
+                <th>อีเมล</th>
+                <th>สาขา</th>
+                <th>ชั้นปี</th>
+                <th>ความสนใจ</th>
+                <th>ประเภท</th>
+                <th>จัดการ</th>
+              </tr>
+            </thead>
+            <tbody id="userTableBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="card" style="padding: 18px; margin-top: 24px;">
+        <h2 style="margin-top: 0; color: var(--purple);">กิจกรรมที่รออนุมัติ</h2>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>ชื่อกิจกรรม</th>
+                <th>ผู้สร้าง</th>
+                <th>คณะ</th>
+                <th>จำนวนผู้เข้าร่วม</th>
+                <th>สถานะ</th>
+                <th>จัดการ</th>
+              </tr>
+            </thead>
+            <tbody id="activityTableBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="card" style="padding: 18px; margin-top: 24px;">
+        <h2 style="margin-top: 0; color: var(--purple);">รายงานที่ต้องตรวจสอบ</h2>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>ผู้แจ้ง</th>
+                <th>ผู้ถูกแจ้ง</th>
+                <th>ประเภท</th>
+                <th>รายละเอียด</th>
+                <th>สถานะ</th>
+                <th>จัดการ</th>
+              </tr>
+            </thead>
+            <tbody id="reportsTableBody"></tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+
+    <script src="script.js"></script>
+  </body>
+</html>

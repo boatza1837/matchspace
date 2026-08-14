@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="th">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MatchSpace | Register</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="container">
+      <header>
+        <div class="brand">
+          <div class="brand-mark">♥</div>
+          <span>MatchSpace</span>
+        </div>
+        <nav class="nav">
+          <a href="/">เข้าสู่ระบบ</a>
+          <a href="/report">รายงานปัญหา</a>
+          <a href="/admin">ผู้ดูแล</a>
+        </nav>
+      </header>
+
+      <main class="grid">
+        <section class="card hero">
+          <h1>สร้างบัญชีใหม่ เพื่อเริ่มเจอคนที่ใช่</h1>
+          <p>
+            สมัครสมาชิกเพื่อเริ่มใช้งานระบบหาคู่และรับประสบการณ์การคุยที่ปลอดภัยมากขึ้น
+            พร้อมใช้งานหน้ารายงานและแอดมินตรวจสอบภายในระบบจริง
+          </p>
+        </section>
+
+        <section class="card form-card">
+          <h2>สมัครสมาชิก</h2>
+          <form id="registerForm">
+            <div class="form-grid">
+              <div class="form-group">
+                <label for="name">ชื่อ-นามสกุล</label>
+                <input name="name" id="name" type="text" placeholder="กรอกชื่อจริง" required />
+              </div>
+
+              <div class="form-group">
+                <label for="nickname">ชื่อเล่น</label>
+                <input name="nickname" id="nickname" type="text" placeholder="ชื่อเล่นของคุณ" />
+              </div>
+
+              <div class="form-group">
+                <label for="email">อีเมล</label>
+                <input name="email" id="email" type="email" placeholder="name@email.com" required />
+              </div>
+
+              <div class="form-group">
+                <label for="age">อายุ</label>
+                <input name="age" id="age" type="number" min="18" max="60" placeholder="18" />
+              </div>
+
+              <div class="form-group">
+                <label for="password">รหัสผ่าน</label>
+                <input name="password" id="password" type="password" placeholder="********" required />
+              </div>
+
+              <div class="form-group">
+                <label for="year">ชั้นปี</label>
+                <select id="year" name="year">
+                  <option value="ปี 1">ปี 1</option>
+                  <option value="ปี 2">ปี 2</option>
+                  <option value="ปี 3">ปี 3</option>
+                  <option value="ปี 4">ปี 4</option>
+                </select>
+              </div>
+
+              <div class="form-group full">
+                <label for="major">สาขา / คณะ</label>
+                <input name="major" id="major" type="text" placeholder="เช่น คณะวิศวกรรมศาสตร์" />
+              </div>
+
+              <div class="form-group full">
+                <label for="profileImage">รูปโปรไฟล์</label>
+                <input type="file" id="profileImage" accept="image/*" />
+              </div>
+
+              <div class="form-group full">
+                <label>ความสนใจ</label>
+                <div class="tags-info" style="font-size: 12px; color: var(--muted); margin-bottom: 8px;">เลือกความสนใจของคุณ</div>
+                <div id="interestsTags" class="tags-container" style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px;"></div>
+                <input type="hidden" id="interests" name="interests" />
+              </div>
+
+              <div class="form-group full">
+                <label for="bio">ประวัติโดยย่อ</label>
+                <textarea name="bio" id="bio" placeholder="เล่าเรื่องตัวเองสั้น ๆ"></textarea>
+              </div>
+            </div>
+
+            <button type="submit" class="button primary" style="width: 100%; margin-top: 12px;">สมัครสมาชิก</button>
+          </form>
+
+          <div style="margin-top: 14px; text-align: center; color: var(--muted);">
+            มีบัญชีแล้ว <a href="/" style="color: var(--purple); font-weight:700;">เข้าสู่ระบบ</a>
+          </div>
+
+          <div id="registerMessage" class="message"></div>
+        </section>
+      </main>
+    </div>
+
+    <script src="script.js"></script>
+  </body>
+</html>

@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Match Space — Demo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Kanit:wght@400;500;600;700&family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg-0:#EFE9F7;
+    --bg-1:#F7E9E4;
+    --surface:#FFFFFF;
+    --ink:#241F3D;
+    --ink-soft:#6B6483;
+    --line:#E7E1F2;
+    --coral:#FF6F5E;
+    --coral-deep:#E5533F;
+    --plum:#4C4295;
+    --plum-soft:#EFECFB;
+    --mint:#22A87A;
+    --mint-soft:#E3F6EE;
+    --amber:#F5A623;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{height:100%;}
+  body{
+    margin:0;
+    min-height:100vh;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    background:
+      radial-gradient(1200px 700px at 15% -10%, #F9EEEA 0%, transparent 60%),
+      radial-gradient(1000px 700px at 110% 10%, #E7E2F7 0%, transparent 55%),
+      linear-gradient(180deg, var(--bg-0), var(--bg-1));
+    font-family:'Sarabun', sans-serif;
+    color:var(--ink);
+    padding:32px 16px;
+  }
+  @media (prefers-reduced-motion: reduce){
+    *{animation-duration:.001ms !important; transition-duration:.001ms !important;}
+  }
+
+  /* ---------- device frame ---------- */
+  .stage{ display:flex; flex-direction:column; align-items:center; gap:14px; }
+  .brandline{
+    display:flex; align-items:center; gap:8px;
+    font-family:'Kanit'; font-weight:600; letter-spacing:.02em;
+    color:var(--ink-soft); font-size:13px;
+  }
+  .brandline .dot{width:6px;height:6px;border-radius:50%;background:var(--coral);}
+
+  .phone{
+    width:380px; max-width:92vw; height:780px; max-height:88vh;
+    background:var(--surface);
+    border-radius:44px;
+    box-shadow: 0 30px 60px -20px rgba(76,66,149,.35), 0 2px 0 rgba(255,255,255,.6) inset;
+    border:10px solid #171225;
+    overflow:hidden;
+    position:relative;
+    display:flex; flex-direction:column;
+  }
+  .notch{
+    position:absolute; top:0; left:50%; transform:translateX(-50%);
+    width:120px; height:22px; background:#171225; border-radius:0 0 16px 16px; z-index:20;
+  }
+  .statusbar{
+    height:34px; flex:0 0 auto; display:flex; align-items:center; justify-content:space-between;
+    padding:0 22px; font-size:12px; font-weight:600; color:var(--ink); font-family:'Kanit';
+  }
+
+  .screens{ position:relative; flex:1 1 auto; overflow:hidden; }
+  .screen{
+    position:absolute; inset:0;
+    display:flex; flex-direction:column;
+    opacity:0; transform:translateX(14px);
+    pointer-events:none;
+    transition:opacity .28s ease, transform .28s ease;
+  }
+  .screen.active{ opacity:1; transform:translateX(0); pointer-events:auto; }
+
+  .scroll{ flex:1; overflow-y:auto; padding:18px 20px 12px; }
+  .scroll::-webkit-scrollbar{width:0;}
+
+  h1,h2,h3{ font-family:'Kanit'; margin:0; }
+  p{margin:0;}
+
+  /* ---------- onboarding ---------- */
+  #screen-onboard .scroll{ display:flex; flex-direction:column; align-items:center; text-align:center; padding-top:34px;}
+  .logo-mark{
+    width:64px;height:64px;border-radius:20px;
+    background:linear-gradient(135deg,var(--coral),var(--plum));
+    display:flex;align-items:center;justify-content:center;
+    box-shadow:0 12px 24px -10px rgba(255,111,94,.55);
+    margin-bottom:16px;
+  }
+  .logo-mark svg{width:30px;height:30px;}
+  .onboard-title{ font-size:23px; font-weight:700; line-height:1.3; }
+  .onboard-sub{ color:var(--ink-soft); font-size:14px; margin-top:8px; line-height:1.6; max-width:270px; }
+
+  .field-label{ align-self:flex-start; font-size:12px; font-weight:600; color:var(--ink-soft); margin:22px 0 6px; }
+  .input-shell{
+    width:100%; display:flex; align-items:center; gap:8px;
+    border:1.5px solid var(--line); border-radius:14px; padding:12px 14px;
+    background:#FBFAFE;
+  }
+  .input-shell input{ border:none; outline:none; background:transparent; font-family:'Sarabun'; font-size:14px; width:100%; color:var(--ink); }
+  .verify-badge{ font-size:11px; color:var(--mint); font-weight:600; white-space:nowrap; }
+
+  .avatar-row{ width:100%; display:flex; align-items:center; gap:12px; margin-top:14px; }
+  .avatar-circle{
+    width:56px;height:56px;border-radius:50%;
+    background:linear-gradient(135deg,var(--plum-soft),#fff);
+    border:1.5px dashed #C9C0E8;
+    display:flex; align-items:center; justify-content:center; color:var(--plum); font-size:11px; text-align:center; flex:0 0 auto;
+  }
+  .avatar-upload{
+    flex:1; border:1.5px solid var(--line); border-radius:14px; padding:14px;
+    font-size:13px; color:var(--ink-soft); background:#FBFAFE; text-align:left;
+  }
+
+  .tagpick-title{ align-self:flex-start; font-size:12px; font-weight:600; color:var(--ink-soft); margin:22px 0 10px; }
+  .tags{ display:flex; flex-wrap:wrap; gap:8px; }
+  .tag{
+    padding:8px 14px; border-radius:999px; border:1.5px solid var(--line);
+    font-size:13px; color:var(--ink-soft); background:#fff; cursor:pointer; user-select:none;
+    transition:.15s;
+  }
+  .tag.picked{ background:var(--plum); border-color:var(--plum); color:#fff; }
+
+  .btn-primary{
+    margin-top:24px; width:100%; border:none; border-radius:14px; padding:14px;
+    background:linear-gradient(135deg,var(--coral),var(--coral-deep)); color:#fff;
+    font-family:'Kanit'; font-weight:600; font-size:15px; cursor:pointer;
+    box-shadow:0 14px 26px -12px rgba(229,83,63,.55);
+  }
+  .btn-primary:disabled{ opacity:.4; cursor:not-allowed; box-shadow:none; }
+  .hint{ margin-top:10px; font-size:11.5px; color:var(--ink-soft); }
+
+  /* ---------- top bar with tabs ---------- */
+  .topbar{ padding:16px 20px 0; }
+  .topbar h2{ font-size:19px; }
+  .topbar .lead{ font-size:12.5px; color:var(--ink-soft); margin-top:3px; }
+
+  .tabs{
+    flex:0 0 auto; display:flex; gap:6px; padding:10px 14px 14px; border-top:1px solid var(--line);
+    background:#fff;
+  }
+  .tab{
+    flex:1; display:flex; flex-direction:column; align-items:center; gap:4px;
+    padding:6px 2px; border-radius:12px; cursor:pointer; color:var(--ink-soft);
+    font-family:'Kanit'; font-size:10.5px; font-weight:500;
+  }
+  .tab.active{ color:var(--coral-deep); background:#FFF1EE; }
+  .tab svg{ width:19px; height:19px; }
+
+  /* ---------- discover ---------- */
+  .match-card{
+    background:#fff; border:1px solid var(--line); border-radius:22px; overflow:hidden;
+    box-shadow:0 20px 40px -24px rgba(36,31,61,.35); margin-top:14px;
+  }
+  .match-photo{
+    height:220px; background:linear-gradient(135deg,#FFD9CE,#E5DBFB);
+    display:flex; align-items:center; justify-content:center; position:relative;
+  }
+  .match-photo .initial{ font-family:'Kanit'; font-weight:700; font-size:52px; color:#fff; opacity:.85; }
+  .verified-chip{
+    position:absolute; top:12px; right:12px; background:rgba(34,168,122,.95); color:#fff;
+    font-size:10.5px; font-weight:600; padding:5px 10px; border-radius:999px; display:flex; align-items:center; gap:4px;
+  }
+  .match-body{ padding:16px; }
+  .match-name{ font-size:17px; font-weight:600; }
+  .match-meta{ font-size:12.5px; color:var(--ink-soft); margin-top:2px; }
+  .shared-label{ font-size:11.5px; color:var(--plum); font-weight:600; margin-top:12px; }
+  .shared-tags{ display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
+  .shared-tags span{ background:var(--plum-soft); color:var(--plum); font-size:11.5px; padding:5px 10px; border-radius:999px; }
+  .match-actions{ display:flex; gap:10px; margin-top:16px; }
+  .match-actions button{ flex:1; border-radius:12px; border:none; padding:11px; font-family:'Kanit'; font-weight:600; font-size:13px; cursor:pointer; }
+  .btn-skip{ background:#F4F2F9; color:var(--ink-soft); }
+  .btn-chat{ background:var(--coral); color:#fff; box-shadow:0 12px 20px -10px rgba(255,111,94,.6); }
+
+  /* ---------- activity board ---------- */
+  .post{
+    background:#fff; border:1px solid var(--line); border-radius:18px; padding:14px; margin-top:12px;
+  }
+  .post-top{ display:flex; justify-content:space-between; align-items:flex-start; gap:8px; }
+  .post-title{ font-size:14px; font-weight:600; line-height:1.4; }
+  .post-time{ font-size:11px; color:var(--ink-soft); white-space:nowrap; }
+  .post-who{ font-size:12px; color:var(--ink-soft); margin-top:6px; }
+  .post-bottom{ display:flex; justify-content:space-between; align-items:center; margin-top:12px; }
+  .post-count{ font-size:11.5px; color:var(--plum); font-weight:600; }
+  .btn-join{
+    border:none; background:var(--mint-soft); color:var(--mint); font-family:'Kanit'; font-weight:600;
+    font-size:12px; padding:8px 14px; border-radius:10px; cursor:pointer;
+  }
+  .btn-join.joined{ background:var(--mint); color:#fff; }
+  .new-post-btn{
+    position:absolute; right:18px; bottom:96px; width:48px; height:48px; border-radius:50%;
+    background:var(--coral); color:#fff; border:none; box-shadow:0 14px 26px -10px rgba(229,83,63,.65);
+    display:flex; align-items:center; justify-content:center; cursor:pointer; z-index:5;
+  }
+
+  /* ---------- chats list ---------- */
+  .chat-row{
+    display:flex; align-items:center; gap:12px; padding:12px 4px; border-bottom:1px solid var(--line); cursor:pointer;
+  }
+  .chat-avatar{
+    width:46px;height:46px;border-radius:50%; flex:0 0 auto;
+    background:linear-gradient(135deg,#E5DBFB,#FFD9CE); display:flex;align-items:center;justify-content:center;
+    font-family:'Kanit'; font-weight:700; color:#fff;
+  }
+  .chat-info{ flex:1; min-width:0; }
+  .chat-name{ font-size:14px; font-weight:600; }
+  .chat-preview{ font-size:12px; color:var(--ink-soft); margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .chat-time{ font-size:10.5px; color:var(--ink-soft); flex:0 0 auto; }
+
+  /* ---------- chat detail ---------- */
+  #screen-chatdetail .scroll{ display:flex; flex-direction:column; gap:10px; padding-bottom:6px; }
+  .chat-header{
+    display:flex; align-items:center; gap:10px; padding:14px 16px; border-bottom:1px solid var(--line);
+  }
+  .back-btn{ border:none; background:none; cursor:pointer; padding:4px; color:var(--ink); }
+  .bubble{ max-width:74%; padding:10px 13px; border-radius:16px; font-size:13.5px; line-height:1.5; }
+  .bubble.them{ background:#F4F2F9; align-self:flex-start; border-bottom-left-radius:4px; }
+  .bubble.me{ background:var(--coral); color:#fff; align-self:flex-end; border-bottom-right-radius:4px; }
+
+  .icebreaker-zone{ padding:10px 16px 14px; border-top:1px solid var(--line); background:#FBFAFE; }
+  .icebreaker-card{
+    perspective:900px; height:78px; cursor:pointer;
+  }
+  .icebreaker-inner{
+    position:relative; width:100%; height:100%; transition:transform .5s cubic-bezier(.2,.8,.2,1); transform-style:preserve-3d;
+  }
+  .icebreaker-card.flipped .icebreaker-inner{ transform:rotateY(180deg); }
+  .icebreaker-face{
+    position:absolute; inset:0; backface-visibility:hidden; border-radius:14px;
+    display:flex; align-items:center; gap:10px; padding:0 14px;
+    font-size:12.5px; font-family:'Kanit'; font-weight:500;
+  }
+  .icebreaker-front{ background:linear-gradient(135deg,var(--plum),#6a5ec4); color:#fff; }
+  .icebreaker-back{ background:#fff; border:1.5px solid var(--line); color:var(--ink); transform:rotateY(180deg); line-height:1.5; }
+  .dice{ width:30px;height:30px;border-radius:9px; background:rgba(255,255,255,.18); display:flex; align-items:center; justify-content:center; flex:0 0 auto; }
+
+  .composer{ display:flex; gap:8px; padding:12px 16px 16px; }
+  .composer input{
+    flex:1; border:1.5px solid var(--line); border-radius:999px; padding:11px 16px; font-family:'Sarabun'; font-size:13px; outline:none;
+  }
+  .send-btn{ width:42px;height:42px; border-radius:50%; border:none; background:var(--coral); color:#fff; display:flex; align-items:center; justify-content:center; cursor:pointer; flex:0 0 auto; }
+
+  /* ---------- profile ---------- */
+  .profile-head{ display:flex; flex-direction:column; align-items:center; padding-top:26px; text-align:center; }
+  .profile-avatar{
+    width:84px;height:84px;border-radius:50%; background:linear-gradient(135deg,var(--coral),var(--plum));
+    display:flex; align-items:center; justify-content:center; color:#fff; font-family:'Kanit'; font-weight:700; font-size:28px;
+    box-shadow:0 16px 30px -14px rgba(76,66,149,.5);
+  }
+  .stat-row{ display:flex; gap:10px; margin-top:20px; }
+  .stat{ flex:1; background:#fff; border:1px solid var(--line); border-radius:14px; padding:12px; text-align:center; }
+  .stat b{ display:block; font-family:'Kanit'; font-size:17px; }
+  .stat span{ font-size:10.5px; color:var(--ink-soft); }
+  .settings-row{ display:flex; align-items:center; justify-content:space-between; padding:14px 4px; border-bottom:1px solid var(--line); font-size:13.5px; }
+  .settings-row .ink-soft{ color:var(--ink-soft); font-size:12px; }
+
+  .empty-note{ text-align:center; color:var(--ink-soft); font-size:12.5px; padding:24px 10px; line-height:1.7; }
+</style>
+</head>
+<body>
+
+<div class="stage">
+  <div class="brandline"><span class="dot"></span> MATCH SPACE — โปรโตไทป์สำหรับพรีเซนต์กลุ่ม 3</div>
+
+  <div class="phone">
+    <div class="notch"></div>
+    <div class="statusbar"><span>9:41</span><span>Match Space</span><span>●●●</span></div>
+
+    <div class="screens">
+
+      <!-- ONBOARDING -->
+      <div class="screen active" id="screen-onboard">
+        <div class="scroll">
+          <div class="logo-mark">
+            <svg viewBox="0 0 24 24" fill="none"><path d="M12 21s-7.5-4.7-10-9.3C.3 8 2 4 6 4c2.2 0 3.7 1.2 6 3.6C14.3 5.2 15.8 4 18 4c4 0 5.7 4 4 7.7C19.5 16.3 12 21 12 21z" fill="white"/></svg>
+          </div>
+          <div class="onboard-title">ยินดีต้อนรับสู่<br>Match Space</div>
+          <p class="onboard-sub">เว็บหาคู่และหาเพื่อนสำหรับนักศึกษาสาย Introvert ที่วนลูปแค่เรียนแล้วกลับหอ — เริ่มบทสนทนาแรกให้ง่ายขึ้น ไม่ต้องฝืนเป็นคนอื่น</p>
+
+          <label class="field-label" style="align-self:flex-start;">อีเมลมหาวิทยาลัย</label>
+          <div class="input-shell">
+            <input id="emailInput" type="text" placeholder="yourname@kku.ac.th" value="tonnam@kku.ac.th">
+            <span class="verify-badge" id="verifyBadge">✓ ยืนยันแล้ว</span>
+          </div>
+
+          <label class="field-label" style="align-self:flex-start;">รูปโปรไฟล์</label>
+          <div class="avatar-row">
+            <div class="avatar-circle">รูป<br>โปรไฟล์</div>
+            <div class="avatar-upload">แตะเพื่ออัปโหลดรูป · ระบบจะไม่แสดงรูปเป็นตัวตัดสินหลักในการจับคู่</div>
+          </div>
+
+          <div class="tagpick-title" style="align-self:flex-start;">เลือกความสนใจของคุณ (เลือกได้หลายอัน)</div>
+          <div class="tags" id="tagPicker">
+            <div class="tag">อ่านหนังสือ</div>
+            <div class="tag picked">คาเฟ่</div>
+            <div class="tag picked">หนัง/ซีรีส์</div>
+            <div class="tag">เกม</div>
+            <div class="tag picked">ดนตรี</div>
+            <div class="tag">ปั่นจักรยาน</div>
+            <div class="tag">ถ่ายภาพ</div>
+            <div class="tag">อนิเมะ</div>
+          </div>
+
+          <button class="btn-primary" onclick="goTo('discover')">ยืนยันเข้าใช้งาน</button>
+          <p class="hint">เมื่อกดยืนยัน แปลว่าคุณโอเคกับการให้ระบบใช้ความสนใจนี้จับคู่คนที่ไลฟ์สไตล์ใกล้เคียงกันก่อน</p>
+        </div>
+      </div>
+
+      <!-- DISCOVER -->
+      <div class="screen" id="screen-discover">
+        <div class="topbar">
+          <h2>แนะนำสำหรับคุณ</h2>
+          <p class="lead">จับคู่จาก Tag ความสนใจที่ตรงกัน ไม่ใช่แค่รูปโปรไฟล์</p>
+        </div>
+        <div class="scroll">
+          <div class="match-card">
+            <div class="match-photo">
+              <span class="initial">พ</span>
+              <div class="verified-chip">✓ ยืนยันนักศึกษา</div>
+            </div>
+            <div class="match-body">
+              <div class="match-name">พลอย · 19</div>
+              <div class="match-meta">คณะมนุษยศาสตร์ฯ · ปี 2 · หอในมหาวิทยาลัย</div>
+              <div class="shared-label">ความสนใจร่วมกัน</div>
+              <div class="shared-tags"><span>คาเฟ่</span><span>หนัง/ซีรีส์</span><span>ดนตรี</span></div>
+              <div class="match-actions">
+                <button class="btn-skip" onclick="toast('ข้ามคนนี้แล้ว')">ข้ามไปก่อน</button>
+                <button class="btn-chat" onclick="goTo('chatdetail'); startIcebreaker();">เริ่มคุย</button>
+              </div>
+            </div>
+          </div>
+          <p class="empty-note">เลื่อนดูคนถัดไปได้เรื่อย ๆ — ระบบจะเรียงคนที่ Tag ตรงกับคุณมากที่สุดไว้ก่อน</p>
+        </div>
+        <div class="tabs" id="tabs-discover"></div>
+      </div>
+
+      <!-- ACTIVITY BOARD -->
+      <div class="screen" id="screen-activity" style="position:relative;">
+        <div class="topbar">
+          <h2>บอร์ดกิจกรรม</h2>
+          <p class="lead">โพสต์ชวนเพื่อนทำกิจกรรม ไม่ต้องรอให้ใครทักก่อน</p>
+        </div>
+        <div class="scroll">
+          <div class="post">
+            <div class="post-top">
+              <div class="post-title">หาคนไปนั่งอ่านหนังสือที่ห้องโละบราลี</div>
+              <div class="post-time">17:00 น.</div>
+            </div>
+            <div class="post-who">โดย พี่เอ · คณะวิทยาการคอมพิวเตอร์</div>
+            <div class="post-bottom">
+              <span class="post-count" id="joinCount1">ขอไปด้วยแล้ว 1/2 คน</span>
+              <button class="btn-join" id="joinBtn1" onclick="joinPost(1)">ขอไปด้วย</button>
+            </div>
+          </div>
+          <div class="post">
+            <div class="post-top">
+              <div class="post-title">ชวนไปคาเฟ่ใหม่แถวประตูมอ ใครสายชิลบ้าง</div>
+              <div class="post-time">พรุ่งนี้ 15:00 น.</div>
+            </div>
+            <div class="post-who">โดย ใบเฟิร์น · คณะเทคนิคการแพทย์</div>
+            <div class="post-bottom">
+              <span class="post-count" id="joinCount2">ขอไปด้วยแล้ว 3/4 คน</span>
+              <button class="btn-join" id="joinBtn2" onclick="joinPost(2)">ขอไปด้วย</button>
+            </div>
+          </div>
+          <div class="post">
+            <div class="post-top">
+              <div class="post-title">หาเพื่อนกินข้าวเย็น โซนหอใน ไม่กินคนเดียวละกัน</div>
+              <div class="post-time">วันนี้ 18:30 น.</div>
+            </div>
+            <div class="post-who">โดย กันต์ · College of Computing</div>
+            <div class="post-bottom">
+              <span class="post-count" id="joinCount3">ขอไปด้วยแล้ว 2/6 คน</span>
+              <button class="btn-join" id="joinBtn3" onclick="joinPost(3)">ขอไปด้วย</button>
+            </div>
+          </div>
+        </div>
+        <button class="new-post-btn" onclick="toast('เปิดฟอร์มสร้างโพสต์ใหม่')">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none"><path d="M12 5v14M5 12h14" stroke="white" stroke-width="2.4" stroke-linecap="round"/></svg>
+        </button>
+        <div class="tabs" id="tabs-activity"></div>
+      </div>
+
+      <!-- CHAT LIST -->
+      <div class="screen" id="screen-chats">
+        <div class="topbar">
+          <h2>แชท</h2>
+          <p class="lead">คุยต่อจากที่แมตช์ ไม่ต้องกลัวเดดแอร์</p>
+        </div>
+        <div class="scroll">
+          <div class="chat-row" onclick="goTo('chatdetail')">
+            <div class="chat-avatar" style="background:linear-gradient(135deg,#FFB199,#E5DBFB);">พ</div>
+            <div class="chat-info"><div class="chat-name">พลอย</div><div class="chat-preview">ปกติชอบไปคาเฟ่แถวไหนอ่ะ 😊</div></div>
+            <div class="chat-time">2 น.</div>
+          </div>
+          <div class="chat-row" onclick="goTo('chatdetail')">
+            <div class="chat-avatar" style="background:linear-gradient(135deg,#B7E4C7,#D9E8FF);">น</div>
+            <div class="chat-info"><div class="chat-name">นัท</div><div class="chat-preview">คุณ: โอเคว่างพรุ่งนี้เย็นเลย</div></div>
+            <div class="chat-time">เมื่อวาน</div>
+          </div>
+          <div class="chat-row" onclick="goTo('chatdetail')">
+            <div class="chat-avatar" style="background:linear-gradient(135deg,#FFD08A,#FFB199);">ก</div>
+            <div class="chat-info"><div class="chat-name">แก้ม</div><div class="chat-preview">แมตช์กันแล้ว — เริ่มทักได้เลย!</div></div>
+            <div class="chat-time">2 วัน</div>
+          </div>
+          <p class="empty-note">ยังคุยไม่ต่อ? ลองกดปุ่มสุ่มบทสนทนาในหน้าแชท ระบบจะช่วยเปิดประเด็นให้</p>
+        </div>
+        <div class="tabs" id="tabs-chats"></div>
+      </div>
+
+      <!-- CHAT DETAIL -->
+      <div class="screen" id="screen-chatdetail">
+        <div class="chat-header">
+          <button class="back-btn" onclick="goTo('chats')">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none"><path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+          <div class="chat-avatar" style="width:36px;height:36px;font-size:13px;background:linear-gradient(135deg,#FFB199,#E5DBFB);">พ</div>
+          <div>
+            <div class="chat-name">พลอย</div>
+            <div style="font-size:10.5px;color:var(--mint);font-weight:600;">✓ ยืนยันนักศึกษาแล้ว</div>
+          </div>
+        </div>
+        <div class="scroll" id="chatScroll">
+          <div class="bubble them">แมตช์กันแล้วนะ! เห็นว่าเราชอบดูหนังเหมือนกันเลย 🎬</div>
+          <div class="bubble me">ใช่ค่า เมื่อวานดูจบเรื่องนึงพอดี 555</div>
+          <div class="bubble them">โห เรื่องอะไรอ่ะ อยากรู้</div>
+        </div>
+        <div class="icebreaker-zone">
+          <div class="icebreaker-card" id="icebreakerCard" onclick="flipIcebreaker()">
+            <div class="icebreaker-inner">
+              <div class="icebreaker-face icebreaker-front">
+                <div class="dice">🎲</div>
+                <div>แตะเพื่อสุ่มประโยคชวนคุย<br><span style="font-weight:400;opacity:.85;font-size:11px;">กันบทสนทนาเดดแอร์</span></div>
+              </div>
+              <div class="icebreaker-face icebreaker-back" id="icebreakerText">…</div>
+            </div>
+          </div>
+        </div>
+        <div class="composer">
+          <input type="text" placeholder="พิมพ์ข้อความ…" id="msgInput" onkeydown="if(event.key==='Enter')sendMsg()">
+          <button class="send-btn" onclick="sendMsg()">
+            <svg viewBox="0 0 24 24" width="17" height="17" fill="none"><path d="M4 12l16-8-6 16-3-6-7-2z" fill="white"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- PROFILE -->
+      <div class="screen" id="screen-profile">
+        <div class="scroll">
+          <div class="profile-head">
+            <div class="profile-avatar">ต</div>
+            <h3 style="margin-top:12px;font-size:17px;">ต้นน้ำ</h3>
+            <p style="font-size:12.5px;color:var(--ink-soft);margin-top:2px;">College of Computing · ปี 1</p>
+          </div>
+          <div class="stat-row">
+            <div class="stat"><b>12</b><span>แมตช์</span></div>
+            <div class="stat"><b>5</b><span>กำลังคุย</span></div>
+            <div class="stat"><b>3</b><span>นัดไปกิจกรรม</span></div>
+          </div>
+          <div style="margin-top:22px;">
+            <div class="settings-row"><span>ความสนใจของฉัน</span><span class="ink-soft">คาเฟ่, หนัง, ดนตรี</span></div>
+            <div class="settings-row"><span>สถานะยืนยันนักศึกษา</span><span class="ink-soft" style="color:var(--mint);">✓ ยืนยันแล้ว</span></div>
+            <div class="settings-row"><span>ความเป็นส่วนตัว</span><span class="ink-soft">จัดการ</span></div>
+            <div class="settings-row"><span>แจ้งเตือน</span><span class="ink-soft">เปิดอยู่</span></div>
+          </div>
+        </div>
+        <div class="tabs" id="tabs-profile"></div>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="brandline" style="opacity:.7;">แตะปุ่มด้านล่างในแอปเพื่อสลับหน้าจอ · ออกแบบจาก Wireframe ในใบงานสัปดาห์ที่ 4</div>
+</div>
+
+<script>
+const tabDefs = [
+  {id:'discover', label:'Discover', icon:'<path d="M12 3l2.2 6.8H21l-5.6 4.1 2.2 6.8L12 16.6l-5.6 4.1 2.2-6.8L3 9.8h6.8L12 3z"/>'},
+  {id:'activity', label:'Activity board', icon:'<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M8 3v3M16 3v3"/>'},
+  {id:'chats', label:'Chats', icon:'<path d="M21 12a8 8 0 1 1-3.2-6.4L21 4l-1 4.5A7.9 7.9 0 0 1 21 12z"/>'},
+  {id:'profile', label:'Profile', icon:'<circle cx="12" cy="8" r="3.4"/><path d="M5 20c1.5-4 4.2-6 7-6s5.5 2 7 6"/>'}
+];
+const tabHosts = ['tabs-discover','tabs-activity','tabs-chats','tabs-profile'];
+tabHosts.forEach(hostId=>{
+  const host = document.getElementById(hostId);
+  host.innerHTML = tabDefs.map(t=>`
+    <div class="tab" data-id="${t.id}" onclick="goTo('${t.id}')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${t.icon}</svg>
+      <span>${t.label}</span>
+    </div>`).join('');
+});
+
+function goTo(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById('screen-'+id).classList.add('active');
+  document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active', t.dataset.id===id));
+}
+
+// email verify demo
+const emailInput = document.getElementById('emailInput');
+const verifyBadge = document.getElementById('verifyBadge');
+emailInput.addEventListener('input', ()=>{
+  const ok = /\.ac\.th\s*$/.test(emailInput.value.trim());
+  verifyBadge.textContent = ok ? '✓ ยืนยันแล้ว' : 'ต้องใช้อีเมล .ac.th';
+  verifyBadge.style.color = ok ? 'var(--mint)' : 'var(--coral-deep)';
+});
+
+// tag picker
+document.querySelectorAll('#tagPicker .tag').forEach(tag=>{
+  tag.addEventListener('click', ()=>tag.classList.toggle('picked'));
+});
+
+// activity board join
+const joinState = {1:false,2:false,3:false};
+const joinCounts = {1:[1,2],2:[3,4],3:[2,6]};
+function joinPost(n){
+  joinState[n] = !joinState[n];
+  const btn = document.getElementById('joinBtn'+n);
+  const countEl = document.getElementById('joinCount'+n);
+  let [cur,max] = joinCounts[n];
+  cur += joinState[n] ? 1 : -1;
+  joinCounts[n][0] = cur;
+  countEl.textContent = `ขอไปด้วยแล้ว ${cur}/${max} คน`;
+  btn.textContent = joinState[n] ? 'ขอแล้ว ✓' : 'ขอไปด้วย';
+  btn.classList.toggle('joined', joinState[n]);
+}
+
+// icebreaker shuffle
+const icebreakers = [
+  'ถ้าให้เลือกคาเฟ่โปรดแถวมอได้ร้านเดียว จะเลือกร้านไหน?',
+  'ช่วงนี้ดูซีรีส์เรื่องไหนอยู่ เล่าให้ฟังหน่อย',
+  'วันหยุดชอบทำอะไรที่หอมากที่สุด?',
+  'ถ้ามีเวลาว่างเย็นนี้ อยากชวนไปทำอะไร?',
+  'เพลงที่ฟังวนล่าสุดคือเพลงอะไร?',
+  'ระหว่างติวคนเดียวกับติวเป็นกลุ่ม ชอบแบบไหนมากกว่า?'
+];
+function startIcebreaker(){
+  document.getElementById('icebreakerCard').classList.remove('flipped');
+}
+function flipIcebreaker(){
+  const card = document.getElementById('icebreakerCard');
+  const textEl = document.getElementById('icebreakerText');
+  textEl.textContent = icebreakers[Math.floor(Math.random()*icebreakers.length)];
+  card.classList.add('flipped');
+}
+
+// chat send
+function sendMsg(){
+  const input = document.getElementById('msgInput');
+  if(!input.value.trim()) return;
+  const scroll = document.getElementById('chatScroll');
+  const b = document.createElement('div');
+  b.className = 'bubble me';
+  b.textContent = input.value.trim();
+  scroll.appendChild(b);
+  scroll.scrollTop = scroll.scrollHeight;
+  input.value = '';
+}
+
+function toast(msg){
+  const t = document.createElement('div');
+  t.textContent = msg;
+  t.style.cssText = 'position:fixed;left:50%;bottom:40px;transform:translateX(-50%);background:#241F3D;color:#fff;padding:10px 18px;border-radius:999px;font-size:12.5px;font-family:Sarabun;z-index:999;box-shadow:0 12px 24px rgba(0,0,0,.25);';
+  document.body.appendChild(t);
+  setTimeout(()=>t.remove(), 1600);
+}
+</script>
+</body>
+</html>

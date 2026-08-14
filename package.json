@@ -1,0 +1,23 @@
+{
+  "name": "match-space-app",
+  "version": "1.0.0",
+  "description": "Match Space app with real SQLite database and admin/report management",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "keywords": [
+    "express",
+    "sqlite",
+    "admin",
+    "report"
+  ],
+  "author": "Copilot",
+  "license": "MIT",
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "express": "^4.22.2",
+    "express-session": "^1.19.0"
+  }
+}

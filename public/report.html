@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="th">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MatchSpace | Report</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="container">
+      <header>
+        <div class="brand">
+          <div class="brand-mark">!</div>
+          <span>MatchSpace Report</span>
+        </div>
+        <nav class="nav">
+          <a href="/">หน้าแรก</a>
+          <a href="/report">รายงานปัญหา</a>
+          <a href="/admin">ผู้ดูแล</a>
+        </nav>
+      </header>
+
+      <main class="grid">
+        <section class="card form-card">
+          <h2>ส่งรายงานปัญหา</h2>
+          <form id="reportForm">
+            <div class="form-grid">
+              <div class="form-group">
+                <label for="reporterName">ชื่อผู้แจ้ง</label>
+                <input id="reporterName" name="reporter_name" type="text" required />
+              </div>
+
+              <div class="form-group">
+                <label for="reporterEmail">อีเมลผู้แจ้ง</label>
+                <input id="reporterEmail" name="reporter_email" type="email" required />
+              </div>
+
+              <div class="form-group full">
+                <label for="reportedUser">ผู้ถูกแจ้ง / เลือกจากรายชื่อผู้ใช้งาน</label>
+                <select id="reportedUser" name="reported_user" required>
+                  <option value="">-- เลือกผู้ใช้งาน --</option>
+                </select>
+              </div>
+
+              <div class="form-group full">
+                <label for="reportType">ประเภทปัญหา</label>
+                <select id="reportType" name="report_type" required>
+                  <option value="">เลือกประเภท</option>
+                  <option value="spam">สแปม</option>
+                  <option value="harassment">คุกคาม</option>
+                  <option value="fake_profile">โปรไฟล์ปลอม</option>
+                  <option value="fraud">หลอกลวง</option>
+                  <option value="other">อื่น ๆ</option>
+                </select>
+              </div>
+
+              <div class="form-group full">
+                <label for="description">รายละเอียด</label>
+                <textarea id="description" name="description" placeholder="อธิบายเหตุการณ์ที่เกิดขึ้น" required></textarea>
+              </div>
+
+              <div class="form-group full">
+                <label for="evidence">หลักฐาน (ภาพหรือสกรีนช็อต)</label>
+                <input id="evidence" name="evidence" type="file" accept="image/*" />
+                <div style="font-size: 12px; color: var(--muted); margin-top: 6px;">ไฟล์ภาพ JPG, PNG ขนาดไม่เกิน 5MB</div>
+              </div>
+            </div>
+
+            <button type="submit" class="button primary" style="margin-top: 12px; width: 100%;">ส่งรายงาน</button>
+          </form>
+          <div id="reportMessage" class="message"></div>
+        </section>
+
+        <section class="card hero">
+          <h1>Report & Review</h1>
+          <p>
+            ระบบนี้ออกแบบเพื่อให้ผู้ใช้งานสามารถแจ้งปัญหาได้อย่างรวดเร็ว และให้ผู้ดูแลสามารถตรวจสอบและจัดการปัญหานั้นได้จากหน้าแอดมิน
+          </p>
+
+          <div class="stats">
+            <div class="stat">
+              <strong>7 min</strong>
+              <span>เวลาตอบกลับเฉลี่ย</span>
+            </div>
+            <div class="stat">
+              <strong>4 ขั้นตอน</strong>
+              <span>ตรวจสอบรายงาน</span>
+            </div>
+            <div class="stat">
+              <strong>100%</strong>
+              <span>คุ้มครองข้อมูล</span>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <script src="script.js"></script>
+  </body>
+</html>
