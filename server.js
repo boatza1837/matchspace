@@ -2,12 +2,72 @@ const express = require('express');
 const session = require('express-session');
 const path = require('path');
 const bcrypt = require('bcryptjs');
+const multer = require('multer');
+const nodemailer = require('nodemailer');
+const fs = require('fs');
 const { DatabaseSync } = require('node:sqlite');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 const dbPath = path.join(__dirname, 'matchspace.db');
 const publicDir = path.join(__dirname, 'public');
+const uploadsDir = path.join(publicDir, 'uploads');
+if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
+
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, uploadsDir),
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase() || '.jpg';
+    cb(null, `${Date.now()}-${Math.random().toString(36).slice(2,8)}${ext}`);
+  }
+});
+const upload = multer({
+  storage,
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    const allowed = /\.(jpg|jpeg|png|gif|webp)$/i;
+    if (allowed.test(path.extname(file.originalname))) cb(null, true);
+    else cb(new Error('อนุญาตเฉพาะไฟล์รูปภาพ'));
+  }
+});
+
+// Nodemailer transporter
+const transporter = nodemailer.createTransport({
+  host: process.env.SMTP_HOST || 'smtp.gmail.com',
+  port: Number(process.env.SMTP_PORT) || 587,
+  secure: false,
+  auth: {
+    user: process.env.SMTP_USER || '',
+    pass: process.env.SMTP_PASS || ''
+  }
+});
+
+async function sendMatchEmail(toEmail, toName, matchedName) {
+  if (!process.env.SMTP_USER) {
+    console.log(`[Email Skip] SMTP not configured. Would notify ${toEmail} about match with ${matchedName}`);
+    return;
+  }
+  try {
+    await transporter.sendMail({
+      from: `"MatchSpace" <${process.env.SMTP_USER}>`,
+      to: toEmail,
+      subject: `🎉 คุณกับ ${matchedName} แมตช์กันแล้ว!`,
+      html: `
+        <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:24px;">
+          <h2 style="color:#4a4496;">💕 แมตช์สำเร็จ!</h2>
+          <p>สวัสดี <strong>${toName}</strong>,</p>
+          <p>คุณกับ <strong>${matchedName}</strong> สนใจกันทั้งคู่! ระบบได้สร้างห้องแชทให้แล้ว</p>
+          <p>เข้าไปเริ่มบทสนทนาได้เลยที่ MatchSpace 🚀</p>
+          <hr style="border:none;border-top:1px solid #eee;margin:20px 0;">
+          <p style="color:#999;font-size:12px;">MatchSpace — หาคนที่ใช่ สำหรับการเริ่มต้นใหม่</p>
+        </div>
+      `
+    });
+    console.log(`[Email Sent] Match notification to ${toEmail}`);
+  } catch (err) {
+    console.error(`[Email Error] Failed to send to ${toEmail}:`, err.message);
+  }
+}
 const db = new DatabaseSync(dbPath);
 
 function formatUser(row) {
@@ -245,8 +305,8 @@ app.post('/api/logout', (req, res) => {
   });
 });
 
-app.post('/api/register', (req, res) => {
-  const { name, email, password, major, year, interests, bio, nickname, age, profile_image } = req.body || {};
+app.post('/api/register', upload.single('profile_image_file'), (req, res) => {
+  const { name, email, password, major, year, interests, bio, nickname, age } = req.body || {};
 
   if (!name || !email || !password) {
     return res.status(400).json({ message: 'กรุณากรอกชื่อ อีเมล และรหัสผ่าน' });
@@ -258,6 +318,7 @@ app.post('/api/register', (req, res) => {
     return res.status(409).json({ message: 'อีเมลนี้มีผู้ใช้งานแล้ว' });
   }
 
+  const profileImage = req.file ? `/uploads/${req.file.filename}` : '';
   const passwordHash = bcrypt.hashSync(String(password), 10);
   const result = db.prepare(`
     INSERT INTO users (name, email, password, major, year, interests, bio, nickname, age, profile_image, is_admin)
@@ -272,7 +333,7 @@ app.post('/api/register', (req, res) => {
     bio || '',
     nickname || '',
     age ? Number(age) : null,
-    profile_image || '',
+    profileImage
   );
 
   const user = db.prepare('SELECT * FROM users WHERE id = ?').get(result.lastInsertRowid);
@@ -290,9 +351,14 @@ app.get('/api/me', requireAuth, (req, res) => {
   res.json({ user: formatUser(user) });
 });
 
-app.put('/api/me', requireAuth, (req, res) => {
-  const { name, major, year, interests, bio, nickname, age, profile_image } = req.body || {};
+app.put('/api/me', requireAuth, upload.single('profile_image_file'), (req, res) => {
+  const { name, major, year, interests, bio, nickname, age } = req.body || {};
   const userId = req.session.user.id;
+
+  let profileImage = req.session.user.profile_image || '';
+  if (req.file) {
+    profileImage = `/uploads/${req.file.filename}`;
+  }
 
   db.prepare(`
     UPDATE users
@@ -306,7 +372,7 @@ app.put('/api/me', requireAuth, (req, res) => {
     bio || '',
     nickname || '',
     age ? Number(age) : null,
-    profile_image || '',
+    profileImage,
     userId
   );
 
@@ -336,7 +402,7 @@ app.get('/api/matches', requireAuth, (req, res) => {
   res.json(rows);
 });
 
-app.post('/api/matches', requireAuth, (req, res) => {
+app.post('/api/matches', requireAuth, async (req, res) => {
   const { matched_user_id, note, status } = req.body || {};
   const userId = req.session.user.id;
 
@@ -344,7 +410,7 @@ app.post('/api/matches', requireAuth, (req, res) => {
     return res.status(400).json({ message: 'กรุณาเลือกผู้ใช้งานที่ต้องการแมตช์' });
   }
 
-  const target = db.prepare('SELECT id FROM users WHERE id = ?').get(Number(matched_user_id));
+  const target = db.prepare('SELECT * FROM users WHERE id = ?').get(Number(matched_user_id));
   if (!target) {
     return res.status(404).json({ message: 'ไม่พบผู้ใช้งานนี้' });
   }
@@ -365,7 +431,46 @@ app.post('/api/matches', requireAuth, (req, res) => {
   `).run(userId, Number(matched_user_id), status || 'pending', note || '');
 
   const match = db.prepare('SELECT * FROM matches WHERE id = ?').get(result.lastInsertRowid);
-  res.status(201).json({ message: 'เพิ่ม match สำเร็จ', match });
+
+  // Check for mutual match
+  let mutualMatch = false;
+  if (status === 'liked') {
+    const reverse = db.prepare(
+      'SELECT * FROM matches WHERE user_id = ? AND matched_user_id = ? AND status = ?'
+    ).get(Number(matched_user_id), userId, 'liked');
+
+    if (reverse) {
+      mutualMatch = true;
+      // Update both to 'matched'
+      db.prepare('UPDATE matches SET status = ? WHERE id = ?').run('matched', match.id);
+      db.prepare('UPDATE matches SET status = ? WHERE id = ?').run('matched', reverse.id);
+
+      // Create chat if not exists
+      const existingChat = db.prepare(`
+        SELECT * FROM chats
+        WHERE (user_a = ? AND user_b = ?) OR (user_a = ? AND user_b = ?)
+      `).get(userId, Number(matched_user_id), Number(matched_user_id), userId);
+
+      if (!existingChat) {
+        db.prepare(`
+          INSERT INTO chats (user_a, user_b, title)
+          VALUES (?, ?, ?)
+        `).run(userId, Number(matched_user_id), 'แมตช์สำเร็จ!');
+      }
+
+      // Send emails to both users
+      const currentUser = db.prepare('SELECT * FROM users WHERE id = ?').get(userId);
+      sendMatchEmail(target.email, target.name, currentUser.name);
+      sendMatchEmail(currentUser.email, currentUser.name, target.name);
+    }
+  }
+
+  const updatedMatch = db.prepare('SELECT * FROM matches WHERE id = ?').get(match.id);
+  res.status(201).json({
+    message: mutualMatch ? '🎉 แมตช์สำเร็จ! ระบบสร้างแชทให้แล้ว' : 'เพิ่ม match สำเร็จ',
+    match: updatedMatch,
+    mutual: mutualMatch
+  });
 });
 
 app.get('/api/chats', requireAuth, (req, res) => {
@@ -473,26 +578,14 @@ app.get('/api/users', requireAdmin, (req, res) => {
   res.json(rows);
 });
 
-app.post('/api/reports', (req, res) => {
-  const { reporter_name, reporter_email, reported_user, report_type, description, evidence_file } = req.body || {};
+app.post('/api/reports', upload.single('evidence_file'), (req, res) => {
+  const { reporter_name, reporter_email, reported_user, report_type, description } = req.body || {};
 
   if (!reporter_name || !reporter_email || !reported_user || !report_type || !description) {
     return res.status(400).json({ message: 'กรุณากรอกข้อมูลรายงานให้ครบถ้วน' });
   }
 
-  let evidenceFilename = null;
-  if (evidence_file) {
-    try {
-      const buffer = Buffer.from(evidence_file.split(',')[1] || evidence_file, 'base64');
-      const timestamp = Date.now();
-      const ext = evidence_file.includes('image/png') ? 'png' : 'jpg';
-      evidenceFilename = `report_${timestamp}.${ext}`;
-      // Note: In production, save to disk or cloud storage
-      // For now, just store the filename
-    } catch (e) {
-      // If error parsing, continue without file
-    }
-  }
+  const evidenceFilename = req.file ? `/uploads/${req.file.filename}` : null;
 
   const result = db.prepare(`
     INSERT INTO reports (reporter_name, reporter_email, reported_user, report_type, description, status, evidence_file)
@@ -531,30 +624,43 @@ app.get('/api/admin/summary', requireAdmin, (req, res) => {
 });
 
 app.get('/api/activities', requireAuth, (req, res) => {
+  const userId = req.session.user.id;
   const rows = db.prepare(`
-    SELECT a.*, u.name AS creator_name, u.major AS creator_major
+    SELECT a.*, u.name AS creator_name, u.major AS creator_major,
+      (SELECT COUNT(*) FROM activity_members am WHERE am.activity_id = a.id) AS actual_members
     FROM activities a
     JOIN users u ON u.id = a.created_by
     WHERE a.status = 'approved'
     ORDER BY a.created_at DESC
   `).all();
-  res.json(rows);
+
+  // Check which activities the current user has joined
+  const joined = db.prepare('SELECT activity_id FROM activity_members WHERE user_id = ?').all(userId);
+  const joinedSet = new Set(joined.map(j => j.activity_id));
+
+  const result = rows.map(r => ({ ...r, has_joined: joinedSet.has(r.id) }));
+  res.json(result);
 });
 
 app.post('/api/activities', requireAuth, (req, res) => {
-  const { name, description, member_count } = req.body || {};
+  const { name, description, member_count, location } = req.body || {};
   const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.session.user.id);
 
   if (!name || !String(name).trim()) {
     return res.status(400).json({ message: 'กรุณากรอกชื่อกิจกรรม' });
   }
 
+  if (!location || !String(location).trim()) {
+    return res.status(400).json({ message: 'กรุณากรอกสถานที่จัดกิจกรรม' });
+  }
+
   const result = db.prepare(`
-    INSERT INTO activities (name, description, created_by, creator_name, creator_major, member_count, status)
-    VALUES (?, ?, ?, ?, ?, ?, 'pending')
+    INSERT INTO activities (name, description, location, created_by, creator_name, creator_major, member_count, status)
+    VALUES (?, ?, ?, ?, ?, ?, ?, 'pending')
   `).run(
     String(name).trim(),
     description || '',
+    String(location).trim(),
     user.id,
     user.name,
     user.major || '-',
@@ -567,7 +673,8 @@ app.post('/api/activities', requireAuth, (req, res) => {
 
 app.get('/api/admin/activities', requireAdmin, (req, res) => {
   const rows = db.prepare(`
-    SELECT a.*, u.name AS creator_name, u.major AS creator_major
+    SELECT a.*, u.name AS creator_name, u.major AS creator_major,
+      (SELECT COUNT(*) FROM activity_members am WHERE am.activity_id = a.id) AS actual_members
     FROM activities a
     JOIN users u ON u.id = a.created_by
     ORDER BY a.created_at DESC
@@ -640,6 +747,50 @@ app.patch('/api/users/:id/enable', requireAdmin, (req, res) => {
 
   db.prepare('UPDATE users SET is_active = 1 WHERE id = ?').run(Number(id));
   res.json({ message: 'เปิดการใช้งานผู้ใช้งานสำเร็จ', user: { ...user, is_active: 1 } });
+});
+
+// --- Activity Join/Leave ---
+app.post('/api/activities/:id/join', requireAuth, (req, res) => {
+  const activityId = Number(req.params.id);
+  const userId = req.session.user.id;
+
+  const activity = db.prepare('SELECT * FROM activities WHERE id = ? AND status = ?').get(activityId, 'approved');
+  if (!activity) {
+    return res.status(404).json({ message: 'ไม่พบกิจกรรมนี้' });
+  }
+
+  try {
+    db.prepare('INSERT INTO activity_members (activity_id, user_id) VALUES (?, ?)').run(activityId, userId);
+  } catch (e) {
+    return res.status(409).json({ message: 'คุณเข้าร่วมกิจกรรมนี้แล้ว' });
+  }
+
+  const count = db.prepare('SELECT COUNT(*) AS cnt FROM activity_members WHERE activity_id = ?').get(activityId).cnt;
+  res.json({ message: 'เข้าร่วมกิจกรรมสำเร็จ', member_count: count });
+});
+
+app.delete('/api/activities/:id/join', requireAuth, (req, res) => {
+  const activityId = Number(req.params.id);
+  const userId = req.session.user.id;
+
+  db.prepare('DELETE FROM activity_members WHERE activity_id = ? AND user_id = ?').run(activityId, userId);
+  const count = db.prepare('SELECT COUNT(*) AS cnt FROM activity_members WHERE activity_id = ?').get(activityId).cnt;
+  res.json({ message: 'ยกเลิกเข้าร่วมกิจกรรมสำเร็จ', member_count: count });
+});
+
+// --- Greeting Suggestions API ---
+app.get('/api/greetings', requireAuth, (req, res) => {
+  const greetings = [
+    'สวัสดีค่า/ครับ ยินดีที่ได้แมตช์กัน 😊',
+    'เห็นว่าเราสนใจเรื่องเดียวกัน เล่าให้ฟังหน่อยได้มั้ย?',
+    'ช่วงนี้ทำอะไรอยู่คะ/ครับ?',
+    'ปกติชอบไปคาเฟ่แถวไหนอ่ะ? ☕',
+    'ดูซีรีส์/หนังเรื่องไหนอยู่เหรอ? 🎬',
+    'วันหยุดชอบทำอะไรมากที่สุด?',
+    'เพลงที่ฟังวนล่าสุดคือเพลงอะไร? 🎵',
+    'ถ้ามีเวลาว่างเย็นนี้ อยากชวนไปทำอะไร?'
+  ];
+  res.json(greetings);
 });
 
 app.get('/login', (req, res) => {

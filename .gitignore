@@ -5,8 +5,15 @@ matchspace.db
 # Dependencies
 node_modules/
 
+# Uploads (keep folder, ignore files)
+public/uploads/*
+!public/uploads/.gitkeep
+
 # Environment secrets
 .env
 
 # OS/editor junk
 .DS_Store
+
+# Test files
+test-features.js

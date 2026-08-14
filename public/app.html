@@ -42,6 +42,10 @@
             <div class="panel">
               <h2>ข้อความ</h2>
               <div id="messageThread" class="chat-box"></div>
+              <div id="greetingSuggestions" class="greeting-suggestions hidden">
+                <div class="greeting-label">💡 แนะนำข้อทักทาย:</div>
+                <div id="greetingChips" class="greeting-chips"></div>
+              </div>
               <div class="composer">
                 <input id="messageInput" type="text" placeholder="พิมพ์ข้อความ..." />
                 <button id="sendMessageBtn" class="button primary" type="button">ส่ง</button>
@@ -130,6 +134,11 @@
                 <div class="form-group full">
                   <label for="activityDescription">รายละเอียด</label>
                   <textarea id="activityDescription" placeholder="อธิบายกิจกรรมให้ชัดเจน"></textarea>
+                </div>
+
+                <div class="form-group full">
+                  <label for="activityLocation">สถานที่จัดกิจกรรม</label>
+                  <input id="activityLocation" type="text" placeholder="เช่น ลานกิจกรรมหน้าตึก SC, คาเฟ่หน้ามอ" required />
                 </div>
 
                 <div class="form-group">

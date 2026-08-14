@@ -36,8 +36,11 @@ function updateTagsInput(hiddenInputId) {
 }
 
 async function apiRequest(url, options = {}) {
+  const isFormData = options.body instanceof FormData;
+  const headers = isFormData ? {} : { 'Content-Type': 'application/json' };
+  
   const response = await fetch(url, {
-    headers: { 'Content-Type': 'application/json' },
+    headers,
     ...options
   });
 
@@ -105,19 +108,28 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     registerForm.addEventListener('submit', async (event) => {
       event.preventDefault();
-      const formData = new FormData(registerForm);
-      const payload = Object.fromEntries(formData.entries());
       const messageEl = document.getElementById('registerMessage');
-      const fileInput = document.getElementById('profileImage');
 
       try {
+        const formData = new FormData();
+        formData.append('name', document.getElementById('name').value);
+        formData.append('email', document.getElementById('email').value);
+        formData.append('password', document.getElementById('password').value);
+        formData.append('nickname', document.getElementById('nickname')?.value || '');
+        formData.append('age', document.getElementById('age')?.value || '');
+        formData.append('major', document.getElementById('major')?.value || '');
+        formData.append('year', document.getElementById('year')?.value || '');
+        formData.append('interests', document.getElementById('interests')?.value || '');
+        formData.append('bio', document.getElementById('bio')?.value || '');
+
+        const fileInput = document.getElementById('profileImage');
         if (fileInput && fileInput.files.length > 0) {
-          payload.profile_image = await readFileAsDataUrl(fileInput.files[0]);
+          formData.append('profile_image_file', fileInput.files[0]);
         }
 
         const result = await apiRequest('/api/register', {
           method: 'POST',
-          body: JSON.stringify(payload)
+          body: formData
         });
 
         messageEl.className = 'message success';
@@ -149,36 +161,30 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     reportForm.addEventListener('submit', async (event) => {
       event.preventDefault();
-      const formData = new FormData(reportForm);
-      const payload = Object.fromEntries(formData.entries());
       const messageEl = document.getElementById('reportMessage');
-      
-      // Handle file upload
-      const fileInput = document.getElementById('evidence');
-      if (fileInput && fileInput.files.length > 0) {
-        const file = fileInput.files[0];
-        if (file.size > 5 * 1024 * 1024) {
-          messageEl.className = 'message error';
-          messageEl.textContent = 'ไฟล์ต้องไม่เกิน 5MB';
-          return;
-        }
-        
-        const reader = new FileReader();
-        reader.onload = async (e) => {
-          payload.evidence_file = e.target.result;
-          submitReport(payload, messageEl);
-        };
-        reader.readAsDataURL(file);
-      } else {
-        submitReport(payload, messageEl);
-      }
-    });
 
-    async function submitReport(payload, messageEl) {
       try {
+        const formData = new FormData();
+        formData.append('reporter_name', document.getElementById('reporterName').value);
+        formData.append('reporter_email', document.getElementById('reporterEmail').value);
+        formData.append('reported_user', document.getElementById('reportedUser').value);
+        formData.append('report_type', document.getElementById('reportType').value);
+        formData.append('description', document.getElementById('description').value);
+
+        const fileInput = document.getElementById('evidence');
+        if (fileInput && fileInput.files.length > 0) {
+          const file = fileInput.files[0];
+          if (file.size > 5 * 1024 * 1024) {
+            messageEl.className = 'message error';
+            messageEl.textContent = 'ไฟล์ต้องไม่เกิน 5MB';
+            return;
+          }
+          formData.append('evidence_file', file);
+        }
+
         const result = await apiRequest('/api/reports', {
           method: 'POST',
-          body: JSON.stringify(payload)
+          body: formData
         });
 
         messageEl.className = 'message success';
@@ -188,7 +194,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         messageEl.className = 'message error';
         messageEl.textContent = error.message;
       }
-    }
+    });
   }
 
   if (reportsTableBody && userTableBody) {
@@ -240,9 +246,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             <tr>
               <td>${activity.id}</td>
               <td>${activity.name}</td>
+              <td>${activity.location || '-'}</td>
               <td>${activity.creator_name || '-'}</td>
               <td>${activity.creator_major || '-'}</td>
-              <td>${activity.member_count || 0}</td>
+              <td>${activity.actual_members || activity.member_count || 0}</td>
               <td><span class="badge ${activity.status}">${activity.status}</span></td>
               <td>
                 <div class="actions">
@@ -411,15 +418,34 @@ document.addEventListener('DOMContentLoaded', async () => {
         button.addEventListener('click', async () => {
           const action = button.dataset.discoverAction;
           if (action === 'like') {
-            await apiRequest('/api/matches', {
-              method: 'POST',
-              body: JSON.stringify({ matched_user_id: user.id, note: 'Interested', status: 'liked' })
-            }).catch(() => null);
+            try {
+              const matchResult = await apiRequest('/api/matches', {
+                method: 'POST',
+                body: JSON.stringify({ matched_user_id: user.id, note: 'Interested', status: 'liked' })
+              });
+              if (matchResult.mutual) {
+                showMatchToast(matchResult.message);
+              }
+            } catch(e) { /* ignore */ }
           }
           currentDiscoverIndex += 1;
           renderDiscoverCard();
         });
       });
+    }
+
+    function showMatchToast(message) {
+      const toast = document.createElement('div');
+      toast.className = 'match-toast';
+      toast.textContent = message;
+      document.body.appendChild(toast);
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => toast.classList.add('show'));
+      });
+      setTimeout(() => {
+        toast.classList.remove('show');
+        setTimeout(() => toast.remove(), 400);
+      }, 3500);
     }
 
     async function loadDiscoverUsers() {
@@ -457,6 +483,35 @@ document.addEventListener('DOMContentLoaded', async () => {
         <div class="bubble ${msg.sender_id === sessionState.user.id ? 'me' : 'them'}">${msg.content}</div>
       `).join('');
       messageThread.scrollTop = messageThread.scrollHeight;
+
+      // Show greeting suggestions
+      await loadGreetingSuggestions(data.messages.length === 0);
+    }
+
+    async function loadGreetingSuggestions(isEmpty) {
+      const container = document.getElementById('greetingSuggestions');
+      const chipsEl = document.getElementById('greetingChips');
+      if (!container || !chipsEl) return;
+
+      try {
+        const greetings = await apiRequest('/api/greetings');
+        // Show a random subset of 4 greetings
+        const shuffled = greetings.sort(() => 0.5 - Math.random()).slice(0, 4);
+        chipsEl.innerHTML = shuffled.map(g => 
+          `<div class="greeting-chip">${g}</div>`
+        ).join('');
+
+        container.classList.remove('hidden');
+
+        chipsEl.querySelectorAll('.greeting-chip').forEach(chip => {
+          chip.addEventListener('click', () => {
+            document.getElementById('messageInput').value = chip.textContent;
+            document.getElementById('messageInput').focus();
+          });
+        });
+      } catch(e) {
+        container.classList.add('hidden');
+      }
     }
 
     async function loadActivities() {
@@ -466,37 +521,61 @@ document.addEventListener('DOMContentLoaded', async () => {
             <div class="activity-card">
               <h3>${activity.name}</h3>
               <p>${activity.description || 'ไม่มีรายละเอียด'}</p>
+              <div class="activity-location">${activity.location || 'ไม่ระบุสถานที่'}</div>
               <div class="meta">
                 <span>ผู้สร้าง: ${activity.creator_name || 'ไม่ระบุ'}</span>
                 <span>คณะ: ${activity.creator_major || '-'}</span>
-                <span>จำนวนเข้าร่วม: ${activity.member_count || 0}</span>
+                <span class="activity-member-count">ผู้เข้าร่วม: ${activity.actual_members || 0} คน</span>
+              </div>
+              <div class="activity-actions">
+                <button class="btn-join-activity ${activity.has_joined ? 'joined' : ''}" 
+                  data-join-activity-id="${activity.id}" type="button">
+                  ${activity.has_joined ? '✓ เข้าร่วมแล้ว' : '🙋 สนใจเข้าร่วม'}
+                </button>
               </div>
             </div>
           `).join('')
         : '<div class="list-item">ยังไม่มีกิจกรรมที่ได้รับการอนุมัติ</div>';
+
+      // Attach join/leave handlers
+      activityBoardList.querySelectorAll('[data-join-activity-id]').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const id = btn.dataset.joinActivityId;
+          const isJoined = btn.classList.contains('joined');
+          try {
+            if (isJoined) {
+              await apiRequest(`/api/activities/${id}/join`, { method: 'DELETE' });
+            } else {
+              await apiRequest(`/api/activities/${id}/join`, { method: 'POST' });
+            }
+            await loadActivities();
+          } catch (err) {
+            alert(err.message);
+          }
+        });
+      });
     }
 
     if (profileForm) {
       profileForm.addEventListener('submit', async (event) => {
         event.preventDefault();
-        const fileInput = document.getElementById('profileImageInput');
-        const payload = {
-          name: document.getElementById('profileName').value,
-          nickname: document.getElementById('profileNickname').value,
-          major: document.getElementById('profileMajor').value,
-          year: document.getElementById('profileYear').value,
-          age: document.getElementById('profileAge').value,
-          interests: document.getElementById('profileInterests').value,
-          bio: document.getElementById('profileBio').value
-        };
+        const formData = new FormData();
+        formData.append('name', document.getElementById('profileName').value);
+        formData.append('nickname', document.getElementById('profileNickname').value);
+        formData.append('major', document.getElementById('profileMajor').value);
+        formData.append('year', document.getElementById('profileYear').value);
+        formData.append('age', document.getElementById('profileAge').value);
+        formData.append('interests', document.getElementById('profileInterests').value);
+        formData.append('bio', document.getElementById('profileBio').value);
 
+        const fileInput = document.getElementById('profileImageInput');
         if (fileInput && fileInput.files.length > 0) {
-          payload.profile_image = await readFileAsDataUrl(fileInput.files[0]);
+          formData.append('profile_image_file', fileInput.files[0]);
         }
 
         const result = await apiRequest('/api/me', {
           method: 'PUT',
-          body: JSON.stringify(payload)
+          body: formData
         });
 
         document.getElementById('profileStatus').textContent = result.message;
@@ -516,10 +595,16 @@ document.addEventListener('DOMContentLoaded', async () => {
         const payload = {
           name: activityName.value,
           description: activityDescription.value,
-          member_count: activityMemberCount.value
+          member_count: activityMemberCount.value,
+          location: document.getElementById('activityLocation').value
         };
 
         if (!payload.name.trim()) {
+          return;
+        }
+
+        if (!payload.location.trim()) {
+          alert('กรุณากรอกสถานที่จัดกิจกรรม');
           return;
         }
 
