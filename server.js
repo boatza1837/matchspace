@@ -6,7 +6,7 @@ const { DatabaseSync } = require('node:sqlite');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const dbPath = path.join(__dirname, 'matchspace.db');
+const dbPath = process.env.DB_PATH || path.join(__dirname, 'matchspace.db');
 const publicDir = path.join(__dirname, 'public');
 const db = new DatabaseSync(dbPath);
 
