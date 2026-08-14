@@ -425,7 +425,15 @@ document.addEventListener('DOMContentLoaded', async () => {
               });
               if (matchResult.mutual) {
                 showMatchToast(matchResult.message);
+                await loadChats();
               }
+            } catch(e) { /* ignore */ }
+          } else if (action === 'skip') {
+            try {
+              await apiRequest('/api/matches', {
+                method: 'POST',
+                body: JSON.stringify({ matched_user_id: user.id, note: 'Skipped', status: 'skipped' })
+              });
             } catch(e) { /* ignore */ }
           }
           currentDiscoverIndex += 1;
@@ -476,9 +484,38 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     let currentChatId = null;
+    let chatPollInterval = null;
+    let lastMessageCount = 0;
+
+    function startChatPolling() {
+      stopChatPolling();
+      chatPollInterval = setInterval(async () => {
+        if (!currentChatId) return;
+        try {
+          const data = await apiRequest(`/api/chats/${currentChatId}/messages`);
+          if (data.messages.length !== lastMessageCount) {
+            lastMessageCount = data.messages.length;
+            messageThread.innerHTML = data.messages.map((msg) => `
+              <div class="bubble ${msg.sender_id === sessionState.user.id ? 'me' : 'them'}">${msg.content}</div>
+            `).join('');
+            messageThread.scrollTop = messageThread.scrollHeight;
+          }
+          // Also refresh chat list for latest message preview
+          await loadChats();
+        } catch(e) { /* ignore polling errors */ }
+      }, 3000);
+    }
+
+    function stopChatPolling() {
+      if (chatPollInterval) {
+        clearInterval(chatPollInterval);
+        chatPollInterval = null;
+      }
+    }
 
     async function loadMessages(chatId) {
       const data = await apiRequest(`/api/chats/${chatId}/messages`);
+      lastMessageCount = data.messages.length;
       messageThread.innerHTML = data.messages.map((msg) => `
         <div class="bubble ${msg.sender_id === sessionState.user.id ? 'me' : 'them'}">${msg.content}</div>
       `).join('');
@@ -486,6 +523,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       // Show greeting suggestions
       await loadGreetingSuggestions(data.messages.length === 0);
+
+      // Start real-time polling
+      startChatPolling();
     }
 
     async function loadGreetingSuggestions(isEmpty) {
@@ -631,7 +671,30 @@ document.addEventListener('DOMContentLoaded', async () => {
       await loadChats();
     });
 
+    // Enter key to send message
+    messageInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendMessageBtn.click();
+      }
+    });
+
+    // Start/stop chat polling based on active tab
+    tabButtons.forEach((button) => {
+      button.addEventListener('click', () => {
+        if (button.dataset.tab === 'chat' && currentChatId) {
+          startChatPolling();
+        } else {
+          stopChatPolling();
+        }
+      });
+    });
+
+    // Cleanup polling on page unload
+    window.addEventListener('beforeunload', stopChatPolling);
+
     logoutBtn.addEventListener('click', async () => {
+      stopChatPolling();
       await apiRequest('/api/logout', { method: 'POST' });
       window.location.href = '/';
     });

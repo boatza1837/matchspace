@@ -269,6 +269,20 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(publicDir));
 
+// Multer error handler
+app.use((err, req, res, next) => {
+  if (err instanceof multer.MulterError) {
+    if (err.code === 'LIMIT_FILE_SIZE') {
+      return res.status(400).json({ message: 'ไฟล์ต้องไม่เกิน 5MB' });
+    }
+    return res.status(400).json({ message: 'เกิดข้อผิดพลาดในการอัพโหลดไฟล์' });
+  }
+  if (err && err.message === 'อนุญาตเฉพาะไฟล์รูปภาพ') {
+    return res.status(400).json({ message: err.message });
+  }
+  next(err);
+});
+
 app.get('/api/session', (req, res) => {
   res.json({ user: req.session?.user || null });
 });
@@ -386,8 +400,9 @@ app.get('/api/candidates', requireAuth, (req, res) => {
     SELECT id, name, email, major, year, interests, bio, nickname, age, profile_image, is_active, created_at
     FROM users
     WHERE id != ? AND is_active != 0
+      AND id NOT IN (SELECT matched_user_id FROM matches WHERE user_id = ?)
     ORDER BY created_at DESC
-  `).all(req.session.user.id);
+  `).all(req.session.user.id, req.session.user.id);
   res.json(rows);
 });
 
