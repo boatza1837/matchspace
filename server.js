@@ -75,6 +75,40 @@ async function sendMatchEmail(toEmail, toName, matchedName) {
     console.error(`[Email Error] Failed to send to ${toEmail}:`, err.message);
   }
 }
+
+async function sendChatMessageEmail(toEmail, toName, senderName, messageContent) {
+  if (!process.env.SMTP_USER) {
+    console.log(`[Email Skip] SMTP not configured. Would notify ${toEmail} about message from ${senderName}`);
+    return;
+  }
+  try {
+    await transporter.sendMail({
+      from: `"MatchSpace Chat" <${process.env.SMTP_USER}>`,
+      to: toEmail,
+      subject: `💬 ${senderName} ส่งข้อความถึงคุณบน MatchSpace`,
+      html: `
+        <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:24px;border:1px solid #eee;border-radius:16px;background:#fafafa;">
+          <h2 style="color:#4a4496;margin-top:0;">💬 มีข้อความใหม่ถึงคุณ!</h2>
+          <p>สวัสดี <strong>${toName}</strong>,</p>
+          <p><strong>${senderName}</strong> ได้ส่งข้อความหาคุณบน MatchSpace:</p>
+          <div style="background:#ffffff;padding:14px 18px;border-left:4px solid #4a4496;border-radius:8px;margin:16px 0;font-style:italic;color:#333;">
+            "${messageContent}"
+          </div>
+          <p>เข้าไปพูดคุยตอบบทสนทนาได้เลยที่ MatchSpace 🚀</p>
+          <div style="margin-top:20px;text-align:center;">
+            <a href="https://matchspace-production-b035.up.railway.app/app" style="background:#4a4496;color:#ffffff;padding:12px 24px;border-radius:12px;text-decoration:none;font-weight:bold;display:inline-block;">เข้าสู่ระบบและตอบแชท</a>
+          </div>
+          <hr style="border:none;border-top:1px solid #eee;margin:24px 0 16px 0;">
+          <p style="color:#999;font-size:12px;text-align:center;">MatchSpace — หาคนที่ใช่ สำหรับการเริ่มต้นใหม่</p>
+        </div>
+      `
+    });
+    console.log(`[Email Sent] Chat notification to ${toEmail}`);
+  } catch (err) {
+    console.error(`[Email Error] Failed to send chat notification to ${toEmail}:`, err.message);
+  }
+}
+
 const db = new DatabaseSync(dbPath);
 
 function formatUser(row) {
@@ -770,6 +804,16 @@ app.post('/api/chats/:id/messages', requireAuth, (req, res) => {
   `).run(Number(req.params.id), userId, String(content).trim());
 
   const message = db.prepare('SELECT * FROM chat_messages WHERE id = ?').get(result.lastInsertRowid);
+
+  // Send Email Notification to Recipient asynchronously
+  const recipientId = chat.user_a === userId ? chat.user_b : chat.user_a;
+  const recipient = db.prepare('SELECT email, name FROM users WHERE id = ?').get(recipientId);
+  const sender = db.prepare('SELECT name FROM users WHERE id = ?').get(userId);
+
+  if (recipient && recipient.email) {
+    sendChatMessageEmail(recipient.email, recipient.name, sender ? sender.name : 'ผู้ใช้งาน', String(content).trim());
+  }
+
   res.status(201).json({ message: 'ส่งข้อความสำเร็จ', message });
 });
 
