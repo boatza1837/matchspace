@@ -104,10 +104,30 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
     });
 
+    const GOOGLE_CLIENT_ID = '186015897078-3qtjge4dbi3e6sjvp4e4lbulolipioug.apps.googleusercontent.com';
+
+    if (typeof google !== 'undefined' && google.accounts && google.accounts.id) {
+      try {
+        google.accounts.id.initialize({
+          client_id: GOOGLE_CLIENT_ID,
+          callback: handleGoogleLoginResponse,
+          auto_select: false
+        });
+      } catch (e) {}
+    }
+
     const btnGoogleLogin = document.getElementById('btnGoogleLogin');
     if (btnGoogleLogin) {
       btnGoogleLogin.addEventListener('click', () => {
-        showGoogleLoginModal();
+        if (typeof google !== 'undefined' && google.accounts && google.accounts.id) {
+          google.accounts.id.prompt((notification) => {
+            if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
+              showGoogleLoginModal();
+            }
+          });
+        } else {
+          showGoogleLoginModal();
+        }
       });
     }
   }
