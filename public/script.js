@@ -665,7 +665,6 @@ document.addEventListener('DOMContentLoaded', async () => {
           });
         }
 
-        const reports = await apiRequest('/api/reports');
         reportsTableBody.innerHTML = reports.map((report) => {
           const evidenceHtml = report.evidence_file
             ? `<a href="${report.evidence_file}" target="_blank" title="คลิกเปิดรูปขนาดเต็ม">
