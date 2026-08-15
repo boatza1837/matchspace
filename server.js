@@ -3,7 +3,6 @@ const session = require('express-session');
 const path = require('path');
 const bcrypt = require('bcryptjs');
 const multer = require('multer');
-const nodemailer = require('nodemailer');
 const fs = require('fs');
 const dns = require('dns');
 if (dns.setDefaultResultOrder) {
@@ -41,102 +40,6 @@ const upload = multer({
     else cb(new Error('อนุญาตเฉพาะไฟล์รูปภาพ'));
   }
 });
-
-// Nodemailer transporter with robust credential validation
-const rawUser = process.env.SMTP_USER || '';
-const rawPass = process.env.SMTP_PASS || '';
-const validUser = (rawUser && rawUser.includes('@')) ? rawUser : 'matchspace89@gmail.com';
-const validPass = (rawPass && !rawPass.includes('รหัสผ่าน') && rawPass.length > 5) ? rawPass : 'hfygukbagdkwhbwx';
-
-const transporter = nodemailer.createTransport({
-  host: 'smtp.gmail.com',
-  port: 587,
-  secure: false,
-  requireTLS: true,
-  lookup: (hostname, options, callback) => {
-    return dns.lookup(hostname, { family: 4 }, callback);
-  },
-  auth: {
-    user: validUser,
-    pass: validPass
-  },
-  connectionTimeout: 10000
-});
-
-async function sendMatchEmail(toEmail, toName, matchedName) {
-  try {
-    await transporter.sendMail({
-      from: `"MatchSpace" <${validUser}>`,
-      to: toEmail,
-      subject: `🎉 คุณกับ ${matchedName} แมตช์กันแล้ว!`,
-      html: `
-        <div style="font-family:'Segoe UI',Helvetica,Arial,sans-serif;max-width:500px;margin:0 auto;padding:24px;border:1px solid #ffd6e8;border-radius:20px;background:#ffffff;box-shadow:0 10px 30px rgba(230,80,140,0.08);">
-          <div style="text-align:center;padding-bottom:16px;border-bottom:1px solid #fff0f5;">
-            <h2 style="color:#e63980;margin:0;font-size:24px;">🎉 คุณแมตช์สำเร็จแล้ว!</h2>
-            <p style="color:#777;font-size:14px;margin-top:4px;">MatchSpace Notification</p>
-          </div>
-
-          <div style="padding:20px 0;text-align:center;">
-            <p style="font-size:16px;color:#333;">ยินดีด้วย <strong>${toName}</strong> 💕</p>
-            <p style="font-size:16px;color:#444;">คุณกับ <strong>${matchedName}</strong> ใจตรงกันแล้ว! ระบบได้สร้างห้องแชทพิเศษให้คุณทั้งสองคนเรียบร้อยแล้ว</p>
-            
-            <div style="margin:24px 0;">
-              <a href="https://matchspace-production-b035.up.railway.app/app" style="background:linear-gradient(135deg, #e63980, #c41e62);color:#ffffff;padding:14px 32px;border-radius:30px;text-decoration:none;font-weight:bold;font-size:16px;display:inline-block;box-shadow:0 8px 20px rgba(230,57,128,0.25);">🚀 เริ่มทักแชทเลย</a>
-            </div>
-          </div>
-
-          <div style="border-top:1px solid #fff0f5;padding-top:16px;text-align:center;color:#aaa;font-size:12px;">
-            MatchSpace — หาคนที่ใช่ สำหรับการเริ่มต้นใหม่
-          </div>
-        </div>
-      `
-    });
-    console.log(`[Email Sent] Match notification to ${toEmail}`);
-  } catch (err) {
-    console.error(`[Email Error] Failed to send match email to ${toEmail}:`, err.message);
-  }
-}
-
-async function sendChatMessageEmail(toEmail, toName, senderName, messageContent) {
-  try {
-    const previewText = String(messageContent).length > 30 ? String(messageContent).substring(0, 30) + '...' : messageContent;
-    await transporter.sendMail({
-      from: `"MatchSpace Chat" <${validUser}>`,
-      to: toEmail,
-      subject: `💬 ${senderName} ส่งข้อความหาคุณ: "${previewText}"`,
-      html: `
-        <div style="font-family:'Segoe UI',Helvetica,Arial,sans-serif;max-width:500px;margin:0 auto;padding:24px;border:1px solid #e0d7fc;border-radius:20px;background:#ffffff;box-shadow:0 10px 30px rgba(74,68,150,0.08);">
-          <div style="text-align:center;padding-bottom:16px;border-bottom:1px solid #f0edff;">
-            <h2 style="color:#4a4496;margin:0;font-size:22px;">💌 มีข้อความแชทใหม่!</h2>
-            <p style="color:#777;font-size:14px;margin-top:4px;">MatchSpace Notification</p>
-          </div>
-
-          <div style="padding:20px 0;">
-            <p style="font-size:16px;color:#333;">สวัสดี <strong>${toName}</strong> 👋</p>
-            <p style="font-size:15px;color:#444;">คุณ <strong>${senderName}</strong> ได้ส่งข้อความใหม่ถึงคุณว่า:</p>
-            
-            <div style="background:#f8f5ff;padding:16px 20px;border-left:5px solid #6b52d1;border-radius:12px;margin:18px 0;font-size:16px;color:#2c285a;font-weight:600;line-height:1.5;">
-              "${messageContent}"
-            </div>
-
-            <p style="font-size:14px;color:#666;">กดปุ่มด้านล่างเพื่อเข้าสู่ระบบและตอบกลับข้อความทันที 🚀</p>
-            
-            <div style="text-align:center;margin-top:24px;">
-              <a href="https://matchspace-production-b035.up.railway.app/app" style="background:linear-gradient(135deg, #6b52d1, #4a4496);color:#ffffff;padding:14px 32px;border-radius:30px;text-decoration:none;font-weight:bold;font-size:16px;display:inline-block;box-shadow:0 8px 20px rgba(74,68,150,0.25);">💬 ตอบแชททันที</a>
-            </div>
-          </div>
-
-          <div style="border-top:1px solid #f0edff;padding-top:16px;text-align:center;color:#aaa;font-size:12px;">
-            MatchSpace — หาคนที่ใช่ สำหรับการเริ่มต้นใหม่
-          </div>
-        </div>
-      `
-    });
-    console.log(`[Email Sent] Chat notification to ${toEmail}`);
-  } catch (err) {
-    console.error(`[Email Error] Failed to send chat notification to ${toEmail}:`, err.message);
-  }
-}
 
 const db = new DatabaseSync(dbPath);
 
@@ -606,29 +509,6 @@ app.post('/api/register', upload.single('profile_image_file'), (req, res) => {
 
 app.get('/api/health', (req, res) => {
   res.json({ ok: true, message: 'MatchSpace API is running' });
-});
-
-app.get('/api/test-email', async (req, res) => {
-  const targetEmail = req.query.to || 'matchspace89@gmail.com';
-  try {
-    const info = await transporter.sendMail({
-      from: `"MatchSpace Test" <${validUser}>`,
-      to: targetEmail,
-      subject: '🧪 Test Email from MatchSpace Live Server',
-      html: `
-        <div style="font-family:'Segoe UI',Arial,sans-serif;padding:24px;background:#f8f5ff;border:2px solid #6b52d1;border-radius:16px;max-width:480px;margin:0 auto;">
-          <h2 style="color:#4a4496;margin-top:0;">🎉 ทดสอบส่งอีเมลจาก MatchSpace สำเร็จ!</h2>
-          <p style="color:#333;font-size:15px;">ระบบส่งอีเมลของ MatchSpace บน Railway สามารถเชื่อมต่อและส่งออกไปยัง <strong>${targetEmail}</strong> ได้สำเร็จ 100% แล้วครับ!</p>
-          <hr style="border:none;border-top:1px solid #ddd;margin:16px 0;">
-          <p style="color:#888;font-size:12px;">ส่งจากบัญชี: ${validUser}</p>
-        </div>
-      `
-    });
-    res.json({ ok: true, message: `ส่งอีเมลทดสอบสำเร็จไปยัง ${targetEmail}`, messageId: info.messageId, sender: validUser });
-  } catch (err) {
-    console.error('[Test Email Error]:', err);
-    res.json({ ok: false, error: err.message, code: err.code, command: err.command, response: err.response });
-  }
 });
 
 app.get('/api/me', requireAuth, (req, res) => {
