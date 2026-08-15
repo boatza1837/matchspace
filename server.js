@@ -1117,50 +1117,62 @@ app.put('/api/admin/users/:id/password', requireOwner, async (req, res) => {
 });
 
 app.post('/api/admin/reports/:id/warn', requireAdmin, async (req, res) => {
-  const { id } = req.params;
-  const { warning_message } = req.body || {};
+  try {
+    const { id } = req.params;
+    const { warning_message, target_user_id } = req.body || {};
 
-  if (!warning_message || !String(warning_message).trim()) {
-    return res.status(400).json({ message: 'กรุณากรอกข้อความตักเตือน' });
+    if (!warning_message || !String(warning_message).trim()) {
+      return res.status(400).json({ message: 'กรุณากรอกข้อความตักเตือน' });
+    }
+
+    const report = await db.get('SELECT * FROM reports WHERE id = ?', [Number(id)]);
+    if (!report) {
+      return res.status(404).json({ message: 'ไม่พบรายงานนี้' });
+    }
+
+    // Try target_user_id from frontend first, fall back to reported_user lookup
+    let targetUser = null;
+    if (target_user_id) {
+      targetUser = await db.get('SELECT * FROM users WHERE id = ?', [Number(target_user_id)]);
+    }
+    if (!targetUser) {
+      targetUser = await db.get(`
+        SELECT * FROM users
+        WHERE CAST(id AS TEXT) = CAST(? AS TEXT) OR name = ? OR email = ?
+      `, [report.reported_user, report.reported_user, report.reported_user]);
+    }
+
+    if (!targetUser) {
+      return res.status(404).json({ message: 'ไม่พบผู้ถูกรายงานในระบบ กรุณาตรวจสอบข้อมูลผู้ถูกรายงาน' });
+    }
+
+    const adminId = req.session.user.id;
+
+    let chat = await db.get(`
+      SELECT * FROM chats
+      WHERE (user_a = ? AND user_b = ?) OR (user_a = ? AND user_b = ?)
+    `, [adminId, targetUser.id, targetUser.id, adminId]);
+
+    if (!chat) {
+      const chatResult = await db.run(`
+        INSERT INTO chats (user_a, user_b, title)
+        VALUES (?, ?, 'แจ้งเตือนจากผู้ดูแลระบบ')
+      `, [adminId, targetUser.id]);
+      chat = await db.get('SELECT * FROM chats WHERE id = ?', [chatResult.lastInsertRowid]);
+    }
+
+    const warnText = `⚠️ [คำเตือนจากผู้ดูแลระบบ (${report.report_type})]: ${warning_message.trim()}`;
+    await db.run('INSERT INTO chat_messages (chat_id, sender_id, content) VALUES (?, ?, ?)', [chat.id, adminId, warnText]);
+
+    const noteEntry = `[ส่งเตือนผู้ใช้ (${targetUser.name})]: ${warning_message.trim()}`;
+    const newNote = report.admin_note ? `${report.admin_note}\n${noteEntry}` : noteEntry;
+    await db.run('UPDATE reports SET status = "reviewed", admin_note = ? WHERE id = ?', [newNote, Number(id)]);
+
+    res.json({ message: `ส่งข้อความเตือนไปยัง ${targetUser.name} เรียบร้อยแล้ว` });
+  } catch (err) {
+    console.error('[Warn User Error]', err);
+    res.status(500).json({ message: err.message || 'เกิดข้อผิดพลาดในการส่งคำเตือน' });
   }
-
-  const report = await db.get('SELECT * FROM reports WHERE id = ?', [Number(id)]);
-  if (!report) {
-    return res.status(404).json({ message: 'ไม่พบรายงานนี้' });
-  }
-
-  const targetUser = await db.get(`
-    SELECT * FROM users 
-    WHERE CAST(id AS TEXT) = CAST(? AS TEXT) OR name = ? OR email = ?
-  `, [report.reported_user, report.reported_user, report.reported_user]);
-
-  if (!targetUser) {
-    return res.status(404).json({ message: 'ไม่พบผู้ถูกรายงานในระบบ' });
-  }
-
-  const adminId = req.session.user.id;
-
-  let chat = await db.get(`
-    SELECT * FROM chats
-    WHERE (user_a = ? AND user_b = ?) OR (user_a = ? AND user_b = ?)
-  `, [adminId, targetUser.id, targetUser.id, adminId]);
-
-  if (!chat) {
-    const chatResult = await db.run(`
-      INSERT INTO chats (user_a, user_b, title)
-      VALUES (?, ?, 'แจ้งเตือนจากผู้ดูแลระบบ')
-    `, [adminId, targetUser.id]);
-    chat = await db.get('SELECT * FROM chats WHERE id = ?', [chatResult.lastInsertRowid]);
-  }
-
-  const warnText = `⚠️ [คำเตือนจากผู้ดูแลระบบเนื่องจากได้รับการรายงาน (${report.report_type})]: ${warning_message.trim()}`;
-  await db.run('INSERT INTO chat_messages (chat_id, sender_id, content) VALUES (?, ?, ?)', [chat.id, adminId, warnText]);
-
-  const noteEntry = `[ส่งเตือนผู้ใช้ (${targetUser.name})]: ${warning_message.trim()}`;
-  const newNote = report.admin_note ? `${report.admin_note}\n${noteEntry}` : noteEntry;
-  await db.run('UPDATE reports SET status = "reviewed", admin_note = ? WHERE id = ?', [newNote, Number(id)]);
-
-  res.json({ message: `ส่งข้อความเตือนไปยัง ${targetUser.name} เรียบร้อยแล้ว` });
 });
 
 app.patch('/api/users/:id/disable', requireAdmin, async (req, res) => {

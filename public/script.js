@@ -656,11 +656,21 @@ document.addEventListener('DOMContentLoaded', async () => {
             button.addEventListener('click', async () => {
               const id = button.dataset.activityId;
               const status = button.dataset.activityAction;
-              await apiRequest(`/api/admin/activities/${id}`, {
-                method: 'PATCH',
-                body: JSON.stringify({ status })
-              });
-              loadAdminDashboard();
+              const label = status === 'approved' ? 'อนุมัติ' : 'ปฏิเสธ';
+              try {
+                button.disabled = true;
+                button.textContent = '⏳ กำลังดำเนินการ...';
+                await apiRequest(`/api/admin/activities/${id}`, {
+                  method: 'PATCH',
+                  body: JSON.stringify({ status })
+                });
+                alert(`✅ ${label}กิจกรรมสำเร็จ! กิจกรรมจะแสดงในหน้ากิจกรรมทันที`);
+                loadAdminDashboard();
+              } catch (err) {
+                button.disabled = false;
+                button.textContent = status === 'approved' ? 'Approve' : 'Reject';
+                alert('เกิดข้อผิดพลาด: ' + err.message);
+              }
             });
           });
         }
@@ -696,7 +706,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                   ? `<button class="inline-button resolve" data-action-unban-user="${targetUserId}" data-report-id="${report.id}">✅ ยกเลิกแบน</button>`
                   : `<button class="inline-button reject" data-action-ban-user="${targetUserId}" data-report-id="${report.id}">🚫 แบนผู้ใช้</button>`
               ) : ''}
-              <button class="inline-button review" data-action-warn-user="${report.id}" data-target-name="${targetName}">⚠️ ส่งเตือน</button>
+              <button class="inline-button review" data-action-warn-user="${report.id}" data-target-name="${targetName}" data-target-user-id="${targetUserId || ''}">⚠️ ส่งเตือน</button>
             </div>
           `;
 
@@ -771,17 +781,21 @@ document.addEventListener('DOMContentLoaded', async () => {
           btn.addEventListener('click', async () => {
             const reportId = btn.dataset.actionWarnUser;
             const targetName = btn.dataset.targetName;
+            const targetUserId = btn.dataset.targetUserId;
             const msg = prompt(`ระบุข้อความตักเตือนที่จะส่งถึง ${targetName}:`, 'กรุณาปฏิบัติตามกฎกติกามารยาทของการใช้งาน MatchSpace');
             if (msg && msg.trim()) {
               try {
+                btn.disabled = true;
                 const res = await apiRequest(`/api/admin/reports/${reportId}/warn`, {
                   method: 'POST',
-                  body: JSON.stringify({ warning_message: msg })
+                  body: JSON.stringify({ warning_message: msg, target_user_id: targetUserId ? Number(targetUserId) : null })
                 });
-                alert(res.message);
+                alert('✅ ' + res.message);
                 loadAdminDashboard();
               } catch (e) {
                 alert('เกิดข้อผิดพลาด: ' + e.message);
+              } finally {
+                btn.disabled = false;
               }
             }
           });
