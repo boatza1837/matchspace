@@ -569,6 +569,9 @@ document.addEventListener('DOMContentLoaded', async () => {
       }, 3500);
     }
 
+    let lastChatsCount = 0;
+    let globalPollInterval = null;
+
     async function loadDiscoverUsers() {
       const users = await apiRequest('/api/candidates');
       discoverUsers = users;
@@ -576,11 +579,10 @@ document.addEventListener('DOMContentLoaded', async () => {
       renderDiscoverCard();
     }
 
-    async function loadChats() {
-      const chats = await apiRequest('/api/chats');
+    function renderChatsList(chats) {
       chatList.innerHTML = chats.length
         ? chats.map((chat) => `
-            <div class="list-item" data-chat-id="${chat.id}" style="cursor:pointer;">
+            <div class="list-item ${chat.id === currentChatId ? 'active' : ''}" data-chat-id="${chat.id}" style="cursor:pointer;">
               <strong>${chat.partner_name}</strong>
               <div>${chat.last_message || 'เริ่มต้นบทสนทนาใหม่'}</div>
             </div>
@@ -594,6 +596,53 @@ document.addEventListener('DOMContentLoaded', async () => {
           await loadMessages(chatId);
         });
       });
+    }
+
+    async function loadChats() {
+      const chats = await apiRequest('/api/chats');
+      lastChatsCount = chats.length;
+      renderChatsList(chats);
+    }
+
+    function startGlobalPolling() {
+      if (globalPollInterval) clearInterval(globalPollInterval);
+      globalPollInterval = setInterval(async () => {
+        try {
+          // 1. Auto-refresh chats & new matches in real-time
+          const chats = await apiRequest('/api/chats');
+          if (chats.length !== lastChatsCount) {
+            if (lastChatsCount > 0 && chats.length > lastChatsCount) {
+              showMatchToast('🎉 ได้รับการแมตช์ใหม่! ดูได้ที่แถบแชท');
+            }
+            lastChatsCount = chats.length;
+            renderChatsList(chats);
+          }
+
+          // 2. Auto-refresh discover candidates when new user registers
+          const candidates = await apiRequest('/api/candidates');
+          if (discoverUsers.length === 0 && candidates.length > 0) {
+            discoverUsers = candidates;
+            currentDiscoverIndex = 0;
+            renderDiscoverCard();
+          } else if (candidates.length > 0) {
+            const existingIds = new Set(discoverUsers.map(u => u.id));
+            const newCandidates = candidates.filter(c => !existingIds.has(c.id));
+            if (newCandidates.length > 0) {
+              discoverUsers = [...discoverUsers, ...newCandidates];
+              if (currentDiscoverIndex >= discoverUsers.length - newCandidates.length) {
+                renderDiscoverCard();
+              }
+            }
+          }
+        } catch(e) { /* ignore polling errors */ }
+      }, 3500);
+    }
+
+    function stopGlobalPolling() {
+      if (globalPollInterval) {
+        clearInterval(globalPollInterval);
+        globalPollInterval = null;
+      }
     }
 
     let currentChatId = null;
@@ -804,10 +853,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
 
     // Cleanup polling on page unload
-    window.addEventListener('beforeunload', stopChatPolling);
+    window.addEventListener('beforeunload', () => {
+      stopChatPolling();
+      stopGlobalPolling();
+    });
 
     logoutBtn.addEventListener('click', async () => {
       stopChatPolling();
+      stopGlobalPolling();
       await apiRequest('/api/logout', { method: 'POST' });
       window.location.href = '/';
     });
@@ -816,5 +869,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     await loadDiscoverUsers();
     await loadChats();
     await loadActivities();
+    startGlobalPolling();
   }
 });

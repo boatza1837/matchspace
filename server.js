@@ -84,12 +84,15 @@ function formatUser(row) {
 }
 
 function requireAuth(req, res, next) {
+  const isHtmlReq = req.headers.accept && req.headers.accept.includes('text/html');
   if (!req.session || !req.session.user) {
+    if (isHtmlReq) return res.redirect('/');
     return res.status(401).json({ message: 'กรุณาเข้าสู่ระบบก่อน' });
   }
   const dbUser = db.prepare('SELECT is_active FROM users WHERE id = ?').get(req.session.user.id);
   if (!dbUser || dbUser.is_active === 0) {
     req.session.destroy(() => {
+      if (isHtmlReq) return res.redirect('/');
       res.status(403).json({ message: 'บัญชีของคุณถูกระงับการใช้งาน กรุณาติดต่อผู้ดูแล', banned: true });
     });
     return;
@@ -98,7 +101,9 @@ function requireAuth(req, res, next) {
 }
 
 function requireAdmin(req, res, next) {
+  const isHtmlReq = req.headers.accept && req.headers.accept.includes('text/html');
   if (!req.session || !req.session.user || !req.session.user.is_admin) {
+    if (isHtmlReq) return res.redirect('/');
     return res.status(403).json({ message: 'ต้องเป็นผู้ดูแลระบบ' });
   }
   next();
