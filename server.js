@@ -5,6 +5,10 @@ const bcrypt = require('bcryptjs');
 const multer = require('multer');
 const nodemailer = require('nodemailer');
 const fs = require('fs');
+const dns = require('dns');
+if (dns.setDefaultResultOrder) {
+  dns.setDefaultResultOrder('ipv4first');
+}
 const { DatabaseSync } = require('node:sqlite');
 
 const app = express();
@@ -49,6 +53,7 @@ const transporter = nodemailer.createTransport({
   port: 587,
   secure: false,
   requireTLS: true,
+  family: 4,
   auth: {
     user: validUser,
     pass: validPass
