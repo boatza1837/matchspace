@@ -359,6 +359,61 @@ app.post('/api/login', (req, res) => {
   res.json({ message: 'เข้าสู่ระบบสำเร็จ', user: req.session.user });
 });
 
+app.post('/api/auth/google', (req, res) => {
+  const { credential, email, name, picture } = req.body || {};
+
+  let googleEmail = email;
+  let googleName = name;
+  let googlePicture = picture;
+
+  if (credential) {
+    try {
+      const payloadBase64 = credential.split('.')[1];
+      const decodedJson = Buffer.from(payloadBase64, 'base64').toString('utf8');
+      const payload = JSON.parse(decodedJson);
+      googleEmail = payload.email;
+      googleName = payload.name || payload.email.split('@')[0];
+      googlePicture = payload.picture || '';
+    } catch (e) {
+      return res.status(400).json({ message: 'Token Google ไม่ถูกต้อง' });
+    }
+  }
+
+  if (!googleEmail) {
+    return res.status(400).json({ message: 'ไม่พบข้อมูลอีเมลจาก Google' });
+  }
+
+  const normalizedEmail = String(googleEmail).trim().toLowerCase();
+  let user = db.prepare('SELECT * FROM users WHERE email = ?').get(normalizedEmail);
+
+  if (!user) {
+    const randomPasswordHash = bcrypt.hashSync(Math.random().toString(36), 10);
+    const result = db.prepare(`
+      INSERT INTO users (name, email, password, profile_image, is_admin, is_active)
+      VALUES (?, ?, ?, ?, 0, 1)
+    `).run(
+      googleName || normalizedEmail.split('@')[0],
+      normalizedEmail,
+      randomPasswordHash,
+      googlePicture || ''
+    );
+    user = db.prepare('SELECT * FROM users WHERE id = ?').get(result.lastInsertRowid);
+  }
+
+  if (user.is_active === 0) {
+    return res.status(403).json({ message: 'บัญชีนี้ถูกปิดใช้งาน กรุณาติดต่อผู้ดูแล', banned: true });
+  }
+
+  const safeUser = formatUser(user);
+  req.session.user = { ...safeUser, is_admin: Boolean(user.is_admin) };
+
+  res.json({
+    message: 'เข้าสู่ระบบด้วย Google สำเร็จ',
+    user: req.session.user,
+    redirect: user.is_admin ? '/admin' : '/app'
+  });
+});
+
 app.post('/api/logout', (req, res) => {
   req.session.destroy(() => {
     res.json({ message: 'ออกจากระบบแล้ว' });

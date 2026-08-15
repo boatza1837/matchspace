@@ -103,7 +103,60 @@ document.addEventListener('DOMContentLoaded', async () => {
         messageEl.textContent = error.message;
       }
     });
+
+    const btnGoogleLogin = document.getElementById('btnGoogleLogin');
+    if (btnGoogleLogin) {
+      btnGoogleLogin.addEventListener('click', () => {
+        const email = prompt('กรอกอีเมล Gmail ของคุณสำหรับการล็อกอินด้วย Google:');
+        if (!email || !email.trim()) return;
+
+        const cleanEmail = email.trim();
+        const name = cleanEmail.split('@')[0];
+        const messageEl = document.getElementById('loginMessage');
+
+        apiRequest('/api/auth/google', {
+          method: 'POST',
+          body: JSON.stringify({ email: cleanEmail, name })
+        }).then((result) => {
+          if (messageEl) {
+            messageEl.className = 'message success';
+            messageEl.textContent = result.message || 'เข้าสู่ระบบด้วย Google สำเร็จ';
+          }
+          setTimeout(() => {
+            window.location.href = result.redirect || '/app';
+          }, 500);
+        }).catch((err) => {
+          if (messageEl) {
+            messageEl.className = 'message error';
+            messageEl.textContent = err.message;
+          }
+        });
+      });
+    }
   }
+
+  // Handle official Google One-Tap / GIS callback if loaded
+  window.handleGoogleLoginResponse = async (response) => {
+    const messageEl = document.getElementById('loginMessage');
+    try {
+      const result = await apiRequest('/api/auth/google', {
+        method: 'POST',
+        body: JSON.stringify({ credential: response.credential })
+      });
+      if (messageEl) {
+        messageEl.className = 'message success';
+        messageEl.textContent = result.message || 'เข้าสู่ระบบด้วย Google สำเร็จ';
+      }
+      setTimeout(() => {
+        window.location.href = result.redirect || '/app';
+      }, 500);
+    } catch (err) {
+      if (messageEl) {
+        messageEl.className = 'message error';
+        messageEl.textContent = err.message;
+      }
+    }
+  };
 
   if (registerForm) {
     const interestsTags = document.getElementById('interestsTags');
