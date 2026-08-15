@@ -609,312 +609,392 @@ app.get('/api/users/:id/profile', requireAuth, async (req, res) => {
 
 // Upload Extra Photos
 app.post('/api/me/photos', requireAuth, upload.array('photos', 6), async (req, res) => {
-  const userId = req.session.user.id;
-  if (!req.files || req.files.length === 0) {
-    return res.status(400).json({ message: 'กรุณาเลือกไฟล์รูปภาพเพื่ออัปโหลด' });
-  }
+  try {
+    const userId = req.session.user.id;
+    if (!req.files || req.files.length === 0) {
+      return res.status(400).json({ message: 'กรุณาเลือกไฟล์รูปภาพเพื่ออัปโหลด' });
+    }
 
-  const newPhotos = [];
-  for (const f of req.files) {
-    const url = `/uploads/${f.filename}`;
-    await db.run('INSERT INTO user_photos (user_id, photo_url) VALUES (?, ?)', [userId, url]);
-    newPhotos.push(url);
-  }
+    const newPhotos = [];
+    for (const f of req.files) {
+      const url = `/uploads/${f.filename}`;
+      await db.run('INSERT INTO user_photos (user_id, photo_url) VALUES (?, ?)', [userId, url]);
+      newPhotos.push(url);
+    }
 
-  const allPhotos = await db.all('SELECT * FROM user_photos WHERE user_id = ? ORDER BY id ASC', [userId]);
-  res.json({ message: 'เพิ่มรูปภาพโปรไฟล์เรียบร้อย', photos: allPhotos.map(p => p.photo_url) });
+    const allPhotos = await db.all('SELECT * FROM user_photos WHERE user_id = ? ORDER BY id ASC', [userId]);
+    res.json({ message: 'เพิ่มรูปภาพโปรไฟล์เรียบร้อย', photos: allPhotos.map(p => p.photo_url) });
+  } catch (err) {
+    console.error('[Upload Photos Error]', err);
+    res.status(500).json({ message: err.message || 'เกิดข้อผิดพลาดในการอัปโหลดรูปภาพ' });
+  }
 });
 
 // Delete Extra Photo
 app.delete('/api/me/photos/:photoId', requireAuth, async (req, res) => {
-  const photoId = Number(req.params.photoId);
-  const userId = req.session.user.id;
+  try {
+    const photoId = Number(req.params.photoId);
+    const userId = req.session.user.id;
 
-  await db.run('DELETE FROM user_photos WHERE id = ? AND user_id = ?', [photoId, userId]);
-  const allPhotos = await db.all('SELECT * FROM user_photos WHERE user_id = ? ORDER BY id ASC', [userId]);
-  res.json({ message: 'ลบรูปภาพสำเร็จ', photos: allPhotos.map(p => p.photo_url) });
+    await db.run('DELETE FROM user_photos WHERE id = ? AND user_id = ?', [photoId, userId]);
+    const allPhotos = await db.all('SELECT * FROM user_photos WHERE user_id = ? ORDER BY id ASC', [userId]);
+    res.json({ message: 'ลบรูปภาพสำเร็จ', photos: allPhotos.map(p => p.photo_url) });
+  } catch (err) {
+    console.error('[Delete Photo Error]', err);
+    res.status(500).json({ message: err.message || 'เกิดข้อผิดพลาดในการลบรูปภาพ' });
+  }
 });
 
 app.get('/api/candidates', requireAuth, async (req, res) => {
-  const rows = await db.all(`
-    SELECT id, name, email, gender, major, year, interests, bio, nickname, age, profile_image, is_active, created_at
-    FROM users
-    WHERE id != ? 
-      AND is_active != 0 
-      AND (is_admin IS NULL OR is_admin = 0)
-      AND (role IS NULL OR role = 'user' OR role = '')
-      AND id NOT IN (SELECT matched_user_id FROM matches WHERE user_id = ?)
-    ORDER BY created_at DESC
-  `, [req.session.user.id, req.session.user.id]);
-  res.json(rows);
+  try {
+    const rows = await db.all(`
+      SELECT id, name, email, gender, major, year, interests, bio, nickname, age, profile_image, is_active, created_at
+      FROM users
+      WHERE id != ? 
+        AND is_active != 0 
+        AND (is_admin IS NULL OR is_admin = 0)
+        AND (role IS NULL OR role = 'user' OR role = '')
+        AND id NOT IN (SELECT matched_user_id FROM matches WHERE user_id = ?)
+      ORDER BY created_at DESC
+    `, [req.session.user.id, req.session.user.id]);
+    res.json(rows);
+  } catch (err) {
+    console.error('[Candidates Error]', err);
+    res.status(500).json({ message: err.message || 'เกิดข้อผิดพลาดในการดึงข้อมูล' });
+  }
 });
 
 app.get('/api/matches', requireAuth, async (req, res) => {
-  const rows = await db.all(`
-    SELECT m.*, u.name AS matched_name, u.major, u.interests, u.profile_image
-    FROM matches m
-    JOIN users u ON u.id = m.matched_user_id
-    WHERE m.user_id = ?
-    ORDER BY m.created_at DESC
-  `, [req.session.user.id]);
-  res.json(rows);
+  try {
+    const rows = await db.all(`
+      SELECT m.*, u.name AS matched_name, u.major, u.interests, u.profile_image
+      FROM matches m
+      JOIN users u ON u.id = m.matched_user_id
+      WHERE m.user_id = ?
+      ORDER BY m.created_at DESC
+    `, [req.session.user.id]);
+    res.json(rows);
+  } catch (err) {
+    console.error('[Matches Error]', err);
+    res.status(500).json({ message: err.message || 'เกิดข้อผิดพลาดในการดึงข้อมูล' });
+  }
 });
 
 app.post('/api/matches', requireAuth, async (req, res) => {
-  const { matched_user_id, note, status } = req.body || {};
-  const userId = req.session.user.id;
+  try {
+    const { matched_user_id, note, status } = req.body || {};
+    const userId = req.session.user.id;
 
-  if (!matched_user_id) {
-    return res.status(400).json({ message: 'กรุณาเลือกผู้ใช้งานที่ต้องการแมตช์' });
-  }
+    if (!matched_user_id) {
+      return res.status(400).json({ message: 'กรุณาเลือกผู้ใช้งานที่ต้องการแมตช์' });
+    }
 
-  const target = await db.get('SELECT * FROM users WHERE id = ?', [Number(matched_user_id)]);
-  if (!target) {
-    return res.status(404).json({ message: 'ไม่พบผู้ใช้งานนี้' });
-  }
+    const target = await db.get('SELECT * FROM users WHERE id = ?', [Number(matched_user_id)]);
+    if (!target) {
+      return res.status(404).json({ message: 'ไม่พบผู้ใช้งานนี้' });
+    }
 
-  const existing = await db.get('SELECT * FROM matches WHERE user_id = ? AND matched_user_id = ?', [userId, Number(matched_user_id)]);
-  if (existing) {
-    await db.run('UPDATE matches SET status = ?, note = ? WHERE id = ?', [status || existing.status || 'pending', note || existing.note || '', existing.id]);
-    const updated = await db.get('SELECT * FROM matches WHERE id = ?', [existing.id]);
-    return res.json({ message: 'อัปเดต match แล้ว', match: updated });
-  }
+    const existing = await db.get('SELECT * FROM matches WHERE user_id = ? AND matched_user_id = ?', [userId, Number(matched_user_id)]);
+    if (existing) {
+      await db.run('UPDATE matches SET status = ?, note = ? WHERE id = ?', [status || existing.status || 'pending', note || existing.note || '', existing.id]);
+      const updated = await db.get('SELECT * FROM matches WHERE id = ?', [existing.id]);
+      return res.json({ message: 'อัปเดต match แล้ว', match: updated });
+    }
 
-  const result = await db.run('INSERT INTO matches (user_id, matched_user_id, status, note) VALUES (?, ?, ?, ?)', [userId, Number(matched_user_id), status || 'pending', note || '']);
-  const match = await db.get('SELECT * FROM matches WHERE id = ?', [result.lastInsertRowid]);
+    const result = await db.run('INSERT INTO matches (user_id, matched_user_id, status, note) VALUES (?, ?, ?, ?)', [userId, Number(matched_user_id), status || 'pending', note || '']);
+    const match = await db.get('SELECT * FROM matches WHERE id = ?', [result.lastInsertRowid]);
 
-  let mutualMatch = false;
-  if (status === 'liked') {
-    const reverse = await db.get('SELECT * FROM matches WHERE user_id = ? AND matched_user_id = ? AND status = ?', [Number(matched_user_id), userId, 'liked']);
-    if (reverse) {
-      mutualMatch = true;
-      await db.run('UPDATE matches SET status = ? WHERE id = ?', ['matched', match.id]);
-      await db.run('UPDATE matches SET status = ? WHERE id = ?', ['matched', reverse.id]);
+    let mutualMatch = false;
+    if (status === 'liked') {
+      const reverse = await db.get('SELECT * FROM matches WHERE user_id = ? AND matched_user_id = ? AND status = ?', [Number(matched_user_id), userId, 'liked']);
+      if (reverse) {
+        mutualMatch = true;
+        await db.run('UPDATE matches SET status = ? WHERE id = ?', ['matched', match.id]);
+        await db.run('UPDATE matches SET status = ? WHERE id = ?', ['matched', reverse.id]);
 
-      const existingChat = await db.get(`
-        SELECT * FROM chats
-        WHERE (user_a = ? AND user_b = ?) OR (user_a = ? AND user_b = ?)
-      `, [userId, Number(matched_user_id), Number(matched_user_id), userId]);
+        const existingChat = await db.get(`
+          SELECT * FROM chats
+          WHERE (user_a = ? AND user_b = ?) OR (user_a = ? AND user_b = ?)
+        `, [userId, Number(matched_user_id), Number(matched_user_id), userId]);
 
-      if (!existingChat) {
-        await db.run('INSERT INTO chats (user_a, user_b, title) VALUES (?, ?, ?)', [userId, Number(matched_user_id), 'แมตช์สำเร็จ!']);
+        if (!existingChat) {
+          await db.run('INSERT INTO chats (user_a, user_b, title) VALUES (?, ?, ?)', [userId, Number(matched_user_id), 'แมตช์สำเร็จ!']);
+        }
       }
     }
-  }
 
-  const updatedMatch = await db.get('SELECT * FROM matches WHERE id = ?', [match.id]);
-  res.status(201).json({
-    message: mutualMatch ? '🎉 แมตช์สำเร็จ! ระบบสร้างแชทให้แล้ว' : 'เพิ่ม match สำเร็จ',
-    match: updatedMatch,
-    mutual: mutualMatch
-  });
+    const updatedMatch = await db.get('SELECT * FROM matches WHERE id = ?', [match.id]);
+    res.status(201).json({
+      message: mutualMatch ? '🎉 แมตช์สำเร็จ! ระบบสร้างแชทให้แล้ว' : 'เพิ่ม match สำเร็จ',
+      match: updatedMatch,
+      mutual: mutualMatch
+    });
+  } catch (err) {
+    console.error('[Post Match Error]', err);
+    res.status(500).json({ message: err.message || 'เกิดข้อผิดพลาดในการบันทึกข้อมูลแมตช์' });
+  }
 });
 
 app.get('/api/chats', requireAuth, async (req, res) => {
-  const userId = req.session.user.id;
-  const rows = await db.all(`
-    SELECT c.id, c.user_a, c.user_b, c.title, c.created_at,
-           CASE WHEN Number(c.user_a) = Number(?) THEN u2.name ELSE u1.name END AS partner_name,
-           CASE WHEN Number(c.user_a) = Number(?) THEN u2.id ELSE u1.id END AS partner_id,
-           CASE WHEN Number(c.user_a) = Number(?) THEN u2.profile_image ELSE u1.profile_image END AS partner_profile_image,
-           (SELECT content FROM chat_messages WHERE chat_id = c.id ORDER BY created_at DESC LIMIT 1) AS last_message
-    FROM chats c
-    JOIN users u1 ON u1.id = c.user_a
-    JOIN users u2 ON u2.id = c.user_b
-    WHERE Number(c.user_a) = Number(?) OR Number(c.user_b) = Number(?)
-    ORDER BY c.created_at DESC
-  `, [userId, userId, userId, userId, userId]);
+  try {
+    const userId = req.session.user.id;
+    const rows = await db.all(`
+      SELECT c.id, c.user_a, c.user_b, c.title, c.created_at,
+             CASE WHEN Number(c.user_a) = Number(?) THEN u2.name ELSE u1.name END AS partner_name,
+             CASE WHEN Number(c.user_a) = Number(?) THEN u2.id ELSE u1.id END AS partner_id,
+             CASE WHEN Number(c.user_a) = Number(?) THEN u2.profile_image ELSE u1.profile_image END AS partner_profile_image,
+             (SELECT content FROM chat_messages WHERE chat_id = c.id ORDER BY created_at DESC LIMIT 1) AS last_message
+      FROM chats c
+      JOIN users u1 ON u1.id = c.user_a
+      JOIN users u2 ON u2.id = c.user_b
+      WHERE Number(c.user_a) = Number(?) OR Number(c.user_b) = Number(?)
+      ORDER BY c.created_at DESC
+    `, [userId, userId, userId, userId, userId]);
 
-  res.json(rows);
+    res.json(rows);
+  } catch (err) {
+    console.error('[Get Chats Error]', err);
+    res.status(500).json({ message: err.message || 'เกิดข้อผิดพลาดในการดึงรายการแชท' });
+  }
 });
 
 app.post('/api/chats', requireAuth, async (req, res) => {
-  const userId = req.session.user.id;
-  const { user_id } = req.body || {};
+  try {
+    const userId = req.session.user.id;
+    const { user_id } = req.body || {};
 
-  if (!user_id) {
-    return res.status(400).json({ message: 'กรุณาเลือกผู้ใช้งานก่อนเริ่มแชท' });
+    if (!user_id) {
+      return res.status(400).json({ message: 'กรุณาเลือกผู้ใช้งานก่อนเริ่มแชท' });
+    }
+
+    const target = await db.get('SELECT id FROM users WHERE id = ?', [Number(user_id)]);
+    if (!target) {
+      return res.status(404).json({ message: 'ไม่พบผู้ใช้งานนี้' });
+    }
+
+    const existing = await db.get(`
+      SELECT * FROM chats
+      WHERE (user_a = ? AND user_b = ?) OR (user_a = ? AND user_b = ?)
+    `, [userId, Number(user_id), Number(user_id), userId]);
+
+    if (existing) {
+      return res.json({ message: 'มีแชทนี้อยู่แล้ว', chat: existing });
+    }
+
+    const result = await db.run('INSERT INTO chats (user_a, user_b, title) VALUES (?, ?, ?)', [userId, Number(user_id), 'Chat']);
+    const chat = await db.get('SELECT * FROM chats WHERE id = ?', [result.lastInsertRowid]);
+    res.status(201).json({ message: 'สร้างแชทสำเร็จ', chat });
+  } catch (err) {
+    console.error('[Create Chat Error]', err);
+    res.status(500).json({ message: err.message || 'เกิดข้อผิดพลาดในการสร้างแชท' });
   }
-
-  const target = await db.get('SELECT id FROM users WHERE id = ?', [Number(user_id)]);
-  if (!target) {
-    return res.status(404).json({ message: 'ไม่พบผู้ใช้งานนี้' });
-  }
-
-  const existing = await db.get(`
-    SELECT * FROM chats
-    WHERE (user_a = ? AND user_b = ?) OR (user_a = ? AND user_b = ?)
-  `, [userId, Number(user_id), Number(user_id), userId]);
-
-  if (existing) {
-    return res.json({ message: 'มีแชทนี้อยู่แล้ว', chat: existing });
-  }
-
-  const result = await db.run('INSERT INTO chats (user_a, user_b, title) VALUES (?, ?, ?)', [userId, Number(user_id), 'Chat']);
-  const chat = await db.get('SELECT * FROM chats WHERE id = ?', [result.lastInsertRowid]);
-  res.status(201).json({ message: 'สร้างแชทสำเร็จ', chat });
 });
 
 app.get('/api/chats/:id/messages', requireAuth, async (req, res) => {
-  const userId = req.session.user.id;
-  const chat = await db.get('SELECT * FROM chats WHERE id = ?', [Number(req.params.id)]);
+  try {
+    const userId = req.session.user.id;
+    const chat = await db.get('SELECT * FROM chats WHERE id = ?', [Number(req.params.id)]);
 
-  if (!chat) {
-    return res.status(404).json({ message: 'ไม่พบแชทนี้' });
+    if (!chat) {
+      return res.status(404).json({ message: 'ไม่พบแชทนี้' });
+    }
+
+    if (Number(chat.user_a) !== Number(userId) && Number(chat.user_b) !== Number(userId)) {
+      return res.status(403).json({ message: 'คุณไม่ได้มีสิทธิ์เข้าถึงแชทนี้' });
+    }
+
+    const messages = await db.all(`
+      SELECT m.*, u.name AS sender_name
+      FROM chat_messages m
+      JOIN users u ON u.id = m.sender_id
+      WHERE m.chat_id = ?
+      ORDER BY m.created_at ASC
+    `, [Number(req.params.id)]);
+
+    res.json({ chat, messages });
+  } catch (err) {
+    console.error('[Get Messages Error]', err);
+    res.status(500).json({ message: err.message || 'เกิดข้อผิดพลาดในการดึงข้อความแชท' });
   }
-
-  if (Number(chat.user_a) !== Number(userId) && Number(chat.user_b) !== Number(userId)) {
-    return res.status(403).json({ message: 'คุณไม่ได้มีสิทธิ์เข้าถึงแชทนี้' });
-  }
-
-  const messages = await db.all(`
-    SELECT m.*, u.name AS sender_name
-    FROM chat_messages m
-    JOIN users u ON u.id = m.sender_id
-    WHERE m.chat_id = ?
-    ORDER BY m.created_at ASC
-  `, [Number(req.params.id)]);
-
-  res.json({ chat, messages });
 });
 
 app.post('/api/chats/:id/messages', requireAuth, async (req, res) => {
-  const userId = req.session.user.id;
-  const chat = await db.get('SELECT * FROM chats WHERE id = ?', [Number(req.params.id)]);
+  try {
+    const userId = req.session.user.id;
+    const chat = await db.get('SELECT * FROM chats WHERE id = ?', [Number(req.params.id)]);
 
-  if (!chat) {
-    return res.status(404).json({ message: 'ไม่พบแชทนี้' });
+    if (!chat) {
+      return res.status(404).json({ message: 'ไม่พบแชทนี้' });
+    }
+
+    if (Number(chat.user_a) !== Number(userId) && Number(chat.user_b) !== Number(userId)) {
+      return res.status(403).json({ message: 'คุณไม่ได้มีสิทธิ์ส่งข้อความในแชทนี้' });
+    }
+
+    const { content } = req.body || {};
+    if (!content || !String(content).trim()) {
+      return res.status(400).json({ message: 'กรุณาพิมพ์ข้อความก่อนส่ง' });
+    }
+
+    const result = await db.run('INSERT INTO chat_messages (chat_id, sender_id, content) VALUES (?, ?, ?)', [
+      Number(req.params.id), userId, String(content).trim()
+    ]);
+
+    const message = await db.get('SELECT * FROM chat_messages WHERE id = ?', [result.lastInsertRowid]);
+    res.status(201).json({ message: 'ส่งข้อความสำเร็จ', message });
+  } catch (err) {
+    console.error('[Send Message Error]', err);
+    res.status(500).json({ message: err.message || 'เกิดข้อผิดพลาดในการส่งข้อความ' });
   }
-
-  if (Number(chat.user_a) !== Number(userId) && Number(chat.user_b) !== Number(userId)) {
-    return res.status(403).json({ message: 'คุณไม่ได้มีสิทธิ์ส่งข้อความในแชทนี้' });
-  }
-
-  const { content } = req.body || {};
-  if (!content || !String(content).trim()) {
-    return res.status(400).json({ message: 'กรุณาพิมพ์ข้อความก่อนส่ง' });
-  }
-
-  const result = await db.run('INSERT INTO chat_messages (chat_id, sender_id, content) VALUES (?, ?, ?)', [
-    Number(req.params.id), userId, String(content).trim()
-  ]);
-
-  const message = await db.get('SELECT * FROM chat_messages WHERE id = ?', [result.lastInsertRowid]);
-  res.status(201).json({ message: 'ส่งข้อความสำเร็จ', message });
 });
 
 app.get('/api/users', requireAdmin, async (req, res) => {
-  const rows = await db.all(`
-    SELECT id, name, email, major, year, interests, bio, is_admin, is_active, created_at
-    FROM users
-    ORDER BY id DESC
-  `);
-  res.json(rows);
+  try {
+    const rows = await db.all(`
+      SELECT id, name, email, major, year, interests, bio, is_admin, is_active, created_at
+      FROM users
+      ORDER BY id DESC
+    `);
+    res.json(rows);
+  } catch (err) {
+    console.error('[Admin Users Error]', err);
+    res.status(500).json({ message: err.message });
+  }
 });
 
 app.post('/api/reports', upload.single('evidence_file'), async (req, res) => {
-  const { reporter_name, reporter_email, reported_user, report_type, description } = req.body || {};
+  try {
+    const { reporter_name, reporter_email, reported_user, report_type, description } = req.body || {};
 
-  if (!reporter_name || !reporter_email || !reported_user || !report_type || !description) {
-    return res.status(400).json({ message: 'กรุณากรอกข้อมูลรายงานให้ครบถ้วน' });
+    if (!reporter_name || !reporter_email || !reported_user || !report_type || !description) {
+      return res.status(400).json({ message: 'กรุณากรอกข้อมูลรายงานให้ครบถ้วน' });
+    }
+
+    const evidenceFilename = req.file ? `/uploads/${req.file.filename}` : null;
+
+    const result = await db.run(`
+      INSERT INTO reports (reporter_name, reporter_email, reported_user, report_type, description, status, evidence_file)
+      VALUES (?, ?, ?, ?, ?, 'pending', ?)
+    `, [
+      String(reporter_name).trim(),
+      String(reporter_email).trim().toLowerCase(),
+      String(reported_user).trim(),
+      String(report_type).trim(),
+      String(description).trim(),
+      evidenceFilename
+    ]);
+
+    const report = await db.get('SELECT * FROM reports WHERE id = ?', [result.lastInsertRowid]);
+    res.status(201).json({ message: 'ส่งรายงานสำเร็จ', report });
+  } catch (err) {
+    console.error('[Report Submission Error]', err);
+    res.status(500).json({ message: err.message || 'เกิดข้อผิดพลาดในการส่งรายงาน' });
   }
-
-  const evidenceFilename = req.file ? `/uploads/${req.file.filename}` : null;
-
-  const result = await db.run(`
-    INSERT INTO reports (reporter_name, reporter_email, reported_user, report_type, description, status, evidence_file)
-    VALUES (?, ?, ?, ?, ?, 'pending', ?)
-  `, [
-    String(reporter_name).trim(),
-    String(reporter_email).trim().toLowerCase(),
-    String(reported_user).trim(),
-    String(report_type).trim(),
-    String(description).trim(),
-    evidenceFilename
-  ]);
-
-  const report = await db.get('SELECT * FROM reports WHERE id = ?', [result.lastInsertRowid]);
-  res.status(201).json({ message: 'ส่งรายงานสำเร็จ', report });
 });
 
 app.get('/api/reports', requireAdmin, async (req, res) => {
-  const rows = await db.all(`
-    SELECT r.*, 
-      u.id AS target_user_id,
-      u.name AS target_user_name,
-      u.email AS target_user_email,
-      u.is_active AS target_user_active,
-      u.is_admin AS target_user_is_admin
-    FROM reports r
-    LEFT JOIN users u ON (
-      CAST(r.reported_user AS TEXT) = CAST(u.id AS TEXT) 
-      OR r.reported_user = u.name 
-      OR r.reported_user = u.email
-    )
-    ORDER BY r.created_at DESC
-  `);
-  res.json(rows);
+  try {
+    const rows = await db.all(`
+      SELECT r.*, 
+        u.id AS target_user_id,
+        u.name AS target_user_name,
+        u.email AS target_user_email,
+        u.is_active AS target_user_active,
+        u.is_admin AS target_user_is_admin
+      FROM reports r
+      LEFT JOIN users u ON (
+        CAST(r.reported_user AS TEXT) = CAST(u.id AS TEXT) 
+        OR r.reported_user = u.name 
+        OR r.reported_user = u.email
+      )
+      ORDER BY r.created_at DESC
+    `);
+    res.json(rows);
+  } catch (err) {
+    console.error('[Admin Reports Error]', err);
+    res.status(500).json({ message: err.message });
+  }
 });
 
 app.get('/api/admin/summary', requireAdmin, async (req, res) => {
-  const counts = await db.get(`
-    SELECT
-      (SELECT COUNT(*) FROM users) AS total_users,
-      (SELECT COUNT(*) FROM reports) AS total_reports,
-      (SELECT COUNT(*) FROM reports WHERE status = 'pending') AS pending_reports,
-      (SELECT COUNT(*) FROM reports WHERE status = 'resolved') AS resolved_reports
-  `);
-  res.json(counts);
+  try {
+    const counts = await db.get(`
+      SELECT
+        (SELECT COUNT(*) FROM users) AS total_users,
+        (SELECT COUNT(*) FROM reports) AS total_reports,
+        (SELECT COUNT(*) FROM reports WHERE status = 'pending') AS pending_reports,
+        (SELECT COUNT(*) FROM reports WHERE status = 'resolved') AS resolved_reports
+    `);
+    res.json(counts);
+  } catch (err) {
+    console.error('[Admin Summary Error]', err);
+    res.status(500).json({ message: err.message });
+  }
 });
 
 app.get('/api/activities', requireAuth, async (req, res) => {
-  const userId = req.session.user.id;
-  const rows = await db.all(`
-    SELECT a.*, u.name AS creator_name, u.major AS creator_major,
-      (SELECT COUNT(*) FROM activity_members am WHERE am.activity_id = a.id) AS actual_members,
-      (SELECT COUNT(*) FROM activity_members am JOIN users u2 ON u2.id = am.user_id WHERE am.activity_id = a.id AND u2.gender = 'ชาย') AS male_count,
-      (SELECT COUNT(*) FROM activity_members am JOIN users u2 ON u2.id = am.user_id WHERE am.activity_id = a.id AND u2.gender = 'หญิง') AS female_count,
-      (SELECT COUNT(*) FROM activity_members am JOIN users u2 ON u2.id = am.user_id WHERE am.activity_id = a.id AND u2.gender = 'เพศหลากหลาย') AS lgbtq_count
-    FROM activities a
-    JOIN users u ON u.id = a.created_by
-    WHERE a.status = 'approved'
-    ORDER BY a.created_at DESC
-  `);
+  try {
+    const userId = req.session.user.id;
+    const rows = await db.all(`
+      SELECT a.*, u.name AS creator_name, u.major AS creator_major,
+        (SELECT COUNT(*) FROM activity_members am WHERE am.activity_id = a.id) AS actual_members,
+        (SELECT COUNT(*) FROM activity_members am JOIN users u2 ON u2.id = am.user_id WHERE am.activity_id = a.id AND u2.gender = 'ชาย') AS male_count,
+        (SELECT COUNT(*) FROM activity_members am JOIN users u2 ON u2.id = am.user_id WHERE am.activity_id = a.id AND u2.gender = 'หญิง') AS female_count,
+        (SELECT COUNT(*) FROM activity_members am JOIN users u2 ON u2.id = am.user_id WHERE am.activity_id = a.id AND u2.gender = 'เพศหลากหลาย') AS lgbtq_count
+      FROM activities a
+      JOIN users u ON u.id = a.created_by
+      WHERE a.status = 'approved'
+      ORDER BY a.created_at DESC
+    `);
 
-  const joined = await db.all('SELECT activity_id FROM activity_members WHERE user_id = ?', [userId]);
-  const joinedSet = new Set(joined.map(j => j.activity_id));
+    const joined = await db.all('SELECT activity_id FROM activity_members WHERE user_id = ?', [userId]);
+    const joinedSet = new Set(joined.map(j => j.activity_id));
 
-  const result = rows.map(r => ({ ...r, has_joined: joinedSet.has(r.id) }));
-  res.json(result);
+    const result = rows.map(r => ({ ...r, has_joined: joinedSet.has(r.id) }));
+    res.json(result);
+  } catch (err) {
+    console.error('[Get Activities Error]', err);
+    res.status(500).json({ message: err.message || 'เกิดข้อผิดพลาดในการดึงข้อมูลกิจกรรม' });
+  }
 });
 
 app.post('/api/activities', requireAuth, async (req, res) => {
-  const { name, description, member_count, location } = req.body || {};
-  const user = await db.get('SELECT * FROM users WHERE id = ?', [req.session.user.id]);
+  try {
+    const { name, description, member_count, location } = req.body || {};
+    const userId = req.session.user.id;
+    const user = await db.get('SELECT * FROM users WHERE id = ?', [userId]);
 
-  if (!name || !String(name).trim()) {
-    return res.status(400).json({ message: 'กรุณากรอกชื่อกิจกรรม' });
+    if (!user) {
+      return res.status(401).json({ message: 'ไม่พบข้อมูลผู้ใช้งาน กรุณาเข้าสู่ระบบใหม่' });
+    }
+
+    if (!name || !String(name).trim()) {
+      return res.status(400).json({ message: 'กรุณากรอกชื่อกิจกรรม' });
+    }
+
+    if (!location || !String(location).trim()) {
+      return res.status(400).json({ message: 'กรุณากรอกสถานที่จัดกิจกรรม' });
+    }
+
+    const result = await db.run(`
+      INSERT INTO activities (name, description, location, created_by, creator_name, creator_major, member_count, status)
+      VALUES (?, ?, ?, ?, ?, ?, ?, 'pending')
+    `, [
+      String(name).trim(),
+      description || '',
+      String(location).trim(),
+      user.id,
+      user.name || 'ไม่ระบุ',
+      user.major || '-',
+      Number(member_count || 0)
+    ]);
+
+    const activity = await db.get('SELECT * FROM activities WHERE id = ?', [result.lastInsertRowid]);
+    res.status(201).json({ message: 'สร้างกิจกรรมเรียบร้อย รอการอนุมัติจากผู้ดูแล', activity });
+  } catch (err) {
+    console.error('[Create Activity Error]', err);
+    res.status(500).json({ message: err.message || 'เกิดข้อผิดพลาดในการสร้างกิจกรรม' });
   }
-
-  if (!location || !String(location).trim()) {
-    return res.status(400).json({ message: 'กรุณากรอกสถานที่จัดกิจกรรม' });
-  }
-
-  const result = await db.run(`
-    INSERT INTO activities (name, description, location, created_by, creator_name, creator_major, member_count, status)
-    VALUES (?, ?, ?, ?, ?, ?, ?, 'pending')
-  `, [
-    String(name).trim(),
-    description || '',
-    String(location).trim(),
-    user.id,
-    user.name,
-    user.major || '-',
-    Number(member_count || 0)
-  ]);
-
-  const activity = await db.get('SELECT * FROM activities WHERE id = ?', [result.lastInsertRowid]);
-  res.status(201).json({ message: 'สร้างกิจกรรมเรียบร้อย รอการอนุมัติจากผู้ดูแล', activity });
 });
 
 app.get('/api/admin/activities', requireAdmin, async (req, res) => {

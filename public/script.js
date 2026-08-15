@@ -419,8 +419,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     reportForm.addEventListener('submit', async (event) => {
       event.preventDefault();
       const messageEl = document.getElementById('reportMessage');
+      const submitBtn = reportForm.querySelector('button[type="submit"]');
 
       try {
+        if (submitBtn) {
+          submitBtn.disabled = true;
+          submitBtn.textContent = '⏳ กำลังส่งรายงาน...';
+        }
+
         const formData = new FormData();
         formData.append('reporter_name', document.getElementById('reporterName').value);
         formData.append('reporter_email', document.getElementById('reporterEmail').value);
@@ -456,6 +462,11 @@ document.addEventListener('DOMContentLoaded', async () => {
       } catch (error) {
         messageEl.className = 'message error';
         messageEl.textContent = error.message;
+      } finally {
+        if (submitBtn) {
+          submitBtn.disabled = false;
+          submitBtn.textContent = 'ส่งรายงาน';
+        }
       }
     });
   }
@@ -867,11 +878,16 @@ document.addEventListener('DOMContentLoaded', async () => {
           formData.append('photos', userPhotosInput.files[i]);
         }
         try {
+          addPhotosBtn.disabled = true;
+          addPhotosBtn.textContent = '⏳ กำลังอัปโหลดรูปภาพ...';
           await apiRequest('/api/me/photos', { method: 'POST', body: formData });
           userPhotosInput.value = '';
           await loadProfile();
         } catch(err) {
-          alert(err.message);
+          alert(err.message || 'เกิดข้อผิดพลาดในการอัปโหลดรูปภาพ');
+        } finally {
+          addPhotosBtn.disabled = false;
+          addPhotosBtn.textContent = '📸 เพิ่มรูปภาพโปรไฟล์';
         }
       });
     }
@@ -1269,6 +1285,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (activityForm) {
       activityForm.addEventListener('submit', async (event) => {
         event.preventDefault();
+        const submitBtn = activityForm.querySelector('button[type="submit"]');
+
         const payload = {
           name: activityName.value,
           description: activityDescription.value,
@@ -1277,6 +1295,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         };
 
         if (!payload.name.trim()) {
+          alert('กรุณากรอกชื่อกิจกรรม');
           return;
         }
 
@@ -1285,15 +1304,29 @@ document.addEventListener('DOMContentLoaded', async () => {
           return;
         }
 
-        const result = await apiRequest('/api/activities', {
-          method: 'POST',
-          body: JSON.stringify(payload)
-        });
+        try {
+          if (submitBtn) {
+            submitBtn.disabled = true;
+            submitBtn.textContent = '⏳ กำลังส่งข้อมูล...';
+          }
 
-        activityForm.reset();
-        activityForm.classList.add('hidden');
-        alert(result.message || 'สร้างกิจกรรมเรียบร้อย');
-        await loadActivities();
+          const result = await apiRequest('/api/activities', {
+            method: 'POST',
+            body: JSON.stringify(payload)
+          });
+
+          activityForm.reset();
+          activityForm.classList.add('hidden');
+          alert(result.message || 'สร้างกิจกรรมเรียบร้อย');
+          await loadActivities();
+        } catch (err) {
+          alert(err.message || 'เกิดข้อผิดพลาดในการสร้างกิจกรรม');
+        } finally {
+          if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'สร้างกิจกรรม';
+          }
+        }
       });
     }
 
