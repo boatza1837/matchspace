@@ -38,26 +38,24 @@ const upload = multer({
   }
 });
 
-// Nodemailer transporter
-const SMTP_USER_DEFAULT = process.env.SMTP_USER || 'matchspace89@gmail.com';
-const SMTP_PASS_DEFAULT = process.env.SMTP_PASS || 'hfygukbagdkwhbwx';
+// Nodemailer transporter with robust credential validation
+const rawUser = process.env.SMTP_USER || '';
+const rawPass = process.env.SMTP_PASS || '';
+const validUser = (rawUser && rawUser.includes('@')) ? rawUser : 'matchspace89@gmail.com';
+const validPass = (rawPass && !rawPass.includes('รหัสผ่าน') && rawPass.length > 5) ? rawPass : 'hfygukbagdkwhbwx';
 
 const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: {
-    user: SMTP_USER_DEFAULT,
-    pass: SMTP_PASS_DEFAULT
+    user: validUser,
+    pass: validPass
   }
 });
 
 async function sendMatchEmail(toEmail, toName, matchedName) {
-  if (!SMTP_USER_DEFAULT) {
-    console.log(`[Email Skip] SMTP not configured. Would notify ${toEmail} about match with ${matchedName}`);
-    return;
-  }
   try {
     await transporter.sendMail({
-      from: `"MatchSpace" <${SMTP_USER_DEFAULT}>`,
+      from: `"MatchSpace" <${validUser}>`,
       to: toEmail,
       subject: `🎉 คุณกับ ${matchedName} แมตช์กันแล้ว!`,
       html: `
@@ -89,14 +87,10 @@ async function sendMatchEmail(toEmail, toName, matchedName) {
 }
 
 async function sendChatMessageEmail(toEmail, toName, senderName, messageContent) {
-  if (!SMTP_USER_DEFAULT) {
-    console.log(`[Email Skip] SMTP not configured. Would notify ${toEmail} about message from ${senderName}`);
-    return;
-  }
   try {
     const previewText = String(messageContent).length > 30 ? String(messageContent).substring(0, 30) + '...' : messageContent;
     await transporter.sendMail({
-      from: `"MatchSpace Chat" <${SMTP_USER_DEFAULT}>`,
+      from: `"MatchSpace Chat" <${validUser}>`,
       to: toEmail,
       subject: `💬 ${senderName} ส่งข้อความหาคุณ: "${previewText}"`,
       html: `
@@ -601,6 +595,29 @@ app.post('/api/register', upload.single('profile_image_file'), (req, res) => {
 
 app.get('/api/health', (req, res) => {
   res.json({ ok: true, message: 'MatchSpace API is running' });
+});
+
+app.get('/api/test-email', async (req, res) => {
+  const targetEmail = req.query.to || 'matchspace89@gmail.com';
+  try {
+    const info = await transporter.sendMail({
+      from: `"MatchSpace Test" <${validUser}>`,
+      to: targetEmail,
+      subject: '🧪 Test Email from MatchSpace Live Server',
+      html: `
+        <div style="font-family:'Segoe UI',Arial,sans-serif;padding:24px;background:#f8f5ff;border:2px solid #6b52d1;border-radius:16px;max-width:480px;margin:0 auto;">
+          <h2 style="color:#4a4496;margin-top:0;">🎉 ทดสอบส่งอีเมลจาก MatchSpace สำเร็จ!</h2>
+          <p style="color:#333;font-size:15px;">ระบบส่งอีเมลของ MatchSpace บน Railway สามารถเชื่อมต่อและส่งออกไปยัง <strong>${targetEmail}</strong> ได้สำเร็จ 100% แล้วครับ!</p>
+          <hr style="border:none;border-top:1px solid #ddd;margin:16px 0;">
+          <p style="color:#888;font-size:12px;">ส่งจากบัญชี: ${validUser}</p>
+        </div>
+      `
+    });
+    res.json({ ok: true, message: `ส่งอีเมลทดสอบสำเร็จไปยัง ${targetEmail}`, messageId: info.messageId, sender: validUser });
+  } catch (err) {
+    console.error('[Test Email Error]:', err);
+    res.status(500).json({ ok: false, error: err.message, stack: err.stack });
+  }
 });
 
 app.get('/api/me', requireAuth, (req, res) => {
