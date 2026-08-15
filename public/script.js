@@ -146,14 +146,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Load users for report form
     async function loadReportUsers() {
       try {
-        const users = await apiRequest('/api/candidates');
+        const users = await apiRequest('/api/public/users');
         const select = document.getElementById('reportedUser');
         if (select) {
-          select.innerHTML = '<option value="">-- เลือกผู้ใช้งาน --</option>' + 
-            users.map(u => `<option value="${u.id}">${u.name} (${u.email})</option>`).join('');
+          select.innerHTML = '<option value="">-- เลือกผู้ใช้งานที่ต้องการรายงาน --</option>' + 
+            users.map(u => `<option value="${u.id}">${u.name} (${u.email})${u.major ? ' - ' + u.major : ''}</option>`).join('');
         }
       } catch (e) {
-        // If fails, allow manual entry
+        console.error('Failed to load report users:', e);
       }
     }
     

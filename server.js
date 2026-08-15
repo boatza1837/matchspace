@@ -296,6 +296,16 @@ app.get('/api/session', (req, res) => {
   res.json({ user: req.session?.user || null });
 });
 
+app.get('/api/public/users', (req, res) => {
+  const users = db.prepare(`
+    SELECT id, name, email, major
+    FROM users
+    WHERE is_active != 0 AND is_admin = 0
+    ORDER BY name ASC
+  `).all();
+  res.json(users);
+});
+
 app.post('/api/login', (req, res) => {
   const { email, password } = req.body || {};
 
