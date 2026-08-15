@@ -36,7 +36,10 @@ const upload = multer({
 });
 
 // === Turso Cloud & Local SQLite Unified Database Adapter ===
-const useTurso = Boolean(process.env.TURSO_DATABASE_URL && process.env.TURSO_DATABASE_URL.startsWith('libsql://'));
+const tursoUrl = process.env.TURSO_DATABASE_URL || 'libsql://matchspace-boatza1837.aws-ap-northeast-1.turso.io';
+const tursoToken = process.env.TURSO_AUTH_TOKEN || 'eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJhIjoicnciLCJpYXQiOjE3ODY4Mjc4MzQsImlkIjoiMDFhMDA3M2MtZWUwMS03NDcxLTkyMzktMDVkYzgzMzJjNmYzIiwia2lkIjoiUHR0ZlBzcU5vWXBvbWg4R2k3MzNQNm5ybWVtcGxtYjNsb1lfV2pIVE1jcyIsInJpZCI6ImIxYTI3NjRiLTkzY2QtNGZhMi05NmJmLTQ1YzllNTZkMzdjYyJ9.JaFriD-yiTCKuTsfSEh3LkdqzTUzhla4L1iME92izKbElstDZPP4aRGMjbvj2RaA628odJ_XVprfoldIOSq2BA';
+
+const useTurso = Boolean(tursoUrl && tursoUrl.startsWith('libsql://'));
 
 let sqliteDb = null;
 let tursoClient = null;
@@ -44,10 +47,10 @@ let tursoClient = null;
 if (useTurso) {
   const { createClient } = require('@libsql/client');
   tursoClient = createClient({
-    url: process.env.TURSO_DATABASE_URL,
-    authToken: process.env.TURSO_AUTH_TOKEN
+    url: tursoUrl,
+    authToken: tursoToken
   });
-  console.log('[Database] Connected to Turso Cloud DB:', process.env.TURSO_DATABASE_URL);
+  console.log('[Database] Connected to Turso Cloud DB:', tursoUrl);
 } else {
   const { DatabaseSync } = require('node:sqlite');
   sqliteDb = new DatabaseSync(dbPath);
