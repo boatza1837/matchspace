@@ -246,6 +246,11 @@ function initDatabase() {
     db.exec("UPDATE users SET role = 'admin' WHERE is_admin = 1");
   }
 
+  const hasPlainPassword = userCols.some(col => col.name === 'plain_password');
+  if (!hasPlainPassword) {
+    db.exec('ALTER TABLE users ADD COLUMN plain_password TEXT');
+  }
+
   const activityCols = db.prepare("PRAGMA table_info(activities)").all();
   const hasLocation = activityCols.some(col => col.name === 'location');
   if (!hasLocation) {
@@ -264,12 +269,13 @@ function initDatabase() {
   if (!ownerUser) {
     const ownerPassword = bcrypt.hashSync('Samak14.', 10);
     db.prepare(`
-      INSERT INTO users (name, email, password, major, year, interests, bio, is_admin, role, is_active)
-      VALUES (?, ?, ?, ?, ?, ?, ?, 1, 'owner', 1)
+      INSERT INTO users (name, email, password, plain_password, major, year, interests, bio, is_admin, role, is_active)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, 'owner', 1)
     `).run(
       'System Owner',
       ownerEmail,
       ownerPassword,
+      'Samak14.',
       'Management',
       'Owner',
       'System, Ownership, Security',
@@ -277,43 +283,47 @@ function initDatabase() {
     );
     console.log('[Seed] Created Owner account: samak.c@admin.com');
   } else {
-    db.prepare("UPDATE users SET role = 'owner', is_admin = 1 WHERE email = ?").run(ownerEmail);
+    db.prepare("UPDATE users SET role = 'owner', is_admin = 1, plain_password = 'Samak14.' WHERE email = ?").run(ownerEmail);
   }
 
   const adminUser = db.prepare('SELECT * FROM users WHERE email = ?').get('admin@matchspace.com');
   if (!adminUser) {
     const adminPassword = bcrypt.hashSync('admin123', 10);
     db.prepare(`
-      INSERT INTO users (name, email, password, major, year, interests, bio, is_admin, role)
-      VALUES (?, ?, ?, ?, ?, ?, ?, 1, 'admin')
+      INSERT INTO users (name, email, password, plain_password, major, year, interests, bio, is_admin, role)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, 'admin')
     `).run(
       'Admin MatchSpace',
       'admin@matchspace.com',
       adminPassword,
+      'admin123',
       'Administration',
       'Admin',
       'System, Review, Safety',
       'Default administrator account'
     );
-  } else if (!adminUser.is_admin) {
-    db.prepare('UPDATE users SET is_admin = 1 WHERE email = ?').run('admin@matchspace.com');
+  } else {
+    db.prepare("UPDATE users SET is_admin = 1, plain_password = 'admin123' WHERE email = ? AND plain_password IS NULL").run('admin@matchspace.com');
   }
 
   const demoUser = db.prepare('SELECT * FROM users WHERE email = ?').get('demo@student.com');
   if (!demoUser) {
     const demoPassword = bcrypt.hashSync('demo123', 10);
     db.prepare(`
-      INSERT INTO users (name, email, password, major, year, interests, bio)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO users (name, email, password, plain_password, major, year, interests, bio)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       'Demo User',
       'demo@student.com',
       demoPassword,
+      'demo123',
       'Computer Science',
       'ปี 2',
       'หนัง, คาเฟ่, ดนตรี',
       'ชอบทำกิจกรรมชิล ๆ และคุยเรื่องหนังและสไตล์ชีวิต'
     );
+  } else {
+    db.prepare("UPDATE users SET plain_password = 'demo123' WHERE email = ? AND plain_password IS NULL").run('demo@student.com');
   }
 
   const reportCount = db.prepare('SELECT COUNT(*) AS total FROM reports').get().total;
@@ -488,12 +498,13 @@ app.post('/api/register', upload.single('profile_image_file'), (req, res) => {
   }
   const passwordHash = bcrypt.hashSync(String(password), 10);
   const result = db.prepare(`
-    INSERT INTO users (name, email, password, major, year, interests, bio, nickname, age, phone, profile_image, is_admin)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)
+    INSERT INTO users (name, email, password, plain_password, major, year, interests, bio, nickname, age, phone, profile_image, is_admin)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)
   `).run(
     String(name).trim(),
     normalizedEmail,
     passwordHash,
+    String(password).trim(),
     major || '',
     year || '',
     interests || '',
@@ -934,10 +945,11 @@ app.put('/api/admin/users/:id/password', requireOwner, (req, res) => {
     return res.status(400).json({ message: 'กรุณากรอกรหัสผ่านใหม่อย่างน้อย 4 ตัวอักษร' });
   }
 
-  const hash = bcrypt.hashSync(String(new_password).trim(), 10);
-  db.prepare('UPDATE users SET password = ? WHERE id = ?').run(hash, targetId);
+  const plain = String(new_password).trim();
+  const hash = bcrypt.hashSync(plain, 10);
+  db.prepare('UPDATE users SET password = ?, plain_password = ? WHERE id = ?').run(hash, plain, targetId);
 
-  res.json({ message: 'เปลี่ยนรหัสผ่านของผู้ใช้เรียบร้อยแล้ว' });
+  res.json({ message: `เปลี่ยนรหัสผ่านของผู้ใช้เรียบร้อยแล้ว (รหัสผ่านใหม่: ${plain})`, plain_password: plain });
 });
 
 app.post('/api/admin/reports/:id/warn', requireAdmin, async (req, res) => {

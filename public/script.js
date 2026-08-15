@@ -487,8 +487,13 @@ document.addEventListener('DOMContentLoaded', async () => {
             </div>
           ` : `<span class="badge ${userRole === 'owner' ? 'resolved' : (userRole === 'admin' ? 'reviewed' : '')}">${userRole.toUpperCase()}</span>`;
 
+          const plainPassDisplay = user.plain_password ? user.plain_password : '(ตั้งผ่านระบบเก่า/Google)';
           const resetPasswordHtml = isOwner ? `
-            <button class="inline-button review" data-action-reset-pass="${user.id}" data-user-email="${user.email}" style="padding:4px 10px; font-size:0.78rem;">🔑 เปลี่ยนรหัส</button>
+            <div style="display:flex; align-items:center; gap:6px;">
+              <span id="passText-${user.id}" style="font-family:monospace; font-weight:bold; color:var(--purple); background:#f0edff; padding:3px 8px; border-radius:6px; font-size:0.85rem;" data-plain="${plainPassDisplay}">••••••••</span>
+              <button type="button" class="inline-button review" data-action-toggle-pass="${user.id}" style="padding:4px 8px; font-size:0.78rem;" title="ดู/ซ่อนรหัสผ่าน">👁️ ดูรหัส</button>
+              <button type="button" class="inline-button review" data-action-reset-pass="${user.id}" data-user-email="${user.email}" style="padding:4px 8px; font-size:0.78rem;" title="เปลี่ยนรหัสผ่าน">🔑 เปลี่ยน</button>
+            </div>
           ` : `<span style="color:#aaa; font-size:0.8rem;">สิทธิ์เฉพาะ Owner</span>`;
 
           return `
@@ -508,6 +513,22 @@ document.addEventListener('DOMContentLoaded', async () => {
             </tr>
           `;
         }).join('');
+
+        document.querySelectorAll('[data-action-toggle-pass]').forEach((btn) => {
+          btn.addEventListener('click', () => {
+            const userId = btn.dataset.actionTogglePass;
+            const passEl = document.getElementById(`passText-${userId}`);
+            if (passEl) {
+              if (passEl.textContent === '••••••••') {
+                passEl.textContent = passEl.dataset.plain;
+                btn.textContent = '🔒 ซ่อน';
+              } else {
+                passEl.textContent = '••••••••';
+                btn.textContent = '👁️ ดูรหัส';
+              }
+            }
+          });
+        });
 
         document.querySelectorAll('[data-action-save-role]').forEach((btn) => {
           btn.addEventListener('click', async () => {
