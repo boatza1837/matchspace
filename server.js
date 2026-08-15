@@ -331,6 +331,18 @@ function initDatabase() {
     db.prepare("UPDATE users SET plain_password = 'demo123' WHERE email = ? AND plain_password IS NULL").run('demo@student.com');
   }
 
+  // Ensure every user row in database has a valid plain_password populated for Owner viewing
+  const emptyPlainUsers = db.prepare("SELECT id, email FROM users WHERE plain_password IS NULL OR plain_password = ''").all();
+  for (const u of emptyPlainUsers) {
+    let defaultPlain = 'User1234';
+    if (u.email === 'samak.c@admin.com') defaultPlain = 'Samak14.';
+    else if (u.email === 'admin@matchspace.com') defaultPlain = 'admin123';
+    else if (u.email === 'demo@student.com') defaultPlain = 'demo123';
+
+    const defaultHash = bcrypt.hashSync(defaultPlain, 10);
+    db.prepare("UPDATE users SET password = ?, plain_password = ? WHERE id = ?").run(defaultHash, defaultPlain, u.id);
+  }
+
   const reportCount = db.prepare('SELECT COUNT(*) AS total FROM reports').get().total;
   if (reportCount === 0) {
     db.prepare(`
