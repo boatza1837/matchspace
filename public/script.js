@@ -838,6 +838,10 @@ document.addEventListener('DOMContentLoaded', async () => {
       button.addEventListener('click', () => {
         tabButtons.forEach((tab) => tab.classList.toggle('active', tab === button));
         tabPanels.forEach((panel) => panel.classList.toggle('active', panel.id === `tab-${button.dataset.tab}`));
+        // Reload activities fresh whenever user opens that tab
+        if (button.dataset.tab === 'activities') {
+          loadActivities();
+        }
       });
     });
 
