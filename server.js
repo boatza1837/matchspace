@@ -9,9 +9,16 @@ const { DatabaseSync } = require('node:sqlite');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const dbPath = path.join(__dirname, 'matchspace.db');
 const publicDir = path.join(__dirname, 'public');
-const uploadsDir = path.join(publicDir, 'uploads');
+
+// === Persistent Storage (Railway Volume) ===
+// Automatically detects Railway Volume mounted at /data or uses process.env.DATA_DIR
+const isRailwayVolume = fs.existsSync('/data');
+const dataDir = process.env.DATA_DIR || (isRailwayVolume ? '/data' : __dirname);
+const dbPath = path.join(dataDir, 'matchspace.db');
+const uploadsDir = (process.env.DATA_DIR || isRailwayVolume)
+  ? path.join(dataDir, 'uploads')
+  : path.join(publicDir, 'uploads');
 if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
 
 const storage = multer.diskStorage({
@@ -268,6 +275,8 @@ app.use(session({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(publicDir));
+// Serve uploads from volume (works whether DATA_DIR is set or not)
+app.use('/uploads', express.static(uploadsDir));
 
 // Multer error handler
 app.use((err, req, res, next) => {
@@ -620,8 +629,19 @@ app.post('/api/reports', upload.single('evidence_file'), (req, res) => {
 
 app.get('/api/reports', requireAdmin, (req, res) => {
   const rows = db.prepare(`
-    SELECT * FROM reports
-    ORDER BY created_at DESC
+    SELECT r.*, 
+      u.id AS target_user_id,
+      u.name AS target_user_name,
+      u.email AS target_user_email,
+      u.is_active AS target_user_active,
+      u.is_admin AS target_user_is_admin
+    FROM reports r
+    LEFT JOIN users u ON (
+      CAST(r.reported_user AS TEXT) = CAST(u.id AS TEXT) 
+      OR r.reported_user = u.name 
+      OR r.reported_user = u.email
+    )
+    ORDER BY r.created_at DESC
   `).all();
   res.json(rows);
 });
@@ -734,6 +754,72 @@ app.patch('/api/admin/reports/:id', requireAdmin, (req, res) => {
 
   const updated = db.prepare('SELECT * FROM reports WHERE id = ?').get(Number(id));
   res.json({ message: 'อัปเดตรายงานสำเร็จ', report: updated });
+});
+
+app.post('/api/admin/reports/:id/warn', requireAdmin, async (req, res) => {
+  const { id } = req.params;
+  const { warning_message } = req.body || {};
+
+  if (!warning_message || !String(warning_message).trim()) {
+    return res.status(400).json({ message: 'กรุณากรอกข้อความตักเตือน' });
+  }
+
+  const report = db.prepare('SELECT * FROM reports WHERE id = ?').get(Number(id));
+  if (!report) {
+    return res.status(404).json({ message: 'ไม่พบรายงานนี้' });
+  }
+
+  const targetUser = db.prepare(`
+    SELECT * FROM users 
+    WHERE CAST(id AS TEXT) = CAST(? AS TEXT) OR name = ? OR email = ?
+  `).get(report.reported_user, report.reported_user, report.reported_user);
+
+  if (!targetUser) {
+    return res.status(404).json({ message: 'ไม่พบผู้ถูกรายงานในระบบ' });
+  }
+
+  const adminId = req.session.user.id;
+
+  // Find or create chat between Admin and Target User
+  let chat = db.prepare(`
+    SELECT * FROM chats
+    WHERE (user_a = ? AND user_b = ?) OR (user_a = ? AND user_b = ?)
+  `).get(adminId, targetUser.id, targetUser.id, adminId);
+
+  if (!chat) {
+    const chatResult = db.prepare(`
+      INSERT INTO chats (user_a, user_b, title)
+      VALUES (?, ?, 'แจ้งเตือนจากผู้ดูแลระบบ')
+    `).run(adminId, targetUser.id);
+    chat = db.prepare('SELECT * FROM chats WHERE id = ?').get(chatResult.lastInsertRowid);
+  }
+
+  const warnText = `⚠️ [คำเตือนจากผู้ดูแลระบบเนื่องจากได้รับการรายงาน (${report.report_type})]: ${warning_message.trim()}`;
+  db.prepare(`
+    INSERT INTO chat_messages (chat_id, sender_id, content)
+    VALUES (?, ?, ?)
+  `).run(chat.id, adminId, warnText);
+
+  if (process.env.SMTP_USER && targetUser.email) {
+    try {
+      await transporter.sendMail({
+        from: `"MatchSpace Admin" <${process.env.SMTP_USER}>`,
+        to: targetUser.email,
+        subject: `⚠️ คำเตือนจากผู้ดูแลระบบ MatchSpace`,
+        text: warnText
+      });
+    } catch (e) {
+      console.error('[Email Warning Error]', e.message);
+    }
+  }
+
+  const noteEntry = `[ส่งเตือนผู้ใช้ (${targetUser.name})]: ${warning_message.trim()}`;
+  const newNote = report.admin_note ? `${report.admin_note}\n${noteEntry}` : noteEntry;
+  db.prepare(`
+    UPDATE reports SET status = 'reviewed', admin_note = ? WHERE id = ?
+  `).run(newNote, Number(id));
+
+  res.json({ message: `ส่งข้อความเตือนไปยัง ${targetUser.name} เรียบร้อยแล้ว` });
 });
 
 app.patch('/api/users/:id/disable', requireAdmin, (req, res) => {

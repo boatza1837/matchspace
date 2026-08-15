@@ -274,30 +274,63 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         const reports = await apiRequest('/api/reports');
-        reportsTableBody.innerHTML = reports.map((report) => `
-          <tr>
-            <td>${report.id}</td>
-            <td>${report.reporter_name}<br><small>${report.reporter_email}</small></td>
-            <td>${report.reported_user}</td>
-            <td>${report.report_type}</td>
-            <td>${report.description}</td>
-            <td><span class="badge ${report.status}">${report.status}</span></td>
-            <td>
-              <div class="actions">
-                <button class="inline-button review" data-id="${report.id}" data-status="reviewed">Review</button>
-                <button class="inline-button resolve" data-id="${report.id}" data-status="resolved">Resolve</button>
-                <button class="inline-button reject" data-id="${report.id}" data-status="rejected">Reject</button>
-              </div>
-              <div style="margin-top:10px;">
-                <textarea data-note-id="${report.id}" rows="2" placeholder="Note for reviewer">${report.admin_note || ''}</textarea>
-              </div>
-            </td>
-          </tr>
-        `).join('');
+        reportsTableBody.innerHTML = reports.map((report) => {
+          const evidenceHtml = report.evidence_file
+            ? `<a href="${report.evidence_file}" target="_blank" title="คลิกเปิดรูปขนาดเต็ม">
+                 <img src="${report.evidence_file}" style="width:55px; height:55px; object-fit:cover; border-radius:8px; border:1px solid #ccc; cursor:pointer;" alt="หลักฐาน" />
+               </a>`
+            : '<span style="color:#aaa; font-size:0.85rem;">ไม่มี</span>';
 
-        document.querySelectorAll('[data-status]').forEach((button) => {
+          const targetName = report.target_user_name || report.reported_user;
+          const isBanned = report.target_user_active === 0;
+          const targetUserId = report.target_user_id;
+
+          let reportedUserHtml = `<div><strong>${targetName}</strong></div>`;
+          if (report.target_user_email) {
+            reportedUserHtml += `<small style="color:#777;">${report.target_user_email}</small>`;
+          }
+          if (isBanned) {
+            reportedUserHtml += `<div><span class="badge rejected" style="font-size:0.75rem; margin-top:2px;">ถูกแบนแล้ว</span></div>`;
+          }
+
+          let actionButtonsHtml = `
+            <div class="actions">
+              <button class="inline-button review" data-status-btn-id="${report.id}" data-status="reviewed">Review</button>
+              <button class="inline-button resolve" data-status-btn-id="${report.id}" data-status="resolved">Resolve</button>
+              <button class="inline-button reject" data-status-btn-id="${report.id}" data-status="rejected">Reject</button>
+            </div>
+            <div class="actions" style="margin-top:6px; gap:4px;">
+              ${targetUserId && !report.target_user_is_admin ? (
+                isBanned
+                  ? `<button class="inline-button resolve" data-action-unban-user="${targetUserId}" data-report-id="${report.id}">✅ ยกเลิกแบน</button>`
+                  : `<button class="inline-button reject" data-action-ban-user="${targetUserId}" data-report-id="${report.id}">🚫 แบนผู้ใช้</button>`
+              ) : ''}
+              <button class="inline-button review" data-action-warn-user="${report.id}" data-target-name="${targetName}">⚠️ ส่งเตือน</button>
+            </div>
+          `;
+
+          return `
+            <tr>
+              <td>${report.id}</td>
+              <td>${report.reporter_name}<br><small>${report.reporter_email}</small></td>
+              <td>${reportedUserHtml}</td>
+              <td>${report.report_type}</td>
+              <td>${report.description}</td>
+              <td>${evidenceHtml}</td>
+              <td><span class="badge ${report.status}">${report.status}</span></td>
+              <td>
+                ${actionButtonsHtml}
+                <div style="margin-top:8px;">
+                  <textarea data-note-id="${report.id}" rows="2" placeholder="Note for reviewer">${report.admin_note || ''}</textarea>
+                </div>
+              </td>
+            </tr>
+          `;
+        }).join('');
+
+        document.querySelectorAll('[data-status-btn-id]').forEach((button) => {
           button.addEventListener('click', async () => {
-            const id = button.dataset.id;
+            const id = button.dataset.statusBtnId;
             const status = button.dataset.status;
             const note = document.querySelector(`[data-note-id="${id}"]`)?.value || '';
             await apiRequest(`/api/admin/reports/${id}`, {
@@ -307,9 +340,64 @@ document.addEventListener('DOMContentLoaded', async () => {
             loadAdminDashboard();
           });
         });
+
+        document.querySelectorAll('[data-action-ban-user]').forEach((btn) => {
+          btn.addEventListener('click', async () => {
+            const userId = btn.dataset.actionBanUser;
+            const reportId = btn.dataset.reportId;
+            if (confirm('คุณต้องการแบนผู้ใช้งานคนนี้ใช่หรือไม่?')) {
+              try {
+                await apiRequest(`/api/users/${userId}/disable`, { method: 'PATCH' });
+                await apiRequest(`/api/admin/reports/${reportId}`, {
+                  method: 'PATCH',
+                  body: JSON.stringify({ status: 'resolved', admin_note: 'แบนผู้ใช้งานเรียบร้อยแล้ว' })
+                });
+                alert('แบนผู้ใช้งานสำเร็จ');
+                loadAdminDashboard();
+              } catch (e) {
+                alert('เกิดข้อผิดพลาด: ' + e.message);
+              }
+            }
+          });
+        });
+
+        document.querySelectorAll('[data-action-unban-user]').forEach((btn) => {
+          btn.addEventListener('click', async () => {
+            const userId = btn.dataset.actionUnbanUser;
+            if (confirm('คุณต้องการปลดแบนผู้ใช้งานคนนี้ใช่หรือไม่?')) {
+              try {
+                await apiRequest(`/api/users/${userId}/enable`, { method: 'PATCH' });
+                alert('ปลดแบนผู้ใช้งานสำเร็จ');
+                loadAdminDashboard();
+              } catch (e) {
+                alert('เกิดข้อผิดพลาด: ' + e.message);
+              }
+            }
+          });
+        });
+
+        document.querySelectorAll('[data-action-warn-user]').forEach((btn) => {
+          btn.addEventListener('click', async () => {
+            const reportId = btn.dataset.actionWarnUser;
+            const targetName = btn.dataset.targetName;
+            const msg = prompt(`ระบุข้อความตักเตือนที่จะส่งถึง ${targetName}:`, 'กรุณาปฏิบัติตามกฎกติกามารยาทของการใช้งาน MatchSpace');
+            if (msg && msg.trim()) {
+              try {
+                const res = await apiRequest(`/api/admin/reports/${reportId}/warn`, {
+                  method: 'POST',
+                  body: JSON.stringify({ warning_message: msg })
+                });
+                alert(res.message);
+                loadAdminDashboard();
+              } catch (e) {
+                alert('เกิดข้อผิดพลาด: ' + e.message);
+              }
+            }
+          });
+        });
       } catch (error) {
         if (reportsTableBody) {
-          reportsTableBody.innerHTML = `<tr><td colspan="7">${error.message}</td></tr>`;
+          reportsTableBody.innerHTML = `<tr><td colspan="8">${error.message}</td></tr>`;
         }
       }
     }
