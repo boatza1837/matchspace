@@ -355,6 +355,53 @@ th {
   display: flex;
   flex-direction: column;
   gap: 18px;
+  will-change: transform, opacity;
+  transition: transform 0.22s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.22s ease;
+  transform: translate3d(0,0,0);
+}
+
+.discover-card.card-slide-out {
+  transform: translate3d(-60px, 0, 0) scale(0.96);
+  opacity: 0;
+}
+
+.skipped-card-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  background: white;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.skipped-card-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 14px rgba(74,68,150,0.1);
+}
+
+.skipped-card-thumb {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid var(--line);
+}
+
+.skipped-card-info {
+  flex: 1;
+}
+
+.skipped-card-info h4 {
+  margin: 0 0 2px 0;
+  font-size: 0.95rem;
+  color: var(--text);
+}
+
+.skipped-card-info span {
+  font-size: 0.8rem;
+  color: var(--muted);
 }
 
 .profile-card-top {

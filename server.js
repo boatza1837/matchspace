@@ -656,6 +656,7 @@ app.get('/api/candidates', requireAuth, async (req, res) => {
         AND (role IS NULL OR role = 'user' OR role = '')
         AND id NOT IN (SELECT matched_user_id FROM matches WHERE user_id = ?)
       ORDER BY created_at DESC
+      LIMIT 30
     `, [req.session.user.id, req.session.user.id]);
     res.json(rows);
   } catch (err) {

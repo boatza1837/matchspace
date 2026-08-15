@@ -29,6 +29,12 @@
 
         <section id="tab-discover" class="tab-panel active">
           <div class="panel discover-panel">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; flex-wrap:wrap; gap:8px;">
+              <h2 style="margin:0; font-size:1.1rem; color:var(--purple);">✨ ค้นหาคนที่ใช่</h2>
+              <button id="viewSkippedBtn" class="button secondary-action" type="button" style="font-size:0.82rem; padding:6px 14px; border-radius:999px;">
+                📜 ดูคนที่เคยปัดผ่าน (<span id="skippedCount">0</span>)
+              </button>
+            </div>
             <div id="discoverUserCard" class="discover-card"></div>
           </div>
         </section>
@@ -195,6 +201,19 @@
           <div class="profile-modal-actions">
             <button id="modalActionBtn" class="button primary full" type="button">ทักแชท / สนใจ</button>
           </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Skipped Candidates Modal -->
+    <div id="skippedModal" class="modal hidden">
+      <div class="modal-content" style="max-width:520px; max-height:85vh; display:flex; flex-direction:column;">
+        <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--line); padding-bottom:12px; margin-bottom:14px;">
+          <h3 style="margin:0; font-size:1.1rem; color:var(--purple);">📜 ประวัติคนที่เคยปัดผ่าน</h3>
+          <button id="closeSkippedModal" class="modal-close-btn" type="button" style="position:static;">✕</button>
+        </div>
+        <div id="skippedList" style="flex:1; overflow-y:auto; display:flex; flex-direction:column; gap:10px; padding-right:4px;">
+          <!-- Dynamically populated skipped candidates -->
         </div>
       </div>
     </div>

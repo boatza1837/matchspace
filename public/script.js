@@ -474,16 +474,21 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (reportsTableBody && userTableBody) {
     async function loadAdminDashboard() {
       try {
-        const summary = await apiRequest('/api/admin/summary');
+        const [summary, sessionState, users, activities, reports] = await Promise.all([
+          apiRequest('/api/admin/summary').catch(() => ({})),
+          apiRequest('/api/session').catch(() => ({ user: null })),
+          apiRequest('/api/admin/users').catch(() => []),
+          apiRequest('/api/admin/activities').catch(() => []),
+          apiRequest('/api/reports').catch(() => [])
+        ]);
+
         document.getElementById('totalUsers').textContent = summary.total_users || 0;
         document.getElementById('totalReports').textContent = summary.total_reports || 0;
         document.getElementById('pendingReports').textContent = summary.pending_reports || 0;
         document.getElementById('resolvedReports').textContent = summary.resolved_reports || 0;
 
-        const sessionState = await apiRequest('/api/session').catch(() => ({ user: null }));
         const isOwner = sessionState.user && sessionState.user.role === 'owner';
 
-        const users = await apiRequest('/api/admin/users');
         userTableBody.innerHTML = users.map((user) => {
           const userRole = user.role || (user.is_admin ? 'admin' : 'user');
           const isBanned = user.is_active === 0;
@@ -613,7 +618,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
 
         if (activityTableBody) {
-          const activities = await apiRequest('/api/admin/activities');
           activityTableBody.innerHTML = activities.map((activity) => `
             <tr>
               <td>${activity.id}</td>
@@ -894,15 +898,17 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     let discoverUsers = [];
     let currentDiscoverIndex = 0;
+    let skippedHistory = [];
     let modalCurrentPhotoIndex = 0;
     let modalPhotosList = [];
+    const DEFAULT_AVATAR = "data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Crect width='120' height='120' fill='%23efe9ff'/%3E%3Ctext x='50%25' y='52%25' dominant-baseline='middle' text-anchor='middle' font-size='38' fill='%234a4496'%3E%E2%99%A5%3C/text%3E%3C/svg%3E";
 
     async function openProfileModal(userId) {
       try {
         const data = await apiRequest(`/api/users/${userId}/profile`);
         const { user, photos } = data;
 
-        modalPhotosList = photos && photos.length ? photos : [user.profile_image || 'data:image/svg+xml;charset=UTF-8,%3Csvg xmlns="http://www.w3.org/2000/svg" width="120" height="120"%3E%3Crect width="120" height="120" fill="%23efe9ff"/%3E%3Ctext x="50%" y="52%" dominant-baseline="middle" text-anchor="middle" font-size="38" fill="%234a4496"%3E%E2%99%A5%3C/text%3E%3C/svg%3E'];
+        modalPhotosList = photos && photos.length ? photos : [user.profile_image || DEFAULT_AVATAR];
         modalCurrentPhotoIndex = 0;
 
         const modal = document.getElementById('profileModal');
@@ -975,21 +981,37 @@ document.addEventListener('DOMContentLoaded', async () => {
       document.getElementById('profileModal').classList.add('hidden');
     });
 
+    function updateSkippedCounter() {
+      const el = document.getElementById('skippedCount');
+      if (el) el.textContent = skippedHistory.length;
+    }
+
     function renderDiscoverCard() {
       if (!discoverUsers.length || currentDiscoverIndex >= discoverUsers.length) {
-        discoverUserCard.innerHTML = '<div class="list-item">ไม่มีคนที่พร้อมแสดงตอนนี้</div>';
+        discoverUserCard.innerHTML = `
+          <div class="list-item" style="text-align:center; padding:30px 20px;">
+            <div style="font-size:2.5rem; margin-bottom:10px;">✨</div>
+            <div style="font-weight:700; color:var(--purple); font-size:1.1rem; margin-bottom:6px;">สำรวจครบทุกคนแล้ว!</div>
+            <div style="color:var(--muted); font-size:0.88rem; margin-bottom:14px;">คุณได้ดูโปรไฟล์แนะนำครบแล้วในขณะนี้</div>
+            ${skippedHistory.length > 0 ? `<button id="btnOpenSkippedEmpty" class="button secondary-action" type="button">📜 ดูคนที่เคยปัดผ่าน (${skippedHistory.length} คน)</button>` : ''}
+          </div>
+        `;
+        document.getElementById('btnOpenSkippedEmpty')?.addEventListener('click', openSkippedModal);
+        updateSkippedCounter();
         return;
       }
 
       const user = discoverUsers[currentDiscoverIndex];
       const tags = (user.interests || '').split(',').map((tag) => tag.trim()).filter(Boolean);
+      const avatarSrc = user.profile_image || DEFAULT_AVATAR;
+
       discoverUserCard.innerHTML = `
         <div class="profile-card-top" style="cursor:pointer;" title="กดเพื่อดูโปรไฟล์เต็มและอัลบั้มรูปภาพ">
-          <img class="discover-avatar" src="${user.profile_image || 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="120" height="120"><rect width="120" height="120" fill="#efe9ff"/><text x="50%" y="52%" dominant-baseline="middle" text-anchor="middle" font-size="38" fill="#4a4496">♥</text></svg>')}" alt="${user.name}" />
+          <img class="discover-avatar" src="${avatarSrc}" alt="${user.name}" />
           <div class="discover-meta">
             <h3>${user.nickname || user.name} 🔍</h3>
             <div class="meta-row">
-              <span>${user.age || 'ไม่ระบุ'} ปี</span>
+              <span>${user.age ? user.age + ' ปี' : 'ไม่ระบุ'}</span>
               <span>${user.major || 'ไม่ระบุคณะ'}</span>
               <span>${user.year || '-'}</span>
             </div>
@@ -1002,11 +1024,14 @@ document.addEventListener('DOMContentLoaded', async () => {
             ${tags.length ? tags.map((tag) => `<span class="tag selected">${tag}</span>`).join('') : '<span class="tag selected">ทั่วไป</span>'}
           </div>
         </div>
-        <div class="discover-actions">
-          <button class="button primary" data-discover-action="like" type="button">สนใจ</button>
-          <button class="button secondary-action" data-discover-action="skip" type="button">ข้าม</button>
+        <div class="discover-actions" style="display:flex; gap:10px; flex-wrap:wrap;">
+          <button class="button primary" data-discover-action="like" type="button" style="flex:2;">💕 สนใจ</button>
+          <button class="button secondary-action" data-discover-action="skip" type="button" style="flex:1;">ข้าม</button>
+          ${skippedHistory.length > 0 ? `<button class="button secondary-action" data-discover-action="rewind" type="button" title="ย้อนกลับไปดูคนที่ปัดผ่านก่อนหน้า" style="flex:1; background:#f0ebff; color:var(--purple); font-weight:700;">⏮️ ย้อนกลับ</button>` : ''}
         </div>
       `;
+
+      updateSkippedCounter();
 
       discoverUserCard.querySelector('.profile-card-top')?.addEventListener('click', () => {
         openProfileModal(user.id);
@@ -1015,6 +1040,20 @@ document.addEventListener('DOMContentLoaded', async () => {
       discoverUserCard.querySelectorAll('[data-discover-action]').forEach((button) => {
         button.addEventListener('click', async () => {
           const action = button.dataset.discoverAction;
+          
+          if (action === 'rewind') {
+            if (skippedHistory.length > 0) {
+              const lastSkipped = skippedHistory.pop();
+              currentDiscoverIndex = Math.max(0, currentDiscoverIndex - 1);
+              discoverUsers[currentDiscoverIndex] = lastSkipped;
+              renderDiscoverCard();
+            }
+            return;
+          }
+
+          // Smooth slide animation
+          discoverUserCard.classList.add('card-slide-out');
+
           if (action === 'like') {
             try {
               const matchResult = await apiRequest('/api/matches', {
@@ -1027,6 +1066,7 @@ document.addEventListener('DOMContentLoaded', async () => {
               }
             } catch(e) { /* ignore */ }
           } else if (action === 'skip') {
+            skippedHistory.push(user);
             try {
               await apiRequest('/api/matches', {
                 method: 'POST',
@@ -1034,11 +1074,66 @@ document.addEventListener('DOMContentLoaded', async () => {
               });
             } catch(e) { /* ignore */ }
           }
-          currentDiscoverIndex += 1;
-          renderDiscoverCard();
+
+          setTimeout(() => {
+            currentDiscoverIndex += 1;
+            discoverUserCard.classList.remove('card-slide-out');
+            renderDiscoverCard();
+          }, 180);
         });
       });
     }
+
+    // Modal view for skipped candidates
+    function openSkippedModal() {
+      const modal = document.getElementById('skippedModal');
+      const listEl = document.getElementById('skippedList');
+      if (!modal || !listEl) return;
+
+      if (!skippedHistory.length) {
+        listEl.innerHTML = '<div class="list-item" style="text-align:center; color:var(--muted);">ยังไม่มีรายการคนที่เคยปัดผ่าน</div>';
+      } else {
+        listEl.innerHTML = skippedHistory.map((u, index) => `
+          <div class="skipped-card-item">
+            <img class="skipped-card-thumb" src="${u.profile_image || DEFAULT_AVATAR}" alt="${u.name}" />
+            <div class="skipped-card-info">
+              <h4>${u.nickname || u.name} (${u.gender || 'ไม่ระบุ'})</h4>
+              <span>${u.age ? u.age + ' ปี • ' : ''}${u.major || 'ไม่ระบุคณะ'}</span>
+            </div>
+            <button class="button primary" data-like-skipped-index="${index}" type="button" style="font-size:0.82rem; padding:6px 14px;">
+              💕 สนใจ
+            </button>
+          </div>
+        `).join('');
+
+        listEl.querySelectorAll('[data-like-skipped-index]').forEach(btn => {
+          btn.addEventListener('click', async () => {
+            const idx = Number(btn.dataset.likeSkippedIndex);
+            const targetUser = skippedHistory[idx];
+            if (!targetUser) return;
+
+            try {
+              const res = await apiRequest('/api/matches', {
+                method: 'POST',
+                body: JSON.stringify({ matched_user_id: targetUser.id, note: 'Interested', status: 'liked' })
+              });
+              if (res.mutual) showMatchToast(res.message);
+              skippedHistory.splice(idx, 1);
+              updateSkippedCounter();
+              openSkippedModal();
+              await loadDiscoverUsers();
+            } catch(e) { alert(e.message); }
+          });
+        });
+      }
+
+      modal.classList.remove('hidden');
+    }
+
+    document.getElementById('viewSkippedBtn')?.addEventListener('click', openSkippedModal);
+    document.getElementById('closeSkippedModal')?.addEventListener('click', () => {
+      document.getElementById('skippedModal')?.classList.add('hidden');
+    });
 
     function showMatchToast(message) {
       const toast = document.createElement('div');
