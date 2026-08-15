@@ -251,6 +251,11 @@ function initDatabase() {
     db.exec('ALTER TABLE users ADD COLUMN plain_password TEXT');
   }
 
+  const hasGender = userCols.some(col => col.name === 'gender');
+  if (!hasGender) {
+    db.exec("ALTER TABLE users ADD COLUMN gender TEXT DEFAULT 'ไม่ระบุ'");
+  }
+
   const activityCols = db.prepare("PRAGMA table_info(activities)").all();
   const hasLocation = activityCols.some(col => col.name === 'location');
   if (!hasLocation) {
@@ -478,7 +483,7 @@ app.post('/api/logout', (req, res) => {
 });
 
 app.post('/api/register', upload.single('profile_image_file'), (req, res) => {
-  const { name, email, password, major, year, interests, bio, nickname, age, phone, google_profile_image } = req.body || {};
+  const { name, email, password, gender, major, year, interests, bio, nickname, age, phone, google_profile_image } = req.body || {};
 
   if (!name || !email || !password) {
     return res.status(400).json({ message: 'กรุณากรอกชื่อ อีเมล และรหัสผ่าน' });
@@ -498,13 +503,14 @@ app.post('/api/register', upload.single('profile_image_file'), (req, res) => {
   }
   const passwordHash = bcrypt.hashSync(String(password), 10);
   const result = db.prepare(`
-    INSERT INTO users (name, email, password, plain_password, major, year, interests, bio, nickname, age, phone, profile_image, is_admin)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)
+    INSERT INTO users (name, email, password, plain_password, gender, major, year, interests, bio, nickname, age, phone, profile_image, is_admin)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)
   `).run(
     String(name).trim(),
     normalizedEmail,
     passwordHash,
     String(password).trim(),
+    gender || 'ไม่ระบุ',
     major || '',
     year || '',
     interests || '',
@@ -531,7 +537,7 @@ app.get('/api/me', requireAuth, (req, res) => {
 });
 
 app.put('/api/me', requireAuth, upload.single('profile_image_file'), (req, res) => {
-  const { name, major, year, interests, bio, nickname, age } = req.body || {};
+  const { name, gender, major, year, interests, bio, nickname, age } = req.body || {};
   const userId = req.session.user.id;
 
   let profileImage = req.session.user.profile_image || '';
@@ -541,10 +547,11 @@ app.put('/api/me', requireAuth, upload.single('profile_image_file'), (req, res) 
 
   db.prepare(`
     UPDATE users
-    SET name = ?, major = ?, year = ?, interests = ?, bio = ?, nickname = ?, age = ?, profile_image = ?
+    SET name = ?, gender = ?, major = ?, year = ?, interests = ?, bio = ?, nickname = ?, age = ?, profile_image = ?
     WHERE id = ?
   `).run(
     String(name || req.session.user.name).trim(),
+    gender || req.session.user.gender || 'ไม่ระบุ',
     major || '',
     year || '',
     interests || '',
@@ -818,7 +825,10 @@ app.get('/api/activities', requireAuth, (req, res) => {
   const userId = req.session.user.id;
   const rows = db.prepare(`
     SELECT a.*, u.name AS creator_name, u.major AS creator_major,
-      (SELECT COUNT(*) FROM activity_members am WHERE am.activity_id = a.id) AS actual_members
+      (SELECT COUNT(*) FROM activity_members am WHERE am.activity_id = a.id) AS actual_members,
+      (SELECT COUNT(*) FROM activity_members am JOIN users u2 ON u2.id = am.user_id WHERE am.activity_id = a.id AND u2.gender = 'ชาย') AS male_count,
+      (SELECT COUNT(*) FROM activity_members am JOIN users u2 ON u2.id = am.user_id WHERE am.activity_id = a.id AND u2.gender = 'หญิง') AS female_count,
+      (SELECT COUNT(*) FROM activity_members am JOIN users u2 ON u2.id = am.user_id WHERE am.activity_id = a.id AND u2.gender = 'เพศหลากหลาย') AS lgbtq_count
     FROM activities a
     JOIN users u ON u.id = a.created_by
     WHERE a.status = 'approved'
@@ -865,7 +875,10 @@ app.post('/api/activities', requireAuth, (req, res) => {
 app.get('/api/admin/activities', requireAdmin, (req, res) => {
   const rows = db.prepare(`
     SELECT a.*, u.name AS creator_name, u.major AS creator_major,
-      (SELECT COUNT(*) FROM activity_members am WHERE am.activity_id = a.id) AS actual_members
+      (SELECT COUNT(*) FROM activity_members am WHERE am.activity_id = a.id) AS actual_members,
+      (SELECT COUNT(*) FROM activity_members am JOIN users u2 ON u2.id = am.user_id WHERE am.activity_id = a.id AND u2.gender = 'ชาย') AS male_count,
+      (SELECT COUNT(*) FROM activity_members am JOIN users u2 ON u2.id = am.user_id WHERE am.activity_id = a.id AND u2.gender = 'หญิง') AS female_count,
+      (SELECT COUNT(*) FROM activity_members am JOIN users u2 ON u2.id = am.user_id WHERE am.activity_id = a.id AND u2.gender = 'เพศหลากหลาย') AS lgbtq_count
     FROM activities a
     JOIN users u ON u.id = a.created_by
     ORDER BY a.created_at DESC

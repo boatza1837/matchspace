@@ -355,6 +355,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         formData.append('name', document.getElementById('name').value);
         formData.append('email', document.getElementById('email').value);
         formData.append('password', document.getElementById('password').value);
+        formData.append('gender', document.getElementById('gender')?.value || 'ชาย');
         formData.append('phone', document.getElementById('phone')?.value || '');
         formData.append('nickname', document.getElementById('nickname')?.value || '');
         formData.append('age', document.getElementById('age')?.value || '');
@@ -491,7 +492,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           const resetPasswordHtml = isOwner ? `
             <div style="display:flex; align-items:center; gap:6px;">
               <span id="passText-${user.id}" style="font-family:monospace; font-weight:bold; color:var(--purple); background:#f0edff; padding:3px 8px; border-radius:6px; font-size:0.85rem;" data-plain="${plainPassDisplay}">••••••••</span>
-              <button type="button" class="inline-button review" data-action-toggle-pass="${user.id}" style="padding:4px 8px; font-size:0.78rem;" title="ดู/ซ่อนรหัสผ่าน">👁️ ดูรหัส</button>
+              <button type="button" class="inline-button review" data-action-toggle-pass="${user.id}" data-user-email="${user.email}" style="padding:4px 8px; font-size:0.78rem;" title="ดู/ซ่อนรหัสผ่าน">👁️ ดูรหัส</button>
               <button type="button" class="inline-button review" data-action-reset-pass="${user.id}" data-user-email="${user.email}" style="padding:4px 8px; font-size:0.78rem;" title="เปลี่ยนรหัสผ่าน">🔑 เปลี่ยน</button>
             </div>
           ` : `<span style="color:#aaa; font-size:0.8rem;">สิทธิ์เฉพาะ Owner</span>`;
@@ -515,12 +516,31 @@ document.addEventListener('DOMContentLoaded', async () => {
         }).join('');
 
         document.querySelectorAll('[data-action-toggle-pass]').forEach((btn) => {
-          btn.addEventListener('click', () => {
+          btn.addEventListener('click', async () => {
             const userId = btn.dataset.actionTogglePass;
             const passEl = document.getElementById(`passText-${userId}`);
             if (passEl) {
+              const plainVal = passEl.dataset.plain;
+              if (plainVal === '(ตั้งผ่านระบบเก่า/Google)' || !plainVal) {
+                const userEmail = btn.dataset.userEmail;
+                const newPassword = prompt(`บัญชีนี้สร้างจากระบบเก่า/Google ยังไม่มีรหัสแบบข้อความ กรุณาตั้งรหัสผ่านใหม่สำหรับ ${userEmail}:`);
+                if (newPassword && newPassword.trim()) {
+                  try {
+                    const res = await apiRequest(`/api/admin/users/${userId}/password`, {
+                      method: 'PUT',
+                      body: JSON.stringify({ new_password: newPassword.trim() })
+                    });
+                    alert(res.message);
+                    loadAdminDashboard();
+                  } catch (e) {
+                    alert('เกิดข้อผิดพลาด: ' + e.message);
+                  }
+                }
+                return;
+              }
+
               if (passEl.textContent === '••••••••') {
-                passEl.textContent = passEl.dataset.plain;
+                passEl.textContent = plainVal;
                 btn.textContent = '🔒 ซ่อน';
               } else {
                 passEl.textContent = '••••••••';
@@ -791,6 +811,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (nameEl) nameEl.value = user.name || '';
       if (majorEl) majorEl.value = user.major || '';
       if (yearEl) yearEl.value = user.year || '';
+      const genderEl = document.getElementById('profileGender');
+      if (genderEl) genderEl.value = user.gender || 'ชาย';
       if (bioEl) bioEl.value = user.bio || '';
       if (emailEl) emailEl.textContent = user.email || '';
       if (nicknameEl) nicknameEl.value = user.nickname || '';
@@ -1043,7 +1065,12 @@ document.addEventListener('DOMContentLoaded', async () => {
               <div class="meta">
                 <span>ผู้สร้าง: ${activity.creator_name || 'ไม่ระบุ'}</span>
                 <span>คณะ: ${activity.creator_major || '-'}</span>
-                <span class="activity-member-count">ผู้เข้าร่วม: ${activity.actual_members || 0} คน</span>
+              </div>
+              <div style="font-size:0.82rem; color:var(--purple); margin-top:8px; font-weight:600; background:#f8f5ff; padding:6px 12px; border-radius:10px; display:flex; flex-wrap:wrap; gap:8px;">
+                <span>👥 รวม: ${activity.actual_members || 0} คน</span>
+                <span>👨 ชาย: ${activity.male_count || 0} คน</span>
+                <span>👩 หญิง: ${activity.female_count || 0} คน</span>
+                <span>🌈 LGBTQ+: ${activity.lgbtq_count || 0} คน</span>
               </div>
               <div class="activity-actions">
                 <button class="btn-join-activity ${activity.has_joined ? 'joined' : ''}" 
@@ -1080,6 +1107,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const formData = new FormData();
         formData.append('name', document.getElementById('profileName').value);
         formData.append('nickname', document.getElementById('profileNickname').value);
+        formData.append('gender', document.getElementById('profileGender')?.value || 'ชาย');
         formData.append('major', document.getElementById('profileMajor').value);
         formData.append('year', document.getElementById('profileYear').value);
         formData.append('age', document.getElementById('profileAge').value);
