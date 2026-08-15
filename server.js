@@ -43,9 +43,7 @@ const SMTP_USER_DEFAULT = process.env.SMTP_USER || 'matchspace89@gmail.com';
 const SMTP_PASS_DEFAULT = process.env.SMTP_PASS || 'hfygukbagdkwhbwx';
 
 const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST || 'smtp.gmail.com',
-  port: Number(process.env.SMTP_PORT) || 587,
-  secure: false,
+  service: 'gmail',
   auth: {
     user: SMTP_USER_DEFAULT,
     pass: SMTP_PASS_DEFAULT
