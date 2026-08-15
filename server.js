@@ -858,16 +858,16 @@ app.post('/api/chats/:id/messages', requireAuth, (req, res) => {
   const message = db.prepare('SELECT * FROM chat_messages WHERE id = ?').get(result.lastInsertRowid);
 
   // Send Email Notification to Recipient asynchronously
-  const recipientId = chat.user_a === userId ? chat.user_b : chat.user_a;
+  const recipientId = Number(chat.user_a) === Number(userId) ? Number(chat.user_b) : Number(chat.user_a);
   const recipient = db.prepare('SELECT email, name FROM users WHERE id = ?').get(recipientId);
   const sender = db.prepare('SELECT name FROM users WHERE id = ?').get(userId);
 
+  console.log(`[Chat Msg] Chat ${chat.id}: Sender ${userId} -> Recipient ${recipientId} (${recipient ? recipient.email : 'No user'})`);
+
   if (recipient && recipient.email) {
-    setImmediate(() => {
-      sendChatMessageEmail(recipient.email, recipient.name, sender ? sender.name : 'ผู้ใช้งาน', String(content).trim())
-        .then(() => console.log(`[Chat Email Sent] to ${recipient.email}`))
-        .catch((err) => console.error(`[Chat Email Fail] to ${recipient.email}:`, err));
-    });
+    sendChatMessageEmail(recipient.email, recipient.name, sender ? sender.name : 'ผู้ใช้งาน', String(content).trim())
+      .then(() => console.log(`[Chat Email Delivered Successfully] to ${recipient.email}`))
+      .catch((err) => console.error(`[Chat Email Delivery Failed] to ${recipient.email}:`, err));
   }
 
   res.status(201).json({ message: 'ส่งข้อความสำเร็จ', message });
