@@ -45,11 +45,15 @@ const validUser = (rawUser && rawUser.includes('@')) ? rawUser : 'matchspace89@g
 const validPass = (rawPass && !rawPass.includes('รหัสผ่าน') && rawPass.length > 5) ? rawPass : 'hfygukbagdkwhbwx';
 
 const transporter = nodemailer.createTransport({
-  service: 'gmail',
+  host: 'smtp.gmail.com',
+  port: 587,
+  secure: false,
+  requireTLS: true,
   auth: {
     user: validUser,
     pass: validPass
-  }
+  },
+  connectionTimeout: 10000
 });
 
 async function sendMatchEmail(toEmail, toName, matchedName) {
