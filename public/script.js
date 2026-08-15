@@ -111,6 +111,33 @@ document.addEventListener('DOMContentLoaded', async () => {
       initializeTagsContainer('interestsTags', 'interests');
     }
 
+    // Firebase Initialization for Phone Auth
+    const firebaseConfig = {
+      apiKey: "AIzaSyAjEimVqgD9I2J8_Z18pcbuVODwh0U7U6w",
+      authDomain: "matchspace-98df2.firebaseapp.com",
+      projectId: "matchspace-98df2",
+      storageBucket: "matchspace-98df2.firebasestorage.app",
+      messagingSenderId: "780043207798",
+      appId: "1:780043207798:web:6b9bfe7da037ff948f0b57",
+      measurementId: "G-ZZQE55BDZ0"
+    };
+
+    if (typeof firebase !== 'undefined' && firebase.apps && !firebase.apps.length) {
+      firebase.initializeApp(firebaseConfig);
+    }
+
+    let recaptchaVerifier = null;
+    let confirmationResult = null;
+    let isPhoneVerified = false;
+
+    const phoneInput = document.getElementById('phone');
+    const btnSendOtp = document.getElementById('btnSendOtp');
+    const otpInputSection = document.getElementById('otpInputSection');
+    const otpCodeInput = document.getElementById('otpCode');
+    const btnVerifyOtp = document.getElementById('btnVerifyOtp');
+    const otpStatus = document.getElementById('otpStatus');
+    const phoneVerifiedBadge = document.getElementById('phoneVerifiedBadge');
+
     const consentCheckbox = document.getElementById('consentCheckbox');
     const btnAcceptConsent = document.getElementById('btnAcceptConsent');
     const btnDeclineConsent = document.getElementById('btnDeclineConsent');
@@ -118,13 +145,118 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     function updateRegisterSubmitState() {
       if (!registerSubmitBtn) return;
-      if (consentCheckbox && consentCheckbox.checked) {
+      if (consentCheckbox && consentCheckbox.checked && isPhoneVerified) {
         registerSubmitBtn.disabled = false;
         registerSubmitBtn.classList.remove('register-btn-disabled');
       } else {
         registerSubmitBtn.disabled = true;
         registerSubmitBtn.classList.add('register-btn-disabled');
       }
+    }
+
+    function initRecaptcha() {
+      if (typeof firebase !== 'undefined' && !recaptchaVerifier && document.getElementById('recaptcha-container')) {
+        recaptchaVerifier = new firebase.auth.RecaptchaVerifier('recaptcha-container', {
+          'size': 'invisible',
+          'callback': () => {}
+        });
+      }
+    }
+
+    function formatThaiPhoneToE164(phoneStr) {
+      let cleaned = (phoneStr || '').replace(/\D/g, '');
+      if (cleaned.startsWith('0')) {
+        cleaned = '66' + cleaned.slice(1);
+      }
+      if (!cleaned.startsWith('+')) {
+        cleaned = '+' + cleaned;
+      }
+      return cleaned;
+    }
+
+    if (btnSendOtp) {
+      btnSendOtp.addEventListener('click', async () => {
+        const rawPhone = phoneInput ? phoneInput.value.trim() : '';
+        if (!rawPhone || rawPhone.replace(/\D/g, '').length < 9) {
+          alert('กรุณากรอกเบอร์โทรศัพท์ให้ถูกต้อง (เช่น 0812345678)');
+          return;
+        }
+
+        const formattedPhone = formatThaiPhoneToE164(rawPhone);
+
+        try {
+          initRecaptcha();
+          btnSendOtp.disabled = true;
+          btnSendOtp.textContent = 'กำลังส่ง...';
+          if (otpStatus) {
+            otpStatus.style.color = 'var(--purple)';
+            otpStatus.textContent = `กำลังส่งรหัส OTP ไปยัง ${rawPhone}...`;
+          }
+
+          confirmationResult = await firebase.auth().signInWithPhoneNumber(formattedPhone, recaptchaVerifier);
+          
+          if (otpInputSection) otpInputSection.classList.remove('hidden');
+          if (otpStatus) {
+            otpStatus.style.color = 'var(--success)';
+            otpStatus.textContent = `ส่งรหัส OTP เรียบร้อยแล้ว โปรดตรวจสอบ SMS บนมือถือของคุณ`;
+          }
+
+          let countdown = 60;
+          const timer = setInterval(() => {
+            btnSendOtp.textContent = `ขอรหัสใหม่ (${countdown}s)`;
+            countdown -= 1;
+            if (countdown < 0) {
+              clearInterval(timer);
+              btnSendOtp.disabled = false;
+              btnSendOtp.textContent = 'ขอรหัส OTP';
+            }
+          }, 1000);
+
+        } catch (err) {
+          btnSendOtp.disabled = false;
+          btnSendOtp.textContent = 'ขอรหัส OTP';
+          if (otpStatus) {
+            otpStatus.style.color = 'var(--danger)';
+            otpStatus.textContent = 'เกิดข้อผิดพลาดในการส่ง OTP: ' + (err.message || 'โปรดตรวจสอบเบอร์โทรศัพท์');
+          }
+          alert('ส่ง OTP ไม่สำเร็จ: ' + (err.message || 'โปรดตรวจสอบเบอร์โทรศัพท์'));
+        }
+      });
+    }
+
+    if (btnVerifyOtp) {
+      btnVerifyOtp.addEventListener('click', async () => {
+        const code = otpCodeInput ? otpCodeInput.value.trim() : '';
+        if (!code || code.length !== 6) {
+          alert('กรุณากรอกรหัส OTP 6 หลัก');
+          return;
+        }
+
+        if (!confirmationResult) {
+          alert('กรุณากดขอรหัส OTP ก่อน');
+          return;
+        }
+
+        try {
+          btnVerifyOtp.disabled = true;
+          btnVerifyOtp.textContent = 'กำลังตรวจสอบ...';
+
+          await confirmationResult.confirm(code);
+
+          isPhoneVerified = true;
+          if (otpInputSection) otpInputSection.classList.add('hidden');
+          if (document.querySelector('.phone-otp-container')) {
+            document.querySelector('.phone-otp-container').style.display = 'none';
+          }
+          if (phoneVerifiedBadge) phoneVerifiedBadge.classList.remove('hidden');
+
+          updateRegisterSubmitState();
+        } catch (err) {
+          btnVerifyOtp.disabled = false;
+          btnVerifyOtp.textContent = 'ยืนยัน OTP';
+          alert('รหัส OTP ไม่ถูกต้องหรือหมดอายุ โปรดลองใหม่อีกครั้ง');
+        }
+      });
     }
 
     if (consentCheckbox) {
@@ -162,11 +294,18 @@ document.addEventListener('DOMContentLoaded', async () => {
         return;
       }
 
+      if (!isPhoneVerified) {
+        messageEl.className = 'message error';
+        messageEl.textContent = 'กรุณายืนยันรหัส OTP เบอร์โทรศัพท์ก่อนสมัครสมาชิก';
+        return;
+      }
+
       try {
         const formData = new FormData();
         formData.append('name', document.getElementById('name').value);
         formData.append('email', document.getElementById('email').value);
         formData.append('password', document.getElementById('password').value);
+        formData.append('phone', document.getElementById('phone')?.value || '');
         formData.append('nickname', document.getElementById('nickname')?.value || '');
         formData.append('age', document.getElementById('age')?.value || '');
         formData.append('major', document.getElementById('major')?.value || '');

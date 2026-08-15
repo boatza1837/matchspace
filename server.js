@@ -212,6 +212,11 @@ function initDatabase() {
     db.exec('ALTER TABLE users ADD COLUMN profile_image TEXT');
   }
 
+  const hasPhone = userCols.some(col => col.name === 'phone');
+  if (!hasPhone) {
+    db.exec('ALTER TABLE users ADD COLUMN phone TEXT');
+  }
+
   const activityCols = db.prepare("PRAGMA table_info(activities)").all();
   const hasLocation = activityCols.some(col => col.name === 'location');
   if (!hasLocation) {
@@ -361,7 +366,7 @@ app.post('/api/logout', (req, res) => {
 });
 
 app.post('/api/register', upload.single('profile_image_file'), (req, res) => {
-  const { name, email, password, major, year, interests, bio, nickname, age } = req.body || {};
+  const { name, email, password, major, year, interests, bio, nickname, age, phone } = req.body || {};
 
   if (!name || !email || !password) {
     return res.status(400).json({ message: 'กรุณากรอกชื่อ อีเมล และรหัสผ่าน' });
@@ -376,8 +381,8 @@ app.post('/api/register', upload.single('profile_image_file'), (req, res) => {
   const profileImage = req.file ? `/uploads/${req.file.filename}` : '';
   const passwordHash = bcrypt.hashSync(String(password), 10);
   const result = db.prepare(`
-    INSERT INTO users (name, email, password, major, year, interests, bio, nickname, age, profile_image, is_admin)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)
+    INSERT INTO users (name, email, password, major, year, interests, bio, nickname, age, phone, profile_image, is_admin)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)
   `).run(
     String(name).trim(),
     normalizedEmail,
@@ -388,6 +393,7 @@ app.post('/api/register', upload.single('profile_image_file'), (req, res) => {
     bio || '',
     nickname || '',
     age ? Number(age) : null,
+    phone || '',
     profileImage
   );
 
