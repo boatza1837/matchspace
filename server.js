@@ -387,17 +387,12 @@ app.post('/api/auth/google', (req, res) => {
   let user = db.prepare('SELECT * FROM users WHERE email = ?').get(normalizedEmail);
 
   if (!user) {
-    const randomPasswordHash = bcrypt.hashSync(Math.random().toString(36), 10);
-    const result = db.prepare(`
-      INSERT INTO users (name, email, password, profile_image, is_admin, is_active)
-      VALUES (?, ?, ?, ?, 0, 1)
-    `).run(
-      googleName || normalizedEmail.split('@')[0],
-      normalizedEmail,
-      randomPasswordHash,
-      googlePicture || ''
-    );
-    user = db.prepare('SELECT * FROM users WHERE id = ?').get(result.lastInsertRowid);
+    // If not registered yet, send is_registered: false and redirect to register page with prefilled parameters
+    return res.json({
+      is_registered: false,
+      message: 'โปรดกรอกข้อมูลเพิ่มเติมเพื่อสมัครสมาชิก',
+      redirect: `/register?google_email=${encodeURIComponent(normalizedEmail)}&google_name=${encodeURIComponent(googleName || '')}&google_pic=${encodeURIComponent(googlePicture || '')}`
+    });
   }
 
   if (user.is_active === 0) {
@@ -408,6 +403,7 @@ app.post('/api/auth/google', (req, res) => {
   req.session.user = { ...safeUser, is_admin: Boolean(user.is_admin) };
 
   res.json({
+    is_registered: true,
     message: 'เข้าสู่ระบบด้วย Google สำเร็จ',
     user: req.session.user,
     redirect: user.is_admin ? '/admin' : '/app'

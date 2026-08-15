@@ -107,30 +107,34 @@ document.addEventListener('DOMContentLoaded', async () => {
     const btnGoogleLogin = document.getElementById('btnGoogleLogin');
     if (btnGoogleLogin) {
       btnGoogleLogin.addEventListener('click', () => {
-        const email = prompt('กรอกอีเมล Gmail ของคุณสำหรับการล็อกอินด้วย Google:');
-        if (!email || !email.trim()) return;
+        if (typeof google !== 'undefined' && google.accounts && google.accounts.id) {
+          google.accounts.id.prompt();
+        } else {
+          const email = prompt('กรอกอีเมล Gmail ของคุณสำหรับการล็อกอินด้วย Google:');
+          if (!email || !email.trim()) return;
 
-        const cleanEmail = email.trim();
-        const name = cleanEmail.split('@')[0];
-        const messageEl = document.getElementById('loginMessage');
+          const cleanEmail = email.trim();
+          const name = cleanEmail.split('@')[0];
+          const messageEl = document.getElementById('loginMessage');
 
-        apiRequest('/api/auth/google', {
-          method: 'POST',
-          body: JSON.stringify({ email: cleanEmail, name })
-        }).then((result) => {
-          if (messageEl) {
-            messageEl.className = 'message success';
-            messageEl.textContent = result.message || 'เข้าสู่ระบบด้วย Google สำเร็จ';
-          }
-          setTimeout(() => {
-            window.location.href = result.redirect || '/app';
-          }, 500);
-        }).catch((err) => {
-          if (messageEl) {
-            messageEl.className = 'message error';
-            messageEl.textContent = err.message;
-          }
-        });
+          apiRequest('/api/auth/google', {
+            method: 'POST',
+            body: JSON.stringify({ email: cleanEmail, name })
+          }).then((result) => {
+            if (messageEl) {
+              messageEl.className = 'message success';
+              messageEl.textContent = result.message || 'กำลังนำคุณไปดำเนินการต่อ...';
+            }
+            setTimeout(() => {
+              window.location.href = result.redirect || '/app';
+            }, 500);
+          }).catch((err) => {
+            if (messageEl) {
+              messageEl.className = 'message error';
+              messageEl.textContent = err.message;
+            }
+          });
+        }
       });
     }
   }
@@ -159,6 +163,30 @@ document.addEventListener('DOMContentLoaded', async () => {
   };
 
   if (registerForm) {
+    // Auto-fill Google Email and Name if redirected from Google Auth
+    const urlParams = new URLSearchParams(window.location.search);
+    const googleEmail = urlParams.get('google_email');
+    const googleName = urlParams.get('google_name');
+
+    if (googleEmail) {
+      const emailInput = document.getElementById('email');
+      const nameInput = document.getElementById('name');
+      const messageEl = document.getElementById('registerMessage');
+
+      if (emailInput) {
+        emailInput.value = googleEmail;
+        emailInput.readOnly = true;
+        emailInput.style.background = '#f3f4f6';
+      }
+      if (nameInput && googleName) {
+        nameInput.value = googleName;
+      }
+      if (messageEl) {
+        messageEl.className = 'message success';
+        messageEl.textContent = 'ดึงข้อมูลอีเมลจาก Google เรียบร้อยแล้ว กรุณากรอกข้อมูลเพิ่มเติมและยินยอมข้อตกลงเพื่อสมัครสมาชิก';
+      }
+    }
+
     const interestsTags = document.getElementById('interestsTags');
     if (interestsTags) {
       initializeTagsContainer('interestsTags', 'interests');
