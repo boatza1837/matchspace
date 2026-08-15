@@ -405,7 +405,9 @@ app.get('/api/public/users', (req, res) => {
   const users = db.prepare(`
     SELECT id, name, email, major
     FROM users
-    WHERE is_active != 0 AND is_admin = 0
+    WHERE is_active != 0 
+      AND (is_admin IS NULL OR is_admin = 0)
+      AND (role IS NULL OR role = 'user' OR role = '')
     ORDER BY name ASC
   `).all();
   res.json(users);
@@ -583,7 +585,10 @@ app.get('/api/candidates', requireAuth, (req, res) => {
   const rows = db.prepare(`
     SELECT id, name, email, major, year, interests, bio, nickname, age, profile_image, is_active, created_at
     FROM users
-    WHERE id != ? AND is_active != 0
+    WHERE id != ? 
+      AND is_active != 0 
+      AND (is_admin IS NULL OR is_admin = 0)
+      AND (role IS NULL OR role = 'user' OR role = '')
       AND id NOT IN (SELECT matched_user_id FROM matches WHERE user_id = ?)
     ORDER BY created_at DESC
   `).all(req.session.user.id, req.session.user.id);
