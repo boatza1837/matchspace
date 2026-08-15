@@ -818,7 +818,7 @@ app.get('/api/chats/:id/messages', requireAuth, (req, res) => {
     return res.status(404).json({ message: 'ไม่พบแชทนี้' });
   }
 
-  if (chat.user_a !== userId && chat.user_b !== userId) {
+  if (Number(chat.user_a) !== Number(userId) && Number(chat.user_b) !== Number(userId)) {
     return res.status(403).json({ message: 'คุณไม่ได้มีสิทธิ์เข้าถึงแชทนี้' });
   }
 
@@ -841,7 +841,7 @@ app.post('/api/chats/:id/messages', requireAuth, (req, res) => {
     return res.status(404).json({ message: 'ไม่พบแชทนี้' });
   }
 
-  if (chat.user_a !== userId && chat.user_b !== userId) {
+  if (Number(chat.user_a) !== Number(userId) && Number(chat.user_b) !== Number(userId)) {
     return res.status(403).json({ message: 'คุณไม่ได้มีสิทธิ์ส่งข้อความในแชทนี้' });
   }
 
