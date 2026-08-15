@@ -39,24 +39,27 @@ const upload = multer({
 });
 
 // Nodemailer transporter
+const SMTP_USER_DEFAULT = process.env.SMTP_USER || 'matchspace89@gmail.com';
+const SMTP_PASS_DEFAULT = process.env.SMTP_PASS || 'hfygukbagdkwhbwx';
+
 const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST || 'smtp.gmail.com',
   port: Number(process.env.SMTP_PORT) || 587,
   secure: false,
   auth: {
-    user: process.env.SMTP_USER || '',
-    pass: process.env.SMTP_PASS || ''
+    user: SMTP_USER_DEFAULT,
+    pass: SMTP_PASS_DEFAULT
   }
 });
 
 async function sendMatchEmail(toEmail, toName, matchedName) {
-  if (!process.env.SMTP_USER) {
+  if (!SMTP_USER_DEFAULT) {
     console.log(`[Email Skip] SMTP not configured. Would notify ${toEmail} about match with ${matchedName}`);
     return;
   }
   try {
     await transporter.sendMail({
-      from: `"MatchSpace" <${process.env.SMTP_USER}>`,
+      from: `"MatchSpace" <${SMTP_USER_DEFAULT}>`,
       to: toEmail,
       subject: `🎉 คุณกับ ${matchedName} แมตช์กันแล้ว!`,
       html: `
@@ -77,13 +80,13 @@ async function sendMatchEmail(toEmail, toName, matchedName) {
 }
 
 async function sendChatMessageEmail(toEmail, toName, senderName, messageContent) {
-  if (!process.env.SMTP_USER) {
+  if (!SMTP_USER_DEFAULT) {
     console.log(`[Email Skip] SMTP not configured. Would notify ${toEmail} about message from ${senderName}`);
     return;
   }
   try {
     await transporter.sendMail({
-      from: `"MatchSpace Chat" <${process.env.SMTP_USER}>`,
+      from: `"MatchSpace Chat" <${SMTP_USER_DEFAULT}>`,
       to: toEmail,
       subject: `💬 ${senderName} ส่งข้อความถึงคุณบน MatchSpace`,
       html: `
