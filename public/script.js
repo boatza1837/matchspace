@@ -104,7 +104,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
     });
 
-    const GOOGLE_CLIENT_ID = '186015897078-3qtjge4dbi3e6sjvp4e4lbulolipioug.apps.googleusercontent.com';
+    const GOOGLE_CLIENT_ID = '780043207798-751711204859.apps.googleusercontent.com';
 
     function initGoogleButton() {
       const btnContainer = document.getElementById('googleSignInButton');
