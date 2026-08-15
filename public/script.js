@@ -48,6 +48,11 @@ async function apiRequest(url, options = {}) {
   const data = contentType.includes('application/json') ? await response.json() : {};
 
   if (!response.ok) {
+    if (response.status === 403 && data.banned) {
+      alert(data.message || 'บัญชีของคุณถูกระงับการใช้งาน กรุณาติดต่อผู้ดูแล');
+      window.location.href = '/';
+      throw new Error(data.message);
+    }
     throw new Error(data.message || 'เกิดข้อผิดพลาด');
   }
 

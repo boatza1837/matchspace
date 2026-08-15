@@ -87,6 +87,13 @@ function requireAuth(req, res, next) {
   if (!req.session || !req.session.user) {
     return res.status(401).json({ message: 'กรุณาเข้าสู่ระบบก่อน' });
   }
+  const dbUser = db.prepare('SELECT is_active FROM users WHERE id = ?').get(req.session.user.id);
+  if (!dbUser || dbUser.is_active === 0) {
+    req.session.destroy(() => {
+      res.status(403).json({ message: 'บัญชีของคุณถูกระงับการใช้งาน กรุณาติดต่อผู้ดูแล', banned: true });
+    });
+    return;
+  }
   next();
 }
 
@@ -293,7 +300,17 @@ app.use((err, req, res, next) => {
 });
 
 app.get('/api/session', (req, res) => {
-  res.json({ user: req.session?.user || null });
+  if (!req.session?.user) {
+    return res.json({ user: null });
+  }
+  const dbUser = db.prepare('SELECT is_active FROM users WHERE id = ?').get(req.session.user.id);
+  if (!dbUser || dbUser.is_active === 0) {
+    req.session.destroy(() => {
+      res.status(403).json({ message: 'บัญชีของคุณถูกระงับการใช้งาน', user: null, banned: true });
+    });
+    return;
+  }
+  res.json({ user: req.session.user });
 });
 
 app.get('/api/public/users', (req, res) => {
