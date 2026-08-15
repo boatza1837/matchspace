@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200">
+  <rect width="200" height="200" rx="100" fill="#3f51b5"/>
+  <text x="100" y="125" font-size="90" font-family="Arial,sans-serif" font-weight="bold"
+        text-anchor="middle" fill="#fff">ต</text>
+</svg>
