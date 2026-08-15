@@ -6,6 +6,8 @@ const multer = require('multer');
 const fs = require('fs');
 
 const app = express();
+app.set('trust proxy', 1);
+
 const PORT = process.env.PORT || 3000;
 const publicDir = path.join(__dirname, 'public');
 
@@ -337,7 +339,12 @@ app.use(session({
   secret: 'matchspace-session-secret',
   resave: false,
   saveUninitialized: false,
-  cookie: { secure: false, httpOnly: true, sameSite: 'lax', maxAge: 1000 * 60 * 60 * 12 }
+  cookie: {
+    secure: 'auto',
+    httpOnly: true,
+    sameSite: 'lax',
+    maxAge: 1000 * 60 * 60 * 24 * 7
+  }
 }));
 
 app.use(express.json());

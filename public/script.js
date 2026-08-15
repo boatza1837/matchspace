@@ -100,22 +100,19 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         if (messageEl) {
           messageEl.className = 'message success';
-          messageEl.textContent = result.message || 'เข้าสู่ระบบสำเร็จ';
+          messageEl.textContent = result.message || 'เข้าสู่ระบบสำเร็จ กำลังนำเข้าสู่ระบบ...';
         }
 
-        setTimeout(() => {
-          if (result.user && result.user.is_admin) {
-            window.location.href = '/admin';
-          } else {
-            window.location.href = '/app';
-          }
-        }, 400);
+        if (result.user && (result.user.is_admin || result.user.role === 'admin' || result.user.role === 'owner')) {
+          window.location.href = '/admin';
+        } else {
+          window.location.href = '/app';
+        }
       } catch (error) {
         if (messageEl) {
           messageEl.className = 'message error';
           messageEl.textContent = error.message;
         }
-      } finally {
         if (submitBtn) {
           submitBtn.disabled = false;
           submitBtn.textContent = 'เข้าสู่ระบบ';
@@ -176,7 +173,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const messageEl = document.getElementById('loginMessage');
     if (messageEl) {
       messageEl.className = 'message success';
-      messageEl.textContent = 'กำลังตรวจสอบข้อมูลบัญชี Google...';
+      messageEl.textContent = '⏳ กำลังตรวจสอบข้อมูลบัญชี Google...';
     }
 
     apiRequest('/api/auth/google', {
@@ -187,9 +184,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         messageEl.className = 'message success';
         messageEl.textContent = result.message || 'กำลังนำคุณไปดำเนินการต่อ...';
       }
-      setTimeout(() => {
-        window.location.href = result.redirect || '/app';
-      }, 500);
+      window.location.href = result.redirect || '/app';
     }).catch((err) => {
       if (messageEl) {
         messageEl.className = 'message error';
