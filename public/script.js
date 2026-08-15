@@ -106,28 +106,44 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const GOOGLE_CLIENT_ID = '186015897078-3qtjge4dbi3e6sjvp4e4lbulolipioug.apps.googleusercontent.com';
 
-    if (typeof google !== 'undefined' && google.accounts && google.accounts.id) {
-      try {
-        google.accounts.id.initialize({
-          client_id: GOOGLE_CLIENT_ID,
-          callback: handleGoogleLoginResponse,
-          auto_select: false
-        });
-      } catch (e) {}
+    function initGoogleButton() {
+      const btnContainer = document.getElementById('googleSignInButton');
+      const fallbackContainer = document.getElementById('googleFallbackContainer');
+
+      if (typeof google !== 'undefined' && google.accounts && google.accounts.id && btnContainer) {
+        try {
+          google.accounts.id.initialize({
+            client_id: GOOGLE_CLIENT_ID,
+            callback: handleGoogleLoginResponse,
+            auto_select: false
+          });
+
+          btnContainer.innerHTML = '';
+          google.accounts.id.renderButton(btnContainer, {
+            theme: 'outline',
+            size: 'large',
+            width: 340,
+            text: 'signin_with',
+            shape: 'rectangular',
+            logo_alignment: 'left'
+          });
+
+          if (fallbackContainer) fallbackContainer.classList.add('hidden');
+        } catch (e) {
+          if (fallbackContainer) fallbackContainer.classList.remove('hidden');
+        }
+      } else if (fallbackContainer) {
+        fallbackContainer.classList.remove('hidden');
+      }
     }
+
+    initGoogleButton();
+    setTimeout(initGoogleButton, 600);
 
     const btnGoogleLogin = document.getElementById('btnGoogleLogin');
     if (btnGoogleLogin) {
       btnGoogleLogin.addEventListener('click', () => {
-        if (typeof google !== 'undefined' && google.accounts && google.accounts.id) {
-          google.accounts.id.prompt((notification) => {
-            if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
-              showGoogleLoginModal();
-            }
-          });
-        } else {
-          showGoogleLoginModal();
-        }
+        showGoogleLoginModal();
       });
     }
   }
