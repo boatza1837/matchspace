@@ -852,7 +852,11 @@ app.post('/api/chats/:id/messages', requireAuth, (req, res) => {
   const sender = db.prepare('SELECT name FROM users WHERE id = ?').get(userId);
 
   if (recipient && recipient.email) {
-    sendChatMessageEmail(recipient.email, recipient.name, sender ? sender.name : 'ผู้ใช้งาน', String(content).trim());
+    setImmediate(() => {
+      sendChatMessageEmail(recipient.email, recipient.name, sender ? sender.name : 'ผู้ใช้งาน', String(content).trim())
+        .then(() => console.log(`[Chat Email Sent] to ${recipient.email}`))
+        .catch((err) => console.error(`[Chat Email Fail] to ${recipient.email}:`, err));
+    });
   }
 
   res.status(201).json({ message: 'ส่งข้อความสำเร็จ', message });
