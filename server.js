@@ -386,79 +386,102 @@ app.get('/api/public/users', async (req, res) => {
 });
 
 app.post('/api/login', async (req, res) => {
-  const { email, password } = req.body || {};
+  try {
+    const { email, password } = req.body || {};
 
-  if (!email || !password) {
-    return res.status(400).json({ message: 'กรุณากรอกอีเมลและรหัสผ่าน' });
+    if (!email || !password) {
+      return res.status(400).json({ message: 'กรุณากรอกอีเมลและรหัสผ่าน' });
+    }
+
+    const user = await db.get('SELECT * FROM users WHERE email = ?', [String(email).trim().toLowerCase()]);
+    if (!user) {
+      return res.status(401).json({ message: 'ไม่พบผู้ใช้นี้ในระบบ' });
+    }
+
+    const valid = bcrypt.compareSync(String(password), user.password);
+    if (!valid) {
+      return res.status(401).json({ message: 'รหัสผ่านไม่ถูกต้อง' });
+    }
+
+    if (user.is_active === 0) {
+      return res.status(403).json({ message: 'บัญชีนี้ถูกปิดใช้งาน กรุณาติดต่อผู้ดูแล' });
+    }
+
+    const safeUser = formatUser(user);
+    req.session.user = { ...safeUser, is_admin: Boolean(user.is_admin || user.role === 'admin' || user.role === 'owner') };
+
+    req.session.save((err) => {
+      if (err) {
+        console.error('[Session Save Error]', err);
+        return res.status(500).json({ message: 'เกิดข้อผิดพลาดในการบันทึกเซสชัน' });
+      }
+      res.json({ message: 'เข้าสู่ระบบสำเร็จ', user: req.session.user });
+    });
+  } catch (err) {
+    console.error('[Login Error]', err);
+    res.status(500).json({ message: err.message || 'เกิดข้อผิดพลาดในการเข้าสู่ระบบ' });
   }
-
-  const user = await db.get('SELECT * FROM users WHERE email = ?', [String(email).trim().toLowerCase()]);
-  if (!user) {
-    return res.status(401).json({ message: 'ไม่พบผู้ใช้นี้' });
-  }
-
-  const valid = bcrypt.compareSync(String(password), user.password);
-  if (!valid) {
-    return res.status(401).json({ message: 'รหัสผ่านไม่ถูกต้อง' });
-  }
-
-  if (user.is_active === 0) {
-    return res.status(403).json({ message: 'บัญชีนี้ถูกปิดใช้งาน กรุณาติดต่อผู้ดูแล' });
-  }
-
-  const safeUser = formatUser(user);
-  req.session.user = { ...safeUser, is_admin: Boolean(user.is_admin) };
-  res.json({ message: 'เข้าสู่ระบบสำเร็จ', user: req.session.user });
 });
 
 app.post('/api/auth/google', async (req, res) => {
-  const { credential, email, name, picture } = req.body || {};
+  try {
+    const { credential, email, name, picture } = req.body || {};
 
-  let googleEmail = email;
-  let googleName = name;
-  let googlePicture = picture;
+    let googleEmail = email;
+    let googleName = name;
+    let googlePicture = picture;
 
-  if (credential) {
-    try {
-      const payloadBase64 = credential.split('.')[1];
-      const decodedJson = Buffer.from(payloadBase64, 'base64').toString('utf8');
-      const payload = JSON.parse(decodedJson);
-      googleEmail = payload.email;
-      googleName = payload.name || payload.email.split('@')[0];
-      googlePicture = payload.picture || '';
-    } catch (e) {
-      return res.status(400).json({ message: 'Token Google ไม่ถูกต้อง' });
+    if (credential) {
+      try {
+        const payloadBase64 = credential.split('.')[1];
+        const decodedJson = Buffer.from(payloadBase64, 'base64').toString('utf8');
+        const payload = JSON.parse(decodedJson);
+        googleEmail = payload.email;
+        googleName = payload.name || payload.email.split('@')[0];
+        googlePicture = payload.picture || '';
+      } catch (e) {
+        return res.status(400).json({ message: 'Token Google ไม่ถูกต้อง' });
+      }
     }
-  }
 
-  if (!googleEmail) {
-    return res.status(400).json({ message: 'ไม่พบข้อมูลอีเมลจาก Google' });
-  }
+    if (!googleEmail) {
+      return res.status(400).json({ message: 'ไม่พบข้อมูลอีเมลจาก Google' });
+    }
 
-  const normalizedEmail = String(googleEmail).trim().toLowerCase();
-  let user = await db.get('SELECT * FROM users WHERE email = ?', [normalizedEmail]);
+    const normalizedEmail = String(googleEmail).trim().toLowerCase();
+    let user = await db.get('SELECT * FROM users WHERE email = ?', [normalizedEmail]);
 
-  if (!user) {
-    return res.json({
-      is_registered: false,
-      message: 'โปรดกรอกข้อมูลเพิ่มเติมเพื่อสมัครสมาชิก',
-      redirect: `/register?google_email=${encodeURIComponent(normalizedEmail)}&google_name=${encodeURIComponent(googleName || '')}&google_pic=${encodeURIComponent(googlePicture || '')}`
+    if (!user) {
+      return res.json({
+        is_registered: false,
+        message: 'โปรดกรอกข้อมูลเพิ่มเติมเพื่อสมัครสมาชิก',
+        redirect: `/register?google_email=${encodeURIComponent(normalizedEmail)}&google_name=${encodeURIComponent(googleName || '')}&google_pic=${encodeURIComponent(googlePicture || '')}`
+      });
+    }
+
+    if (user.is_active === 0) {
+      return res.status(403).json({ message: 'บัญชีนี้ถูกปิดใช้งาน กรุณาติดต่อผู้ดูแล', banned: true });
+    }
+
+    const safeUser = formatUser(user);
+    req.session.user = { ...safeUser, is_admin: Boolean(user.is_admin || user.role === 'admin' || user.role === 'owner') };
+
+    req.session.save((err) => {
+      if (err) {
+        console.error('[Session Save Error]', err);
+        return res.status(500).json({ message: 'เกิดข้อผิดพลาดในการบันทึกเซสชัน' });
+      }
+      res.json({
+        is_registered: true,
+        message: 'เข้าสู่ระบบด้วย Google สำเร็จ',
+        user: req.session.user,
+        redirect: (user.role === 'admin' || user.role === 'owner' || user.is_admin) ? '/admin' : '/app'
+      });
     });
+  } catch (err) {
+    console.error('[Google Auth Error]', err);
+    res.status(500).json({ message: err.message || 'เกิดข้อผิดพลาดในการยืนยันตัวตน' });
   }
-
-  if (user.is_active === 0) {
-    return res.status(403).json({ message: 'บัญชีนี้ถูกปิดใช้งาน กรุณาติดต่อผู้ดูแล', banned: true });
-  }
-
-  const safeUser = formatUser(user);
-  req.session.user = { ...safeUser, is_admin: Boolean(user.is_admin) };
-
-  res.json({
-    is_registered: true,
-    message: 'เข้าสู่ระบบด้วย Google สำเร็จ',
-    user: req.session.user,
-    redirect: user.is_admin ? '/admin' : '/app'
-  });
 });
 
 app.post('/api/logout', (req, res) => {
