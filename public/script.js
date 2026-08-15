@@ -213,12 +213,33 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Handle official Google One-Tap / GIS callback if loaded
   window.handleGoogleLoginResponse = async (response) => {
+    const messageEl = document.getElementById('loginMessage');
+    if (messageEl) {
+      messageEl.className = 'message success';
+      messageEl.textContent = 'กำลังตรวจสอบข้อมูลบัญชี Google...';
+    }
+
     if (response && response.credential) {
       try {
-        const payloadBase64 = response.credential.split('.')[1];
-        const payload = JSON.parse(atob(payloadBase64));
-        processGoogleAuth(payload.email, payload.name, payload.picture);
-      } catch (e) {}
+        const result = await apiRequest('/api/auth/google', {
+          method: 'POST',
+          body: JSON.stringify({ credential: response.credential })
+        });
+
+        if (messageEl) {
+          messageEl.className = 'message success';
+          messageEl.textContent = result.message || 'กำลังนำคุณไปดำเนินการต่อ...';
+        }
+
+        setTimeout(() => {
+          window.location.href = result.redirect || '/app';
+        }, 400);
+      } catch (err) {
+        if (messageEl) {
+          messageEl.className = 'message error';
+          messageEl.textContent = err.message || 'เกิดข้อผิดพลาดในการตรวจสอบบัญชี';
+        }
+      }
     }
   };
 
