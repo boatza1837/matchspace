@@ -157,7 +157,21 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
     }
     
+    // Pre-fill reporter info if user is logged in
+    async function autoFillSessionInfo() {
+      try {
+        const session = await apiRequest('/api/session');
+        if (session && session.user) {
+          const reporterName = document.getElementById('reporterName');
+          const reporterEmail = document.getElementById('reporterEmail');
+          if (reporterName && !reporterName.value) reporterName.value = session.user.name || '';
+          if (reporterEmail && !reporterEmail.value) reporterEmail.value = session.user.email || '';
+        }
+      } catch (e) { /* ignore */ }
+    }
+
     loadReportUsers();
+    autoFillSessionInfo();
 
     reportForm.addEventListener('submit', async (event) => {
       event.preventDefault();
@@ -188,8 +202,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
 
         messageEl.className = 'message success';
-        messageEl.textContent = result.message || 'ส่งรายงานสำเร็จ';
+        messageEl.innerHTML = `
+          <div>${result.message || 'ส่งรายงานสำเร็จ'}</div>
+          <div style="margin-top:10px;">
+            <a href="/app" class="button secondary-action" style="display:inline-block; font-weight:600; text-decoration:none;">← กลับสู่แอป MatchSpace</a>
+          </div>
+        `;
         reportForm.reset();
+        autoFillSessionInfo();
       } catch (error) {
         messageEl.className = 'message error';
         messageEl.textContent = error.message;
