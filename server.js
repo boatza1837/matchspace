@@ -945,7 +945,7 @@ app.patch('/api/admin/reports/:id', requireAdmin, (req, res) => {
 // --- User & Role Management APIs (Owner/Admin) ---
 app.get('/api/admin/users', requireAdmin, (req, res) => {
   const users = db.prepare(`
-    SELECT id, name, email, major, year, interests, bio, nickname, age, profile_image, is_admin, is_active, role, created_at
+    SELECT id, name, email, major, year, interests, bio, nickname, age, profile_image, is_admin, is_active, role, plain_password, created_at
     FROM users
     ORDER BY id ASC
   `).all();
