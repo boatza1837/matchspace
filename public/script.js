@@ -468,25 +468,83 @@ document.addEventListener('DOMContentLoaded', async () => {
         document.getElementById('pendingReports').textContent = summary.pending_reports || 0;
         document.getElementById('resolvedReports').textContent = summary.resolved_reports || 0;
 
-        const users = await apiRequest('/api/users');
-        userTableBody.innerHTML = users.map((user) => `
-          <tr>
-            <td>${user.id}</td>
-            <td>${user.name}</td>
-            <td>${user.email}</td>
-            <td>${user.major || '-'}</td>
-            <td>${user.year || '-'}</td>
-            <td>${user.interests || '-'}</td>
-            <td>${user.is_admin ? 'Admin' : 'User'}</td>
-            <td>
-              ${!user.is_admin ? `
-                <button class="inline-button ${user.is_active === 0 ? 'resolve' : 'reject'}" data-user-id="${user.id}" data-action="${user.is_active === 0 ? 'enable' : 'disable'}">
-                  ${user.is_active === 0 ? 'เปิดใช้งาน' : 'ปิดใช้งาน'}
+        const sessionState = await apiRequest('/api/session').catch(() => ({ user: null }));
+        const isOwner = sessionState.user && sessionState.user.role === 'owner';
+
+        const users = await apiRequest('/api/admin/users');
+        userTableBody.innerHTML = users.map((user) => {
+          const userRole = user.role || (user.is_admin ? 'admin' : 'user');
+          const isBanned = user.is_active === 0;
+
+          const roleSelectHtml = isOwner ? `
+            <div style="display:flex; gap:6px; align-items:center;">
+              <select data-role-select-id="${user.id}" style="padding:4px 8px; border-radius:6px; border:1px solid #ccc; font-size:0.82rem;">
+                <option value="user" ${userRole === 'user' ? 'selected' : ''}>User (ทั่วไป)</option>
+                <option value="admin" ${userRole === 'admin' ? 'selected' : ''}>Admin (ตรวจรายงาน)</option>
+                <option value="owner" ${userRole === 'owner' ? 'selected' : ''}>Owner (ผู้ดูแลสูงสุด)</option>
+              </select>
+              <button class="inline-button review" data-action-save-role="${user.id}" style="padding:4px 10px; font-size:0.78rem;">บันทึก</button>
+            </div>
+          ` : `<span class="badge ${userRole === 'owner' ? 'resolved' : (userRole === 'admin' ? 'reviewed' : '')}">${userRole.toUpperCase()}</span>`;
+
+          const resetPasswordHtml = isOwner ? `
+            <button class="inline-button review" data-action-reset-pass="${user.id}" data-user-email="${user.email}" style="padding:4px 10px; font-size:0.78rem;">🔑 เปลี่ยนรหัส</button>
+          ` : `<span style="color:#aaa; font-size:0.8rem;">สิทธิ์เฉพาะ Owner</span>`;
+
+          return `
+            <tr>
+              <td>${user.id}</td>
+              <td><strong>${user.name}</strong></td>
+              <td>${user.email}</td>
+              <td>${user.major || '-'}</td>
+              <td><span class="badge ${userRole === 'owner' ? 'resolved' : (userRole === 'admin' ? 'reviewed' : '')}">${userRole.toUpperCase()}</span></td>
+              <td>${roleSelectHtml}</td>
+              <td>${resetPasswordHtml}</td>
+              <td>
+                <button class="inline-button ${isBanned ? 'resolve' : 'reject'}" data-user-id="${user.id}" data-action="${isBanned ? 'enable' : 'disable'}" style="padding:4px 10px; font-size:0.78rem;">
+                  ${isBanned ? '✅ ปลดแบน' : '🚫 แบนผู้ใช้'}
                 </button>
-              ` : ''}
-            </td>
-          </tr>
-        `).join('');
+              </td>
+            </tr>
+          `;
+        }).join('');
+
+        document.querySelectorAll('[data-action-save-role]').forEach((btn) => {
+          btn.addEventListener('click', async () => {
+            const userId = btn.dataset.actionSaveRole;
+            const selectEl = document.querySelector(`[data-role-select-id="${userId}"]`);
+            const newRole = selectEl ? selectEl.value : 'user';
+            try {
+              const res = await apiRequest(`/api/admin/users/${userId}/role`, {
+                method: 'PUT',
+                body: JSON.stringify({ role: newRole })
+              });
+              alert(res.message);
+              loadAdminDashboard();
+            } catch (e) {
+              alert('เกิดข้อผิดพลาด: ' + e.message);
+            }
+          });
+        });
+
+        document.querySelectorAll('[data-action-reset-pass]').forEach((btn) => {
+          btn.addEventListener('click', async () => {
+            const userId = btn.dataset.actionResetPass;
+            const userEmail = btn.dataset.userEmail;
+            const newPassword = prompt(`กรอกรหัสผ่านใหม่สำหรับ ${userEmail}:`);
+            if (newPassword && newPassword.trim()) {
+              try {
+                const res = await apiRequest(`/api/admin/users/${userId}/password`, {
+                  method: 'PUT',
+                  body: JSON.stringify({ new_password: newPassword.trim() })
+                });
+                alert(res.message);
+              } catch (e) {
+                alert('เกิดข้อผิดพลาด: ' + e.message);
+              }
+            }
+          });
+        });
 
         document.querySelectorAll('[data-action]').forEach((btn) => {
           btn.addEventListener('click', async () => {

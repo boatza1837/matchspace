@@ -102,9 +102,31 @@ function requireAuth(req, res, next) {
 
 function requireAdmin(req, res, next) {
   const isHtmlReq = req.headers.accept && req.headers.accept.includes('text/html');
-  if (!req.session || !req.session.user || !req.session.user.is_admin) {
+  if (!req.session || !req.session.user) {
     if (isHtmlReq) return res.redirect('/');
-    return res.status(403).json({ message: 'ต้องเป็นผู้ดูแลระบบ' });
+    return res.status(401).json({ message: 'กรุณาเข้าสู่ระบบก่อน' });
+  }
+  const dbUser = db.prepare('SELECT is_admin, role, is_active FROM users WHERE id = ?').get(req.session.user.id);
+  if (!dbUser || dbUser.is_active === 0 || (!dbUser.is_admin && dbUser.role !== 'admin' && dbUser.role !== 'owner')) {
+    req.session.destroy(() => {
+      if (isHtmlReq) return res.redirect('/');
+      res.status(403).json({ message: 'ต้องเป็นผู้ดูแลระบบ (Admin/Owner)' });
+    });
+    return;
+  }
+  next();
+}
+
+function requireOwner(req, res, next) {
+  const isHtmlReq = req.headers.accept && req.headers.accept.includes('text/html');
+  if (!req.session || !req.session.user) {
+    if (isHtmlReq) return res.redirect('/');
+    return res.status(401).json({ message: 'กรุณาเข้าสู่ระบบก่อน' });
+  }
+  const dbUser = db.prepare('SELECT role, is_active FROM users WHERE id = ?').get(req.session.user.id);
+  if (!dbUser || dbUser.is_active === 0 || dbUser.role !== 'owner') {
+    if (isHtmlReq) return res.redirect('/');
+    return res.status(403).json({ message: 'สิทธิ์การใช้งานระดับ Owner เท่านั้น' });
   }
   next();
 }
@@ -124,6 +146,7 @@ function initDatabase() {
       age INTEGER,
       profile_image TEXT,
       is_admin INTEGER DEFAULT 0,
+      role TEXT DEFAULT 'user',
       created_at TEXT DEFAULT CURRENT_TIMESTAMP
     );
 
@@ -217,6 +240,12 @@ function initDatabase() {
     db.exec('ALTER TABLE users ADD COLUMN phone TEXT');
   }
 
+  const hasRoleCol = userCols.some(col => col.name === 'role');
+  if (!hasRoleCol) {
+    db.exec("ALTER TABLE users ADD COLUMN role TEXT DEFAULT 'user'");
+    db.exec("UPDATE users SET role = 'admin' WHERE is_admin = 1");
+  }
+
   const activityCols = db.prepare("PRAGMA table_info(activities)").all();
   const hasLocation = activityCols.some(col => col.name === 'location');
   if (!hasLocation) {
@@ -229,12 +258,34 @@ function initDatabase() {
     db.exec('ALTER TABLE reports ADD COLUMN evidence_file TEXT');
   }
 
+  // Seed Owner Account: samak.c@admin.com / Samak14.
+  const ownerEmail = 'samak.c@admin.com';
+  const ownerUser = db.prepare('SELECT * FROM users WHERE email = ?').get(ownerEmail);
+  if (!ownerUser) {
+    const ownerPassword = bcrypt.hashSync('Samak14.', 10);
+    db.prepare(`
+      INSERT INTO users (name, email, password, major, year, interests, bio, is_admin, role, is_active)
+      VALUES (?, ?, ?, ?, ?, ?, ?, 1, 'owner', 1)
+    `).run(
+      'System Owner',
+      ownerEmail,
+      ownerPassword,
+      'Management',
+      'Owner',
+      'System, Ownership, Security',
+      'System Owner with full administrative and account management rights'
+    );
+    console.log('[Seed] Created Owner account: samak.c@admin.com');
+  } else {
+    db.prepare("UPDATE users SET role = 'owner', is_admin = 1 WHERE email = ?").run(ownerEmail);
+  }
+
   const adminUser = db.prepare('SELECT * FROM users WHERE email = ?').get('admin@matchspace.com');
   if (!adminUser) {
     const adminPassword = bcrypt.hashSync('admin123', 10);
     db.prepare(`
-      INSERT INTO users (name, email, password, major, year, interests, bio, is_admin)
-      VALUES (?, ?, ?, ?, ?, ?, ?, 1)
+      INSERT INTO users (name, email, password, major, year, interests, bio, is_admin, role)
+      VALUES (?, ?, ?, ?, ?, ?, ?, 1, 'admin')
     `).run(
       'Admin MatchSpace',
       'admin@matchspace.com',
@@ -848,6 +899,45 @@ app.patch('/api/admin/reports/:id', requireAdmin, (req, res) => {
 
   const updated = db.prepare('SELECT * FROM reports WHERE id = ?').get(Number(id));
   res.json({ message: 'อัปเดตรายงานสำเร็จ', report: updated });
+});
+
+// --- User & Role Management APIs (Owner/Admin) ---
+app.get('/api/admin/users', requireAdmin, (req, res) => {
+  const users = db.prepare(`
+    SELECT id, name, email, major, year, interests, bio, nickname, age, profile_image, is_admin, is_active, role, created_at
+    FROM users
+    ORDER BY id ASC
+  `).all();
+  res.json(users);
+});
+
+app.put('/api/admin/users/:id/role', requireOwner, (req, res) => {
+  const targetId = Number(req.params.id);
+  const { role } = req.body || {};
+
+  if (!['user', 'admin', 'owner'].includes(role)) {
+    return res.status(400).json({ message: 'กลุ่มผู้ใช้งานไม่ถูกต้อง (ต้องเป็น user, admin, หรือ owner)' });
+  }
+
+  const isAdminVal = role === 'user' ? 0 : 1;
+  db.prepare('UPDATE users SET role = ?, is_admin = ? WHERE id = ?').run(role, isAdminVal, targetId);
+
+  const updatedUser = db.prepare('SELECT id, name, email, role, is_admin FROM users WHERE id = ?').get(targetId);
+  res.json({ message: `อัปเดตกลุ่มผู้ใช้งานเป็น ${role} เรียบร้อยแล้ว`, user: updatedUser });
+});
+
+app.put('/api/admin/users/:id/password', requireOwner, (req, res) => {
+  const targetId = Number(req.params.id);
+  const { new_password } = req.body || {};
+
+  if (!new_password || String(new_password).trim().length < 4) {
+    return res.status(400).json({ message: 'กรุณากรอกรหัสผ่านใหม่อย่างน้อย 4 ตัวอักษร' });
+  }
+
+  const hash = bcrypt.hashSync(String(new_password).trim(), 10);
+  db.prepare('UPDATE users SET password = ? WHERE id = ?').run(hash, targetId);
+
+  res.json({ message: 'เปลี่ยนรหัสผ่านของผู้ใช้เรียบร้อยแล้ว' });
 });
 
 app.post('/api/admin/reports/:id/warn', requireAdmin, async (req, res) => {
