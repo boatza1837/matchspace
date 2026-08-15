@@ -81,15 +81,27 @@ document.addEventListener('DOMContentLoaded', async () => {
       event.preventDefault();
       const payload = Object.fromEntries(new FormData(loginForm).entries());
       const messageEl = document.getElementById('loginMessage');
+      const submitBtn = loginForm.querySelector('button[type="submit"]');
 
       try {
+        if (submitBtn) {
+          submitBtn.disabled = true;
+          submitBtn.textContent = '⏳ กำลังเข้าสู่ระบบ...';
+        }
+        if (messageEl) {
+          messageEl.className = 'message success';
+          messageEl.textContent = 'กำลังตรวจสอบข้อมูลรหัสผ่าน...';
+        }
+
         const result = await apiRequest('/api/login', {
           method: 'POST',
           body: JSON.stringify(payload)
         });
 
-        messageEl.className = 'message success';
-        messageEl.textContent = result.message || 'เข้าสู่ระบบสำเร็จ';
+        if (messageEl) {
+          messageEl.className = 'message success';
+          messageEl.textContent = result.message || 'เข้าสู่ระบบสำเร็จ';
+        }
 
         setTimeout(() => {
           if (result.user && result.user.is_admin) {
@@ -97,10 +109,17 @@ document.addEventListener('DOMContentLoaded', async () => {
           } else {
             window.location.href = '/app';
           }
-        }, 500);
+        }, 400);
       } catch (error) {
-        messageEl.className = 'message error';
-        messageEl.textContent = error.message;
+        if (messageEl) {
+          messageEl.className = 'message error';
+          messageEl.textContent = error.message;
+        }
+      } finally {
+        if (submitBtn) {
+          submitBtn.disabled = false;
+          submitBtn.textContent = 'เข้าสู่ระบบ';
+        }
       }
     });
 
@@ -128,7 +147,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             logo_alignment: 'left'
           });
 
-          if (fallbackContainer) fallbackContainer.classList.add('hidden');
+          if (fallbackContainer && btnContainer.children.length > 0) {
+            fallbackContainer.classList.add('hidden');
+          }
         } catch (e) {
           if (fallbackContainer) fallbackContainer.classList.remove('hidden');
         }
