@@ -620,7 +620,7 @@ app.get('/api/test-email', async (req, res) => {
     res.json({ ok: true, message: `ส่งอีเมลทดสอบสำเร็จไปยัง ${targetEmail}`, messageId: info.messageId, sender: validUser });
   } catch (err) {
     console.error('[Test Email Error]:', err);
-    res.status(500).json({ ok: false, error: err.message, stack: err.stack });
+    res.json({ ok: false, error: err.message, code: err.code, command: err.command, response: err.response });
   }
 });
 
