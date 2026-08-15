@@ -61,19 +61,30 @@ async function sendMatchEmail(toEmail, toName, matchedName) {
       to: toEmail,
       subject: `🎉 คุณกับ ${matchedName} แมตช์กันแล้ว!`,
       html: `
-        <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:24px;">
-          <h2 style="color:#4a4496;">💕 แมตช์สำเร็จ!</h2>
-          <p>สวัสดี <strong>${toName}</strong>,</p>
-          <p>คุณกับ <strong>${matchedName}</strong> สนใจกันทั้งคู่! ระบบได้สร้างห้องแชทให้แล้ว</p>
-          <p>เข้าไปเริ่มบทสนทนาได้เลยที่ MatchSpace 🚀</p>
-          <hr style="border:none;border-top:1px solid #eee;margin:20px 0;">
-          <p style="color:#999;font-size:12px;">MatchSpace — หาคนที่ใช่ สำหรับการเริ่มต้นใหม่</p>
+        <div style="font-family:'Segoe UI',Helvetica,Arial,sans-serif;max-width:500px;margin:0 auto;padding:24px;border:1px solid #ffd6e8;border-radius:20px;background:#ffffff;box-shadow:0 10px 30px rgba(230,80,140,0.08);">
+          <div style="text-align:center;padding-bottom:16px;border-bottom:1px solid #fff0f5;">
+            <h2 style="color:#e63980;margin:0;font-size:24px;">🎉 คุณแมตช์สำเร็จแล้ว!</h2>
+            <p style="color:#777;font-size:14px;margin-top:4px;">MatchSpace Notification</p>
+          </div>
+
+          <div style="padding:20px 0;text-align:center;">
+            <p style="font-size:16px;color:#333;">ยินดีด้วย <strong>${toName}</strong> 💕</p>
+            <p style="font-size:16px;color:#444;">คุณกับ <strong>${matchedName}</strong> ใจตรงกันแล้ว! ระบบได้สร้างห้องแชทพิเศษให้คุณทั้งสองคนเรียบร้อยแล้ว</p>
+            
+            <div style="margin:24px 0;">
+              <a href="https://matchspace-production-b035.up.railway.app/app" style="background:linear-gradient(135deg, #e63980, #c41e62);color:#ffffff;padding:14px 32px;border-radius:30px;text-decoration:none;font-weight:bold;font-size:16px;display:inline-block;box-shadow:0 8px 20px rgba(230,57,128,0.25);">🚀 เริ่มทักแชทเลย</a>
+            </div>
+          </div>
+
+          <div style="border-top:1px solid #fff0f5;padding-top:16px;text-align:center;color:#aaa;font-size:12px;">
+            MatchSpace — หาคนที่ใช่ สำหรับการเริ่มต้นใหม่
+          </div>
         </div>
       `
     });
     console.log(`[Email Sent] Match notification to ${toEmail}`);
   } catch (err) {
-    console.error(`[Email Error] Failed to send to ${toEmail}:`, err.message);
+    console.error(`[Email Error] Failed to send match email to ${toEmail}:`, err.message);
   }
 }
 
@@ -83,24 +94,36 @@ async function sendChatMessageEmail(toEmail, toName, senderName, messageContent)
     return;
   }
   try {
+    const previewText = String(messageContent).length > 30 ? String(messageContent).substring(0, 30) + '...' : messageContent;
     await transporter.sendMail({
       from: `"MatchSpace Chat" <${SMTP_USER_DEFAULT}>`,
       to: toEmail,
-      subject: `💬 ${senderName} ส่งข้อความถึงคุณบน MatchSpace`,
+      subject: `💬 ${senderName} ส่งข้อความหาคุณ: "${previewText}"`,
       html: `
-        <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:24px;border:1px solid #eee;border-radius:16px;background:#fafafa;">
-          <h2 style="color:#4a4496;margin-top:0;">💬 มีข้อความใหม่ถึงคุณ!</h2>
-          <p>สวัสดี <strong>${toName}</strong>,</p>
-          <p><strong>${senderName}</strong> ได้ส่งข้อความหาคุณบน MatchSpace:</p>
-          <div style="background:#ffffff;padding:14px 18px;border-left:4px solid #4a4496;border-radius:8px;margin:16px 0;font-style:italic;color:#333;">
-            "${messageContent}"
+        <div style="font-family:'Segoe UI',Helvetica,Arial,sans-serif;max-width:500px;margin:0 auto;padding:24px;border:1px solid #e0d7fc;border-radius:20px;background:#ffffff;box-shadow:0 10px 30px rgba(74,68,150,0.08);">
+          <div style="text-align:center;padding-bottom:16px;border-bottom:1px solid #f0edff;">
+            <h2 style="color:#4a4496;margin:0;font-size:22px;">💌 มีข้อความแชทใหม่!</h2>
+            <p style="color:#777;font-size:14px;margin-top:4px;">MatchSpace Notification</p>
           </div>
-          <p>เข้าไปพูดคุยตอบบทสนทนาได้เลยที่ MatchSpace 🚀</p>
-          <div style="margin-top:20px;text-align:center;">
-            <a href="https://matchspace-production-b035.up.railway.app/app" style="background:#4a4496;color:#ffffff;padding:12px 24px;border-radius:12px;text-decoration:none;font-weight:bold;display:inline-block;">เข้าสู่ระบบและตอบแชท</a>
+
+          <div style="padding:20px 0;">
+            <p style="font-size:16px;color:#333;">สวัสดี <strong>${toName}</strong> 👋</p>
+            <p style="font-size:15px;color:#444;">คุณ <strong>${senderName}</strong> ได้ส่งข้อความใหม่ถึงคุณว่า:</p>
+            
+            <div style="background:#f8f5ff;padding:16px 20px;border-left:5px solid #6b52d1;border-radius:12px;margin:18px 0;font-size:16px;color:#2c285a;font-weight:600;line-height:1.5;">
+              "${messageContent}"
+            </div>
+
+            <p style="font-size:14px;color:#666;">กดปุ่มด้านล่างเพื่อเข้าสู่ระบบและตอบกลับข้อความทันที 🚀</p>
+            
+            <div style="text-align:center;margin-top:24px;">
+              <a href="https://matchspace-production-b035.up.railway.app/app" style="background:linear-gradient(135deg, #6b52d1, #4a4496);color:#ffffff;padding:14px 32px;border-radius:30px;text-decoration:none;font-weight:bold;font-size:16px;display:inline-block;box-shadow:0 8px 20px rgba(74,68,150,0.25);">💬 ตอบแชททันที</a>
+            </div>
           </div>
-          <hr style="border:none;border-top:1px solid #eee;margin:24px 0 16px 0;">
-          <p style="color:#999;font-size:12px;text-align:center;">MatchSpace — หาคนที่ใช่ สำหรับการเริ่มต้นใหม่</p>
+
+          <div style="border-top:1px solid #f0edff;padding-top:16px;text-align:center;color:#aaa;font-size:12px;">
+            MatchSpace — หาคนที่ใช่ สำหรับการเริ่มต้นใหม่
+          </div>
         </div>
       `
     });
