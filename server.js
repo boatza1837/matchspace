@@ -1166,7 +1166,7 @@ app.post('/api/admin/reports/:id/warn', requireAdmin, async (req, res) => {
 
     const noteEntry = `[ส่งเตือนผู้ใช้ (${targetUser.name})]: ${warning_message.trim()}`;
     const newNote = report.admin_note ? `${report.admin_note}\n${noteEntry}` : noteEntry;
-    await db.run('UPDATE reports SET status = "reviewed", admin_note = ? WHERE id = ?', [newNote, Number(id)]);
+    await db.run("UPDATE reports SET status = 'reviewed', admin_note = ? WHERE id = ?", [newNote, Number(id)]);
 
     res.json({ message: `ส่งข้อความเตือนไปยัง ${targetUser.name} เรียบร้อยแล้ว` });
   } catch (err) {
