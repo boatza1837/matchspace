@@ -117,6 +117,11 @@
                 <div class="form-group full">
                   <label for="profileBio">ประวัติโดยย่อ</label>
                   <textarea id="profileBio"></textarea>
+                <div class="form-group full">
+                  <label>อัลบั้มรูปภาพโปรไฟล์ (สูงสุด 6 รูป)</label>
+                  <div id="userPhotosGrid" class="user-photos-grid"></div>
+                  <input id="userPhotosInput" type="file" accept="image/*" multiple style="display:none;" />
+                  <button id="addPhotosBtn" class="button outline" type="button" style="margin-top:10px;">📸 เพิ่มรูปภาพโปรไฟล์</button>
                 </div>
               </div>
 
@@ -164,6 +169,33 @@
             <div id="activityBoardList" class="activity-board"></div>
           </div>
         </section>
+      </div>
+    </div>
+
+    <!-- Profile Detail Modal with Multi-Photo Gallery Carousel -->
+    <div id="profileModal" class="modal hidden">
+      <div class="modal-content profile-modal-content">
+        <button id="closeProfileModal" class="modal-close-btn" type="button">✕</button>
+        <div class="profile-gallery-container">
+          <img id="modalProfileImg" src="" alt="Profile Photo" class="modal-profile-img" />
+          <div id="modalGalleryNav" class="gallery-nav hidden">
+            <button id="prevPhotoBtn" class="gallery-arrow" type="button">‹</button>
+            <div id="galleryIndicators" class="gallery-indicators"></div>
+            <button id="nextPhotoBtn" class="gallery-arrow" type="button">›</button>
+          </div>
+        </div>
+        <div class="profile-info-box">
+          <h2 id="modalProfileName"></h2>
+          <div class="profile-badges">
+            <span id="modalProfileGender" class="badge"></span>
+            <span id="modalProfileAgeMajor" class="badge alt"></span>
+          </div>
+          <p id="modalProfileBio" class="profile-bio-text"></p>
+          <div id="modalProfileInterests" class="chips"></div>
+          <div class="profile-modal-actions">
+            <button id="modalActionBtn" class="button primary full" type="button">ทักแชท / สนใจ</button>
+          </div>
+        </div>
       </div>
     </div>
 

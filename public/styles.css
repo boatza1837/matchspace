@@ -878,3 +878,199 @@ th {
   from { transform: translateY(20px); opacity: 0; }
   to { transform: translateY(0); opacity: 1; }
 }
+
+/* --- User Multi-Photo Grid & Profile Modal --- */
+.user-photos-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.photo-thumb-box {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1.5px solid var(--line);
+  box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+}
+
+.photo-thumb-box img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.btn-delete-photo {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  background: rgba(214, 73, 73, 0.85);
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 22px;
+  height: 22px;
+  font-size: 0.75rem;
+  font-weight: bold;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.btn-delete-photo:hover {
+  background: var(--danger);
+  transform: scale(1.1);
+}
+
+/* Modal Styling */
+.modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(18, 16, 38, 0.65);
+  backdrop-filter: blur(8px);
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+.modal.hidden {
+  display: none !important;
+}
+
+.profile-modal-content {
+  background: white;
+  border-radius: 24px;
+  max-width: 440px;
+  width: 100%;
+  overflow: hidden;
+  box-shadow: 0 24px 60px rgba(74, 68, 150, 0.25);
+  position: relative;
+  animation: modalPop 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+@keyframes modalPop {
+  from { transform: scale(0.9) translateY(20px); opacity: 0; }
+  to { transform: scale(1) translateY(0); opacity: 1; }
+}
+
+.modal-close-btn {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  background: rgba(0,0,0,0.4);
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  font-size: 1.1rem;
+  cursor: pointer;
+  z-index: 10;
+  transition: background 0.2s ease;
+}
+
+.modal-close-btn:hover {
+  background: rgba(0,0,0,0.7);
+}
+
+.profile-gallery-container {
+  position: relative;
+  width: 100%;
+  height: 280px;
+  background: #f4f0fd;
+}
+
+.modal-profile-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.gallery-nav {
+  position: absolute;
+  bottom: 12px;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 14px;
+}
+
+.gallery-arrow {
+  background: rgba(255, 255, 255, 0.85);
+  color: var(--purple-dark);
+  border: none;
+  border-radius: 50%;
+  width: 34px;
+  height: 34px;
+  font-size: 1.3rem;
+  font-weight: bold;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+  transition: all 0.2s ease;
+}
+
+.gallery-arrow:hover {
+  background: white;
+  transform: scale(1.08);
+}
+
+.gallery-indicators {
+  display: flex;
+  gap: 6px;
+}
+
+.indicator-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.5);
+  transition: all 0.2s ease;
+}
+
+.indicator-dot.active {
+  background: white;
+  width: 18px;
+  border-radius: 999px;
+}
+
+.profile-info-box {
+  padding: 22px;
+}
+
+.profile-info-box h2 {
+  margin: 0 0 8px;
+  color: var(--purple-dark);
+  font-size: 1.5rem;
+}
+
+.profile-badges {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.profile-bio-text {
+  color: var(--text);
+  font-size: 0.94rem;
+  line-height: 1.55;
+  margin-bottom: 16px;
+}
+
+.profile-modal-actions {
+  margin-top: 18px;
+}

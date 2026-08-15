@@ -4,18 +4,12 @@ const path = require('path');
 const bcrypt = require('bcryptjs');
 const multer = require('multer');
 const fs = require('fs');
-const dns = require('dns');
-if (dns.setDefaultResultOrder) {
-  dns.setDefaultResultOrder('ipv4first');
-}
-const { DatabaseSync } = require('node:sqlite');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 const publicDir = path.join(__dirname, 'public');
 
 // === Persistent Storage (Railway Volume) ===
-// Automatically detects Railway Volume mounted at /data or uses process.env.DATA_DIR
 const isRailwayVolume = fs.existsSync('/data');
 const dataDir = process.env.DATA_DIR || (isRailwayVolume ? '/data' : __dirname);
 const dbPath = path.join(dataDir, 'matchspace.db');
@@ -41,7 +35,74 @@ const upload = multer({
   }
 });
 
-const db = new DatabaseSync(dbPath);
+// === Turso Cloud & Local SQLite Unified Database Adapter ===
+const useTurso = Boolean(process.env.TURSO_DATABASE_URL && process.env.TURSO_DATABASE_URL.startsWith('libsql://'));
+
+let sqliteDb = null;
+let tursoClient = null;
+
+if (useTurso) {
+  const { createClient } = require('@libsql/client');
+  tursoClient = createClient({
+    url: process.env.TURSO_DATABASE_URL,
+    authToken: process.env.TURSO_AUTH_TOKEN
+  });
+  console.log('[Database] Connected to Turso Cloud DB:', process.env.TURSO_DATABASE_URL);
+} else {
+  const { DatabaseSync } = require('node:sqlite');
+  sqliteDb = new DatabaseSync(dbPath);
+  console.log('[Database] Connected to local SQLite DB:', dbPath);
+}
+
+const db = {
+  async get(sql, params = []) {
+    if (useTurso) {
+      const res = await tursoClient.execute({ sql, args: params });
+      return res.rows[0] ? { ...res.rows[0] } : null;
+    } else {
+      const row = sqliteDb.prepare(sql).get(...params);
+      return row ? { ...row } : null;
+    }
+  },
+  async all(sql, params = []) {
+    if (useTurso) {
+      const res = await tursoClient.execute({ sql, args: params });
+      return (res.rows || []).map(r => ({ ...r }));
+    } else {
+      const rows = sqliteDb.prepare(sql).all(...params);
+      return rows.map(r => ({ ...r }));
+    }
+  },
+  async run(sql, params = []) {
+    if (useTurso) {
+      const res = await tursoClient.execute({ sql, args: params });
+      return {
+        lastInsertRowid: res.lastInsertRowid !== undefined ? Number(res.lastInsertRowid) : 0,
+        changes: Number(res.rowsAffected || 0)
+      };
+    } else {
+      const res = sqliteDb.prepare(sql).run(...params);
+      return {
+        lastInsertRowid: res.lastInsertRowid,
+        changes: res.changes
+      };
+    }
+  },
+  async exec(sql) {
+    if (useTurso) {
+      const stmts = sql.split(';').map(s => s.trim()).filter(Boolean);
+      for (const stmt of stmts) {
+        try {
+          await tursoClient.execute(stmt);
+        } catch(e) {
+          // ignore DDL exists errors
+        }
+      }
+    } else {
+      sqliteDb.exec(sql);
+    }
+  }
+};
 
 function formatUser(row) {
   if (!row) return null;
@@ -49,13 +110,13 @@ function formatUser(row) {
   return { ...safeUser, is_admin: Boolean(safeUser.is_admin) };
 }
 
-function requireAuth(req, res, next) {
+async function requireAuth(req, res, next) {
   const isHtmlReq = req.headers.accept && req.headers.accept.includes('text/html');
   if (!req.session || !req.session.user) {
     if (isHtmlReq) return res.redirect('/');
     return res.status(401).json({ message: 'กรุณาเข้าสู่ระบบก่อน' });
   }
-  const dbUser = db.prepare('SELECT is_active FROM users WHERE id = ?').get(req.session.user.id);
+  const dbUser = await db.get('SELECT is_active FROM users WHERE id = ?', [req.session.user.id]);
   if (!dbUser || dbUser.is_active === 0) {
     req.session.destroy(() => {
       if (isHtmlReq) return res.redirect('/');
@@ -66,13 +127,13 @@ function requireAuth(req, res, next) {
   next();
 }
 
-function requireAdmin(req, res, next) {
+async function requireAdmin(req, res, next) {
   const isHtmlReq = req.headers.accept && req.headers.accept.includes('text/html');
   if (!req.session || !req.session.user) {
     if (isHtmlReq) return res.redirect('/');
     return res.status(401).json({ message: 'กรุณาเข้าสู่ระบบก่อน' });
   }
-  const dbUser = db.prepare('SELECT is_admin, role, is_active FROM users WHERE id = ?').get(req.session.user.id);
+  const dbUser = await db.get('SELECT is_admin, role, is_active FROM users WHERE id = ?', [req.session.user.id]);
   if (!dbUser || dbUser.is_active === 0 || (!dbUser.is_admin && dbUser.role !== 'admin' && dbUser.role !== 'owner')) {
     req.session.destroy(() => {
       if (isHtmlReq) return res.redirect('/');
@@ -83,13 +144,13 @@ function requireAdmin(req, res, next) {
   next();
 }
 
-function requireOwner(req, res, next) {
+async function requireOwner(req, res, next) {
   const isHtmlReq = req.headers.accept && req.headers.accept.includes('text/html');
   if (!req.session || !req.session.user) {
     if (isHtmlReq) return res.redirect('/');
     return res.status(401).json({ message: 'กรุณาเข้าสู่ระบบก่อน' });
   }
-  const dbUser = db.prepare('SELECT role, is_active FROM users WHERE id = ?').get(req.session.user.id);
+  const dbUser = await db.get('SELECT role, is_active FROM users WHERE id = ?', [req.session.user.id]);
   if (!dbUser || dbUser.is_active === 0 || dbUser.role !== 'owner') {
     if (isHtmlReq) return res.redirect('/');
     return res.status(403).json({ message: 'สิทธิ์การใช้งานระดับ Owner เท่านั้น' });
@@ -97,8 +158,8 @@ function requireOwner(req, res, next) {
   next();
 }
 
-function initDatabase() {
-  db.exec(`
+async function initDatabase() {
+  await db.exec(`
     CREATE TABLE IF NOT EXISTS users (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT NOT NULL,
@@ -113,6 +174,13 @@ function initDatabase() {
       profile_image TEXT,
       is_admin INTEGER DEFAULT 0,
       role TEXT DEFAULT 'user',
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS user_photos (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      photo_url TEXT NOT NULL,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP
     );
 
@@ -175,74 +243,40 @@ function initDatabase() {
     );
   `);
 
-  const userCols = db.prepare("PRAGMA table_info(users)").all();
-  const hasAdminFlag = userCols.some(col => col.name === 'is_admin');
-  if (!hasAdminFlag) {
-    db.exec('ALTER TABLE users ADD COLUMN is_admin INTEGER DEFAULT 0');
-  }
-  
-  const hasActiveFlag = userCols.some(col => col.name === 'is_active');
-  if (!hasActiveFlag) {
-    db.exec('ALTER TABLE users ADD COLUMN is_active INTEGER DEFAULT 1');
-  }
-
-  const hasNickname = userCols.some(col => col.name === 'nickname');
-  if (!hasNickname) {
-    db.exec('ALTER TABLE users ADD COLUMN nickname TEXT');
-  }
-
-  const hasAge = userCols.some(col => col.name === 'age');
-  if (!hasAge) {
-    db.exec('ALTER TABLE users ADD COLUMN age INTEGER');
-  }
-
-  const hasProfileImage = userCols.some(col => col.name === 'profile_image');
-  if (!hasProfileImage) {
-    db.exec('ALTER TABLE users ADD COLUMN profile_image TEXT');
-  }
-
-  const hasPhone = userCols.some(col => col.name === 'phone');
-  if (!hasPhone) {
-    db.exec('ALTER TABLE users ADD COLUMN phone TEXT');
-  }
-
-  const hasRoleCol = userCols.some(col => col.name === 'role');
-  if (!hasRoleCol) {
-    db.exec("ALTER TABLE users ADD COLUMN role TEXT DEFAULT 'user'");
-    db.exec("UPDATE users SET role = 'admin' WHERE is_admin = 1");
-  }
-
-  const hasPlainPassword = userCols.some(col => col.name === 'plain_password');
-  if (!hasPlainPassword) {
-    db.exec('ALTER TABLE users ADD COLUMN plain_password TEXT');
-  }
-
-  const hasGender = userCols.some(col => col.name === 'gender');
-  if (!hasGender) {
-    db.exec("ALTER TABLE users ADD COLUMN gender TEXT DEFAULT 'ไม่ระบุ'");
-  }
-
-  const activityCols = db.prepare("PRAGMA table_info(activities)").all();
-  const hasLocation = activityCols.some(col => col.name === 'location');
-  if (!hasLocation) {
-    db.exec('ALTER TABLE activities ADD COLUMN location TEXT');
-  }
-
-  const reportCols = db.prepare("PRAGMA table_info(reports)").all();
-  const hasEvidence = reportCols.some(col => col.name === 'evidence_file');
-  if (!hasEvidence) {
-    db.exec('ALTER TABLE reports ADD COLUMN evidence_file TEXT');
+  if (!useTurso) {
+    const userCols = await db.all("PRAGMA table_info(users)");
+    const hasAdminFlag = userCols.some(col => col.name === 'is_admin');
+    if (!hasAdminFlag) await db.exec('ALTER TABLE users ADD COLUMN is_admin INTEGER DEFAULT 0');
+    const hasActiveFlag = userCols.some(col => col.name === 'is_active');
+    if (!hasActiveFlag) await db.exec('ALTER TABLE users ADD COLUMN is_active INTEGER DEFAULT 1');
+    const hasNickname = userCols.some(col => col.name === 'nickname');
+    if (!hasNickname) await db.exec('ALTER TABLE users ADD COLUMN nickname TEXT');
+    const hasAge = userCols.some(col => col.name === 'age');
+    if (!hasAge) await db.exec('ALTER TABLE users ADD COLUMN age INTEGER');
+    const hasProfileImage = userCols.some(col => col.name === 'profile_image');
+    if (!hasProfileImage) await db.exec('ALTER TABLE users ADD COLUMN profile_image TEXT');
+    const hasPhone = userCols.some(col => col.name === 'phone');
+    if (!hasPhone) await db.exec('ALTER TABLE users ADD COLUMN phone TEXT');
+    const hasRoleCol = userCols.some(col => col.name === 'role');
+    if (!hasRoleCol) {
+      await db.exec("ALTER TABLE users ADD COLUMN role TEXT DEFAULT 'user'");
+      await db.exec("UPDATE users SET role = 'admin' WHERE is_admin = 1");
+    }
+    const hasPlainPassword = userCols.some(col => col.name === 'plain_password');
+    if (!hasPlainPassword) await db.exec('ALTER TABLE users ADD COLUMN plain_password TEXT');
+    const hasGender = userCols.some(col => col.name === 'gender');
+    if (!hasGender) await db.exec("ALTER TABLE users ADD COLUMN gender TEXT DEFAULT 'ไม่ระบุ'");
   }
 
   // Seed Owner Account: samak.c@admin.com / Samak14.
   const ownerEmail = 'samak.c@admin.com';
-  const ownerUser = db.prepare('SELECT * FROM users WHERE email = ?').get(ownerEmail);
+  const ownerUser = await db.get('SELECT * FROM users WHERE email = ?', [ownerEmail]);
   if (!ownerUser) {
     const ownerPassword = bcrypt.hashSync('Samak14.', 10);
-    db.prepare(`
+    await db.run(`
       INSERT INTO users (name, email, password, plain_password, major, year, interests, bio, is_admin, role, is_active)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, 'owner', 1)
-    `).run(
+    `, [
       'System Owner',
       ownerEmail,
       ownerPassword,
@@ -251,19 +285,19 @@ function initDatabase() {
       'Owner',
       'System, Ownership, Security',
       'System Owner with full administrative and account management rights'
-    );
+    ]);
     console.log('[Seed] Created Owner account: samak.c@admin.com');
   } else {
-    db.prepare("UPDATE users SET role = 'owner', is_admin = 1, plain_password = 'Samak14.' WHERE email = ?").run(ownerEmail);
+    await db.run("UPDATE users SET role = 'owner', is_admin = 1, plain_password = 'Samak14.' WHERE email = ?", [ownerEmail]);
   }
 
-  const adminUser = db.prepare('SELECT * FROM users WHERE email = ?').get('admin@matchspace.com');
+  const adminUser = await db.get('SELECT * FROM users WHERE email = ?', ['admin@matchspace.com']);
   if (!adminUser) {
     const adminPassword = bcrypt.hashSync('admin123', 10);
-    db.prepare(`
+    await db.run(`
       INSERT INTO users (name, email, password, plain_password, major, year, interests, bio, is_admin, role)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, 'admin')
-    `).run(
+    `, [
       'Admin MatchSpace',
       'admin@matchspace.com',
       adminPassword,
@@ -272,18 +306,16 @@ function initDatabase() {
       'Admin',
       'System, Review, Safety',
       'Default administrator account'
-    );
-  } else {
-    db.prepare("UPDATE users SET is_admin = 1, plain_password = 'admin123' WHERE email = ? AND plain_password IS NULL").run('admin@matchspace.com');
+    ]);
   }
 
-  const demoUser = db.prepare('SELECT * FROM users WHERE email = ?').get('demo@student.com');
+  const demoUser = await db.get('SELECT * FROM users WHERE email = ?', ['demo@student.com']);
   if (!demoUser) {
     const demoPassword = bcrypt.hashSync('demo123', 10);
-    db.prepare(`
+    await db.run(`
       INSERT INTO users (name, email, password, plain_password, major, year, interests, bio)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(
+    `, [
       'Demo User',
       'demo@student.com',
       demoPassword,
@@ -292,39 +324,11 @@ function initDatabase() {
       'ปี 2',
       'หนัง, คาเฟ่, ดนตรี',
       'ชอบทำกิจกรรมชิล ๆ และคุยเรื่องหนังและสไตล์ชีวิต'
-    );
-  } else {
-    db.prepare("UPDATE users SET plain_password = 'demo123' WHERE email = ? AND plain_password IS NULL").run('demo@student.com');
-  }
-
-  // Ensure every user row in database has a valid plain_password populated for Owner viewing
-  const emptyPlainUsers = db.prepare("SELECT id, email FROM users WHERE plain_password IS NULL OR plain_password = ''").all();
-  for (const u of emptyPlainUsers) {
-    let defaultPlain = 'User1234';
-    if (u.email === 'samak.c@admin.com') defaultPlain = 'Samak14.';
-    else if (u.email === 'admin@matchspace.com') defaultPlain = 'admin123';
-    else if (u.email === 'demo@student.com') defaultPlain = 'demo123';
-
-    const defaultHash = bcrypt.hashSync(defaultPlain, 10);
-    db.prepare("UPDATE users SET password = ?, plain_password = ? WHERE id = ?").run(defaultHash, defaultPlain, u.id);
-  }
-
-  const reportCount = db.prepare('SELECT COUNT(*) AS total FROM reports').get().total;
-  if (reportCount === 0) {
-    db.prepare(`
-      INSERT INTO reports (reporter_name, reporter_email, reported_user, report_type, description, status)
-      VALUES (?, ?, ?, ?, ?, 'pending')
-    `).run(
-      'Demo User',
-      'demo@student.com',
-      'แอนนา',
-      'spam',
-      'มีข้อความส่งซ้ำ ๆ และก่อความรำคาญในแชท'
-    );
+    ]);
   }
 }
 
-initDatabase();
+initDatabase().catch(err => console.error('[Init DB Error]', err));
 
 app.use(session({
   secret: 'matchspace-session-secret',
@@ -336,7 +340,6 @@ app.use(session({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(publicDir));
-// Serve uploads from volume (works whether DATA_DIR is set or not)
 app.use('/uploads', express.static(uploadsDir));
 
 // Multer error handler
@@ -353,11 +356,11 @@ app.use((err, req, res, next) => {
   next(err);
 });
 
-app.get('/api/session', (req, res) => {
+app.get('/api/session', async (req, res) => {
   if (!req.session?.user) {
     return res.json({ user: null });
   }
-  const dbUser = db.prepare('SELECT is_active FROM users WHERE id = ?').get(req.session.user.id);
+  const dbUser = await db.get('SELECT is_active FROM users WHERE id = ?', [req.session.user.id]);
   if (!dbUser || dbUser.is_active === 0) {
     req.session.destroy(() => {
       res.status(403).json({ message: 'บัญชีของคุณถูกระงับการใช้งาน', user: null, banned: true });
@@ -367,26 +370,26 @@ app.get('/api/session', (req, res) => {
   res.json({ user: req.session.user });
 });
 
-app.get('/api/public/users', (req, res) => {
-  const users = db.prepare(`
+app.get('/api/public/users', async (req, res) => {
+  const users = await db.all(`
     SELECT id, name, email, major
     FROM users
     WHERE is_active != 0 
       AND (is_admin IS NULL OR is_admin = 0)
       AND (role IS NULL OR role = 'user' OR role = '')
     ORDER BY name ASC
-  `).all();
+  `);
   res.json(users);
 });
 
-app.post('/api/login', (req, res) => {
+app.post('/api/login', async (req, res) => {
   const { email, password } = req.body || {};
 
   if (!email || !password) {
     return res.status(400).json({ message: 'กรุณากรอกอีเมลและรหัสผ่าน' });
   }
 
-  const user = db.prepare('SELECT * FROM users WHERE email = ?').get(String(email).trim().toLowerCase());
+  const user = await db.get('SELECT * FROM users WHERE email = ?', [String(email).trim().toLowerCase()]);
   if (!user) {
     return res.status(401).json({ message: 'ไม่พบผู้ใช้นี้' });
   }
@@ -405,7 +408,7 @@ app.post('/api/login', (req, res) => {
   res.json({ message: 'เข้าสู่ระบบสำเร็จ', user: req.session.user });
 });
 
-app.post('/api/auth/google', (req, res) => {
+app.post('/api/auth/google', async (req, res) => {
   const { credential, email, name, picture } = req.body || {};
 
   let googleEmail = email;
@@ -430,10 +433,9 @@ app.post('/api/auth/google', (req, res) => {
   }
 
   const normalizedEmail = String(googleEmail).trim().toLowerCase();
-  let user = db.prepare('SELECT * FROM users WHERE email = ?').get(normalizedEmail);
+  let user = await db.get('SELECT * FROM users WHERE email = ?', [normalizedEmail]);
 
   if (!user) {
-    // If not registered yet, send is_registered: false and redirect to register page with prefilled parameters
     return res.json({
       is_registered: false,
       message: 'โปรดกรอกข้อมูลเพิ่มเติมเพื่อสมัครสมาชิก',
@@ -462,7 +464,12 @@ app.post('/api/logout', (req, res) => {
   });
 });
 
-app.post('/api/register', upload.single('profile_image_file'), (req, res) => {
+const multiUpload = upload.fields([
+  { name: 'profile_image_file', maxCount: 1 },
+  { name: 'photos', maxCount: 6 }
+]);
+
+app.post('/api/register', multiUpload, async (req, res) => {
   const { name, email, password, gender, major, year, interests, bio, nickname, age, phone, google_profile_image } = req.body || {};
 
   if (!name || !email || !password) {
@@ -470,22 +477,23 @@ app.post('/api/register', upload.single('profile_image_file'), (req, res) => {
   }
 
   const normalizedEmail = String(email).trim().toLowerCase();
-  const existingUser = db.prepare('SELECT id FROM users WHERE email = ?').get(normalizedEmail);
+  const existingUser = await db.get('SELECT id FROM users WHERE email = ?', [normalizedEmail]);
   if (existingUser) {
     return res.status(409).json({ message: 'อีเมลนี้มีผู้ใช้งานแล้ว' });
   }
 
   let profileImage = '';
-  if (req.file) {
-    profileImage = `/uploads/${req.file.filename}`;
+  if (req.files && req.files.profile_image_file && req.files.profile_image_file[0]) {
+    profileImage = `/uploads/${req.files.profile_image_file[0].filename}`;
   } else if (google_profile_image) {
     profileImage = String(google_profile_image).trim();
   }
+
   const passwordHash = bcrypt.hashSync(String(password), 10);
-  const result = db.prepare(`
+  const result = await db.run(`
     INSERT INTO users (name, email, password, plain_password, gender, major, year, interests, bio, nickname, age, phone, profile_image, is_admin)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)
-  `).run(
+  `, [
     String(name).trim(),
     normalizedEmail,
     passwordHash,
@@ -499,37 +507,63 @@ app.post('/api/register', upload.single('profile_image_file'), (req, res) => {
     age ? Number(age) : null,
     phone || '',
     profileImage
-  );
+  ]);
 
-  const user = db.prepare('SELECT * FROM users WHERE id = ?').get(result.lastInsertRowid);
+  const userId = result.lastInsertRowid;
+
+  // Insert primary profile photo into user_photos table
+  if (profileImage) {
+    await db.run('INSERT INTO user_photos (user_id, photo_url) VALUES (?, ?)', [userId, profileImage]);
+  }
+
+  // Insert additional multi-photos if uploaded
+  if (req.files && req.files.photos) {
+    for (const f of req.files.photos) {
+      const url = `/uploads/${f.filename}`;
+      await db.run('INSERT INTO user_photos (user_id, photo_url) VALUES (?, ?)', [userId, url]);
+    }
+  }
+
+  const user = await db.get('SELECT * FROM users WHERE id = ?', [userId]);
   const safeUser = formatUser(user);
   req.session.user = safeUser;
   res.status(201).json({ message: 'สมัครสมาชิกสำเร็จ', user: safeUser });
 });
 
 app.get('/api/health', (req, res) => {
-  res.json({ ok: true, message: 'MatchSpace API is running' });
+  res.json({ ok: true, message: 'MatchSpace API is running', turso: useTurso });
 });
 
-app.get('/api/me', requireAuth, (req, res) => {
-  const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.session.user.id);
-  res.json({ user: formatUser(user) });
+app.get('/api/me', requireAuth, async (req, res) => {
+  const user = await db.get('SELECT * FROM users WHERE id = ?', [req.session.user.id]);
+  const photos = await db.all('SELECT * FROM user_photos WHERE user_id = ? ORDER BY id ASC', [req.session.user.id]);
+  res.json({ user: formatUser(user), photos });
 });
 
-app.put('/api/me', requireAuth, upload.single('profile_image_file'), (req, res) => {
+app.put('/api/me', requireAuth, multiUpload, async (req, res) => {
   const { name, gender, major, year, interests, bio, nickname, age } = req.body || {};
   const userId = req.session.user.id;
 
   let profileImage = req.session.user.profile_image || '';
-  if (req.file) {
-    profileImage = `/uploads/${req.file.filename}`;
+  if (req.files && req.files.profile_image_file && req.files.profile_image_file[0]) {
+    profileImage = `/uploads/${req.files.profile_image_file[0].filename}`;
+    await db.run('INSERT INTO user_photos (user_id, photo_url) VALUES (?, ?)', [userId, profileImage]);
   }
 
-  db.prepare(`
+  // Handle multi-photos uploaded during profile edit
+  if (req.files && req.files.photos) {
+    for (const f of req.files.photos) {
+      const url = `/uploads/${f.filename}`;
+      await db.run('INSERT INTO user_photos (user_id, photo_url) VALUES (?, ?)', [userId, url]);
+      if (!profileImage) profileImage = url;
+    }
+  }
+
+  await db.run(`
     UPDATE users
     SET name = ?, gender = ?, major = ?, year = ?, interests = ?, bio = ?, nickname = ?, age = ?, profile_image = ?
     WHERE id = ?
-  `).run(
+  `, [
     String(name || req.session.user.name).trim(),
     gender || req.session.user.gender || 'ไม่ระบุ',
     major || '',
@@ -540,16 +574,67 @@ app.put('/api/me', requireAuth, upload.single('profile_image_file'), (req, res) 
     age ? Number(age) : null,
     profileImage,
     userId
-  );
+  ]);
 
-  const user = db.prepare('SELECT * FROM users WHERE id = ?').get(userId);
+  const user = await db.get('SELECT * FROM users WHERE id = ?', [userId]);
   req.session.user = formatUser(user);
   res.json({ message: 'อัปเดตโปรไฟล์สำเร็จ', user: req.session.user });
 });
 
-app.get('/api/candidates', requireAuth, (req, res) => {
-  const rows = db.prepare(`
-    SELECT id, name, email, major, year, interests, bio, nickname, age, profile_image, is_active, created_at
+// --- Profile Detail API with Multi-Photo Gallery ---
+app.get('/api/users/:id/profile', requireAuth, async (req, res) => {
+  const targetId = Number(req.params.id);
+  const user = await db.get(`
+    SELECT id, name, nickname, gender, age, major, year, interests, bio, profile_image, created_at
+    FROM users WHERE id = ? AND is_active != 0
+  `, [targetId]);
+
+  if (!user) {
+    return res.status(404).json({ message: 'ไม่พบโปรไฟล์นี้' });
+  }
+
+  const photos = await db.all('SELECT * FROM user_photos WHERE user_id = ? ORDER BY id ASC', [targetId]);
+  
+  // Ensure profile_image is in photos list if list is empty
+  let photoUrls = photos.map(p => p.photo_url);
+  if (photoUrls.length === 0 && user.profile_image) {
+    photoUrls = [user.profile_image];
+  }
+
+  res.json({ user, photos: photoUrls });
+});
+
+// Upload Extra Photos
+app.post('/api/me/photos', requireAuth, upload.array('photos', 6), async (req, res) => {
+  const userId = req.session.user.id;
+  if (!req.files || req.files.length === 0) {
+    return res.status(400).json({ message: 'กรุณาเลือกไฟล์รูปภาพเพื่ออัปโหลด' });
+  }
+
+  const newPhotos = [];
+  for (const f of req.files) {
+    const url = `/uploads/${f.filename}`;
+    await db.run('INSERT INTO user_photos (user_id, photo_url) VALUES (?, ?)', [userId, url]);
+    newPhotos.push(url);
+  }
+
+  const allPhotos = await db.all('SELECT * FROM user_photos WHERE user_id = ? ORDER BY id ASC', [userId]);
+  res.json({ message: 'เพิ่มรูปภาพโปรไฟล์เรียบร้อย', photos: allPhotos.map(p => p.photo_url) });
+});
+
+// Delete Extra Photo
+app.delete('/api/me/photos/:photoId', requireAuth, async (req, res) => {
+  const photoId = Number(req.params.photoId);
+  const userId = req.session.user.id;
+
+  await db.run('DELETE FROM user_photos WHERE id = ? AND user_id = ?', [photoId, userId]);
+  const allPhotos = await db.all('SELECT * FROM user_photos WHERE user_id = ? ORDER BY id ASC', [userId]);
+  res.json({ message: 'ลบรูปภาพสำเร็จ', photos: allPhotos.map(p => p.photo_url) });
+});
+
+app.get('/api/candidates', requireAuth, async (req, res) => {
+  const rows = await db.all(`
+    SELECT id, name, email, gender, major, year, interests, bio, nickname, age, profile_image, is_active, created_at
     FROM users
     WHERE id != ? 
       AND is_active != 0 
@@ -557,18 +642,18 @@ app.get('/api/candidates', requireAuth, (req, res) => {
       AND (role IS NULL OR role = 'user' OR role = '')
       AND id NOT IN (SELECT matched_user_id FROM matches WHERE user_id = ?)
     ORDER BY created_at DESC
-  `).all(req.session.user.id, req.session.user.id);
+  `, [req.session.user.id, req.session.user.id]);
   res.json(rows);
 });
 
-app.get('/api/matches', requireAuth, (req, res) => {
-  const rows = db.prepare(`
-    SELECT m.*, u.name AS matched_name, u.major, u.interests
+app.get('/api/matches', requireAuth, async (req, res) => {
+  const rows = await db.all(`
+    SELECT m.*, u.name AS matched_name, u.major, u.interests, u.profile_image
     FROM matches m
     JOIN users u ON u.id = m.matched_user_id
     WHERE m.user_id = ?
     ORDER BY m.created_at DESC
-  `).all(req.session.user.id);
+  `, [req.session.user.id]);
   res.json(rows);
 });
 
@@ -580,62 +665,41 @@ app.post('/api/matches', requireAuth, async (req, res) => {
     return res.status(400).json({ message: 'กรุณาเลือกผู้ใช้งานที่ต้องการแมตช์' });
   }
 
-  const target = db.prepare('SELECT * FROM users WHERE id = ?').get(Number(matched_user_id));
+  const target = await db.get('SELECT * FROM users WHERE id = ?', [Number(matched_user_id)]);
   if (!target) {
     return res.status(404).json({ message: 'ไม่พบผู้ใช้งานนี้' });
   }
 
-  const existing = db.prepare('SELECT * FROM matches WHERE user_id = ? AND matched_user_id = ?').get(userId, Number(matched_user_id));
+  const existing = await db.get('SELECT * FROM matches WHERE user_id = ? AND matched_user_id = ?', [userId, Number(matched_user_id)]);
   if (existing) {
-    db.prepare(`
-      UPDATE matches SET status = ?, note = ? WHERE id = ?
-    `).run(status || existing.status || 'pending', note || existing.note || '', existing.id);
-
-    const updated = db.prepare('SELECT * FROM matches WHERE id = ?').get(existing.id);
+    await db.run('UPDATE matches SET status = ?, note = ? WHERE id = ?', [status || existing.status || 'pending', note || existing.note || '', existing.id]);
+    const updated = await db.get('SELECT * FROM matches WHERE id = ?', [existing.id]);
     return res.json({ message: 'อัปเดต match แล้ว', match: updated });
   }
 
-  const result = db.prepare(`
-    INSERT INTO matches (user_id, matched_user_id, status, note)
-    VALUES (?, ?, ?, ?)
-  `).run(userId, Number(matched_user_id), status || 'pending', note || '');
+  const result = await db.run('INSERT INTO matches (user_id, matched_user_id, status, note) VALUES (?, ?, ?, ?)', [userId, Number(matched_user_id), status || 'pending', note || '']);
+  const match = await db.get('SELECT * FROM matches WHERE id = ?', [result.lastInsertRowid]);
 
-  const match = db.prepare('SELECT * FROM matches WHERE id = ?').get(result.lastInsertRowid);
-
-  // Check for mutual match
   let mutualMatch = false;
   if (status === 'liked') {
-    const reverse = db.prepare(
-      'SELECT * FROM matches WHERE user_id = ? AND matched_user_id = ? AND status = ?'
-    ).get(Number(matched_user_id), userId, 'liked');
-
+    const reverse = await db.get('SELECT * FROM matches WHERE user_id = ? AND matched_user_id = ? AND status = ?', [Number(matched_user_id), userId, 'liked']);
     if (reverse) {
       mutualMatch = true;
-      // Update both to 'matched'
-      db.prepare('UPDATE matches SET status = ? WHERE id = ?').run('matched', match.id);
-      db.prepare('UPDATE matches SET status = ? WHERE id = ?').run('matched', reverse.id);
+      await db.run('UPDATE matches SET status = ? WHERE id = ?', ['matched', match.id]);
+      await db.run('UPDATE matches SET status = ? WHERE id = ?', ['matched', reverse.id]);
 
-      // Create chat if not exists
-      const existingChat = db.prepare(`
+      const existingChat = await db.get(`
         SELECT * FROM chats
         WHERE (user_a = ? AND user_b = ?) OR (user_a = ? AND user_b = ?)
-      `).get(userId, Number(matched_user_id), Number(matched_user_id), userId);
+      `, [userId, Number(matched_user_id), Number(matched_user_id), userId]);
 
       if (!existingChat) {
-        db.prepare(`
-          INSERT INTO chats (user_a, user_b, title)
-          VALUES (?, ?, ?)
-        `).run(userId, Number(matched_user_id), 'แมตช์สำเร็จ!');
+        await db.run('INSERT INTO chats (user_a, user_b, title) VALUES (?, ?, ?)', [userId, Number(matched_user_id), 'แมตช์สำเร็จ!']);
       }
-
-      // Send emails to both users
-      const currentUser = db.prepare('SELECT * FROM users WHERE id = ?').get(userId);
-      sendMatchEmail(target.email, target.name, currentUser.name);
-      sendMatchEmail(currentUser.email, currentUser.name, target.name);
     }
   }
 
-  const updatedMatch = db.prepare('SELECT * FROM matches WHERE id = ?').get(match.id);
+  const updatedMatch = await db.get('SELECT * FROM matches WHERE id = ?', [match.id]);
   res.status(201).json({
     message: mutualMatch ? '🎉 แมตช์สำเร็จ! ระบบสร้างแชทให้แล้ว' : 'เพิ่ม match สำเร็จ',
     match: updatedMatch,
@@ -643,23 +707,25 @@ app.post('/api/matches', requireAuth, async (req, res) => {
   });
 });
 
-app.get('/api/chats', requireAuth, (req, res) => {
+app.get('/api/chats', requireAuth, async (req, res) => {
   const userId = req.session.user.id;
-  const rows = db.prepare(`
+  const rows = await db.all(`
     SELECT c.id, c.user_a, c.user_b, c.title, c.created_at,
-           CASE WHEN c.user_a = ? THEN u2.name ELSE u1.name END AS partner_name,
+           CASE WHEN Number(c.user_a) = Number(?) THEN u2.name ELSE u1.name END AS partner_name,
+           CASE WHEN Number(c.user_a) = Number(?) THEN u2.id ELSE u1.id END AS partner_id,
+           CASE WHEN Number(c.user_a) = Number(?) THEN u2.profile_image ELSE u1.profile_image END AS partner_profile_image,
            (SELECT content FROM chat_messages WHERE chat_id = c.id ORDER BY created_at DESC LIMIT 1) AS last_message
     FROM chats c
     JOIN users u1 ON u1.id = c.user_a
     JOIN users u2 ON u2.id = c.user_b
-    WHERE c.user_a = ? OR c.user_b = ?
+    WHERE Number(c.user_a) = Number(?) OR Number(c.user_b) = Number(?)
     ORDER BY c.created_at DESC
-  `).all(userId, userId, userId);
+  `, [userId, userId, userId, userId, userId]);
 
   res.json(rows);
 });
 
-app.post('/api/chats', requireAuth, (req, res) => {
+app.post('/api/chats', requireAuth, async (req, res) => {
   const userId = req.session.user.id;
   const { user_id } = req.body || {};
 
@@ -667,32 +733,28 @@ app.post('/api/chats', requireAuth, (req, res) => {
     return res.status(400).json({ message: 'กรุณาเลือกผู้ใช้งานก่อนเริ่มแชท' });
   }
 
-  const target = db.prepare('SELECT id FROM users WHERE id = ?').get(Number(user_id));
+  const target = await db.get('SELECT id FROM users WHERE id = ?', [Number(user_id)]);
   if (!target) {
     return res.status(404).json({ message: 'ไม่พบผู้ใช้งานนี้' });
   }
 
-  const existing = db.prepare(`
+  const existing = await db.get(`
     SELECT * FROM chats
     WHERE (user_a = ? AND user_b = ?) OR (user_a = ? AND user_b = ?)
-  `).get(userId, Number(user_id), Number(user_id), userId);
+  `, [userId, Number(user_id), Number(user_id), userId]);
 
   if (existing) {
     return res.json({ message: 'มีแชทนี้อยู่แล้ว', chat: existing });
   }
 
-  const result = db.prepare(`
-    INSERT INTO chats (user_a, user_b, title)
-    VALUES (?, ?, ?)
-  `).run(userId, Number(user_id), 'Chat');
-
-  const chat = db.prepare('SELECT * FROM chats WHERE id = ?').get(result.lastInsertRowid);
+  const result = await db.run('INSERT INTO chats (user_a, user_b, title) VALUES (?, ?, ?)', [userId, Number(user_id), 'Chat']);
+  const chat = await db.get('SELECT * FROM chats WHERE id = ?', [result.lastInsertRowid]);
   res.status(201).json({ message: 'สร้างแชทสำเร็จ', chat });
 });
 
-app.get('/api/chats/:id/messages', requireAuth, (req, res) => {
+app.get('/api/chats/:id/messages', requireAuth, async (req, res) => {
   const userId = req.session.user.id;
-  const chat = db.prepare('SELECT * FROM chats WHERE id = ?').get(Number(req.params.id));
+  const chat = await db.get('SELECT * FROM chats WHERE id = ?', [Number(req.params.id)]);
 
   if (!chat) {
     return res.status(404).json({ message: 'ไม่พบแชทนี้' });
@@ -702,20 +764,20 @@ app.get('/api/chats/:id/messages', requireAuth, (req, res) => {
     return res.status(403).json({ message: 'คุณไม่ได้มีสิทธิ์เข้าถึงแชทนี้' });
   }
 
-  const messages = db.prepare(`
+  const messages = await db.all(`
     SELECT m.*, u.name AS sender_name
     FROM chat_messages m
     JOIN users u ON u.id = m.sender_id
     WHERE m.chat_id = ?
     ORDER BY m.created_at ASC
-  `).all(Number(req.params.id));
+  `, [Number(req.params.id)]);
 
   res.json({ chat, messages });
 });
 
-app.post('/api/chats/:id/messages', requireAuth, (req, res) => {
+app.post('/api/chats/:id/messages', requireAuth, async (req, res) => {
   const userId = req.session.user.id;
-  const chat = db.prepare('SELECT * FROM chats WHERE id = ?').get(Number(req.params.id));
+  const chat = await db.get('SELECT * FROM chats WHERE id = ?', [Number(req.params.id)]);
 
   if (!chat) {
     return res.status(404).json({ message: 'ไม่พบแชทนี้' });
@@ -730,47 +792,24 @@ app.post('/api/chats/:id/messages', requireAuth, (req, res) => {
     return res.status(400).json({ message: 'กรุณาพิมพ์ข้อความก่อนส่ง' });
   }
 
-  const result = db.prepare(`
-    INSERT INTO chat_messages (chat_id, sender_id, content)
-    VALUES (?, ?, ?)
-  `).run(Number(req.params.id), userId, String(content).trim());
+  const result = await db.run('INSERT INTO chat_messages (chat_id, sender_id, content) VALUES (?, ?, ?)', [
+    Number(req.params.id), userId, String(content).trim()
+  ]);
 
-  const message = db.prepare('SELECT * FROM chat_messages WHERE id = ?').get(result.lastInsertRowid);
-
-  // Send Email Notification to Recipient AND always send a copy to matchspace89@gmail.com
-  const recipientId = Number(chat.user_a) === Number(userId) ? Number(chat.user_b) : Number(chat.user_a);
-  const recipient = db.prepare('SELECT email, name FROM users WHERE id = ?').get(recipientId);
-  const sender = db.prepare('SELECT name FROM users WHERE id = ?').get(userId);
-
-  const senderNameStr = sender ? sender.name : 'ผู้ใช้งาน';
-  const recipientNameStr = recipient ? recipient.name : 'ผู้ใช้งาน';
-  const messageStr = String(content).trim();
-
-  // 1. Send to Recipient email if valid
-  if (recipient && recipient.email && recipient.email.includes('@')) {
-    sendChatMessageEmail(recipient.email, recipientNameStr, senderNameStr, messageStr)
-      .then(() => console.log(`[Chat Email Delivered] to ${recipient.email}`))
-      .catch((err) => console.error(`[Chat Email Fail] to ${recipient.email}:`, err));
-  }
-
-  // 2. ALWAYS send a copy to matchspace89@gmail.com so it ALWAYS appears in Sent & Inbox!
-  sendChatMessageEmail('matchspace89@gmail.com', recipientNameStr, senderNameStr, messageStr)
-    .then(() => console.log(`[Chat Email Copy Delivered] to matchspace89@gmail.com`))
-    .catch((err) => console.error(`[Chat Email Copy Fail]:`, err));
-
+  const message = await db.get('SELECT * FROM chat_messages WHERE id = ?', [result.lastInsertRowid]);
   res.status(201).json({ message: 'ส่งข้อความสำเร็จ', message });
 });
 
-app.get('/api/users', requireAdmin, (req, res) => {
-  const rows = db.prepare(`
+app.get('/api/users', requireAdmin, async (req, res) => {
+  const rows = await db.all(`
     SELECT id, name, email, major, year, interests, bio, is_admin, is_active, created_at
     FROM users
     ORDER BY id DESC
-  `).all();
+  `);
   res.json(rows);
 });
 
-app.post('/api/reports', upload.single('evidence_file'), (req, res) => {
+app.post('/api/reports', upload.single('evidence_file'), async (req, res) => {
   const { reporter_name, reporter_email, reported_user, report_type, description } = req.body || {};
 
   if (!reporter_name || !reporter_email || !reported_user || !report_type || !description) {
@@ -779,24 +818,24 @@ app.post('/api/reports', upload.single('evidence_file'), (req, res) => {
 
   const evidenceFilename = req.file ? `/uploads/${req.file.filename}` : null;
 
-  const result = db.prepare(`
+  const result = await db.run(`
     INSERT INTO reports (reporter_name, reporter_email, reported_user, report_type, description, status, evidence_file)
     VALUES (?, ?, ?, ?, ?, 'pending', ?)
-  `).run(
+  `, [
     String(reporter_name).trim(),
     String(reporter_email).trim().toLowerCase(),
     String(reported_user).trim(),
     String(report_type).trim(),
     String(description).trim(),
     evidenceFilename
-  );
+  ]);
 
-  const report = db.prepare('SELECT * FROM reports WHERE id = ?').get(result.lastInsertRowid);
+  const report = await db.get('SELECT * FROM reports WHERE id = ?', [result.lastInsertRowid]);
   res.status(201).json({ message: 'ส่งรายงานสำเร็จ', report });
 });
 
-app.get('/api/reports', requireAdmin, (req, res) => {
-  const rows = db.prepare(`
+app.get('/api/reports', requireAdmin, async (req, res) => {
+  const rows = await db.all(`
     SELECT r.*, 
       u.id AS target_user_id,
       u.name AS target_user_name,
@@ -810,25 +849,24 @@ app.get('/api/reports', requireAdmin, (req, res) => {
       OR r.reported_user = u.email
     )
     ORDER BY r.created_at DESC
-  `).all();
+  `);
   res.json(rows);
 });
 
-app.get('/api/admin/summary', requireAdmin, (req, res) => {
-  const counts = db.prepare(`
+app.get('/api/admin/summary', requireAdmin, async (req, res) => {
+  const counts = await db.get(`
     SELECT
       (SELECT COUNT(*) FROM users) AS total_users,
       (SELECT COUNT(*) FROM reports) AS total_reports,
       (SELECT COUNT(*) FROM reports WHERE status = 'pending') AS pending_reports,
       (SELECT COUNT(*) FROM reports WHERE status = 'resolved') AS resolved_reports
-  `).get();
-
+  `);
   res.json(counts);
 });
 
-app.get('/api/activities', requireAuth, (req, res) => {
+app.get('/api/activities', requireAuth, async (req, res) => {
   const userId = req.session.user.id;
-  const rows = db.prepare(`
+  const rows = await db.all(`
     SELECT a.*, u.name AS creator_name, u.major AS creator_major,
       (SELECT COUNT(*) FROM activity_members am WHERE am.activity_id = a.id) AS actual_members,
       (SELECT COUNT(*) FROM activity_members am JOIN users u2 ON u2.id = am.user_id WHERE am.activity_id = a.id AND u2.gender = 'ชาย') AS male_count,
@@ -838,19 +876,18 @@ app.get('/api/activities', requireAuth, (req, res) => {
     JOIN users u ON u.id = a.created_by
     WHERE a.status = 'approved'
     ORDER BY a.created_at DESC
-  `).all();
+  `);
 
-  // Check which activities the current user has joined
-  const joined = db.prepare('SELECT activity_id FROM activity_members WHERE user_id = ?').all(userId);
+  const joined = await db.all('SELECT activity_id FROM activity_members WHERE user_id = ?', [userId]);
   const joinedSet = new Set(joined.map(j => j.activity_id));
 
   const result = rows.map(r => ({ ...r, has_joined: joinedSet.has(r.id) }));
   res.json(result);
 });
 
-app.post('/api/activities', requireAuth, (req, res) => {
+app.post('/api/activities', requireAuth, async (req, res) => {
   const { name, description, member_count, location } = req.body || {};
-  const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.session.user.id);
+  const user = await db.get('SELECT * FROM users WHERE id = ?', [req.session.user.id]);
 
   if (!name || !String(name).trim()) {
     return res.status(400).json({ message: 'กรุณากรอกชื่อกิจกรรม' });
@@ -860,25 +897,25 @@ app.post('/api/activities', requireAuth, (req, res) => {
     return res.status(400).json({ message: 'กรุณากรอกสถานที่จัดกิจกรรม' });
   }
 
-  const result = db.prepare(`
+  const result = await db.run(`
     INSERT INTO activities (name, description, location, created_by, creator_name, creator_major, member_count, status)
     VALUES (?, ?, ?, ?, ?, ?, ?, 'pending')
-  `).run(
+  `, [
     String(name).trim(),
     description || '',
     String(location).trim(),
     user.id,
     user.name,
     user.major || '-',
-    Number(member_count || 0),
-  );
+    Number(member_count || 0)
+  ]);
 
-  const activity = db.prepare('SELECT * FROM activities WHERE id = ?').get(result.lastInsertRowid);
+  const activity = await db.get('SELECT * FROM activities WHERE id = ?', [result.lastInsertRowid]);
   res.status(201).json({ message: 'สร้างกิจกรรมเรียบร้อย รอการอนุมัติจากผู้ดูแล', activity });
 });
 
-app.get('/api/admin/activities', requireAdmin, (req, res) => {
-  const rows = db.prepare(`
+app.get('/api/admin/activities', requireAdmin, async (req, res) => {
+  const rows = await db.all(`
     SELECT a.*, u.name AS creator_name, u.major AS creator_major,
       (SELECT COUNT(*) FROM activity_members am WHERE am.activity_id = a.id) AS actual_members,
       (SELECT COUNT(*) FROM activity_members am JOIN users u2 ON u2.id = am.user_id WHERE am.activity_id = a.id AND u2.gender = 'ชาย') AS male_count,
@@ -887,11 +924,11 @@ app.get('/api/admin/activities', requireAdmin, (req, res) => {
     FROM activities a
     JOIN users u ON u.id = a.created_by
     ORDER BY a.created_at DESC
-  `).all();
+  `);
   res.json(rows);
 });
 
-app.patch('/api/admin/activities/:id', requireAdmin, (req, res) => {
+app.patch('/api/admin/activities/:id', requireAdmin, async (req, res) => {
   const { id } = req.params;
   const { status } = req.body || {};
 
@@ -899,16 +936,16 @@ app.patch('/api/admin/activities/:id', requireAdmin, (req, res) => {
     return res.status(400).json({ message: 'สถานะการอนุมัติไม่ถูกต้อง' });
   }
 
-  const activity = db.prepare('SELECT * FROM activities WHERE id = ?').get(Number(id));
+  const activity = await db.get('SELECT * FROM activities WHERE id = ?', [Number(id)]);
   if (!activity) {
     return res.status(404).json({ message: 'ไม่พบกิจกรรมนี้' });
   }
 
-  db.prepare('UPDATE activities SET status = ? WHERE id = ?').run(status, Number(id));
+  await db.run('UPDATE activities SET status = ? WHERE id = ?', [status, Number(id)]);
   res.json({ message: status === 'approved' ? 'อนุมัติกิจกรรมสำเร็จ' : 'ปฏิเสธกิจกรรมสำเร็จ' });
 });
 
-app.patch('/api/admin/reports/:id', requireAdmin, (req, res) => {
+app.patch('/api/admin/reports/:id', requireAdmin, async (req, res) => {
   const { id } = req.params;
   const { status, admin_note } = req.body || {};
   const validStatus = ['pending', 'reviewed', 'resolved', 'rejected'];
@@ -917,30 +954,26 @@ app.patch('/api/admin/reports/:id', requireAdmin, (req, res) => {
     return res.status(400).json({ message: 'สถานะไม่ถูกต้อง' });
   }
 
-  const report = db.prepare('SELECT * FROM reports WHERE id = ?').get(Number(id));
+  const report = await db.get('SELECT * FROM reports WHERE id = ?', [Number(id)]);
   if (!report) {
     return res.status(404).json({ message: 'ไม่พบรายงานนี้' });
   }
 
-  db.prepare(`
-    UPDATE reports SET status = ?, admin_note = ? WHERE id = ?
-  `).run(status, admin_note || '', Number(id));
-
-  const updated = db.prepare('SELECT * FROM reports WHERE id = ?').get(Number(id));
+  await db.run('UPDATE reports SET status = ?, admin_note = ? WHERE id = ?', [status, admin_note || '', Number(id)]);
+  const updated = await db.get('SELECT * FROM reports WHERE id = ?', [Number(id)]);
   res.json({ message: 'อัปเดตรายงานสำเร็จ', report: updated });
 });
 
-// --- User & Role Management APIs (Owner/Admin) ---
-app.get('/api/admin/users', requireAdmin, (req, res) => {
-  const users = db.prepare(`
+app.get('/api/admin/users', requireAdmin, async (req, res) => {
+  const users = await db.all(`
     SELECT id, name, email, major, year, interests, bio, nickname, age, profile_image, is_admin, is_active, role, plain_password, created_at
     FROM users
     ORDER BY id ASC
-  `).all();
+  `);
   res.json(users);
 });
 
-app.put('/api/admin/users/:id/role', requireOwner, (req, res) => {
+app.put('/api/admin/users/:id/role', requireOwner, async (req, res) => {
   const targetId = Number(req.params.id);
   const { role } = req.body || {};
 
@@ -949,13 +982,12 @@ app.put('/api/admin/users/:id/role', requireOwner, (req, res) => {
   }
 
   const isAdminVal = role === 'user' ? 0 : 1;
-  db.prepare('UPDATE users SET role = ?, is_admin = ? WHERE id = ?').run(role, isAdminVal, targetId);
-
-  const updatedUser = db.prepare('SELECT id, name, email, role, is_admin FROM users WHERE id = ?').get(targetId);
+  await db.run('UPDATE users SET role = ?, is_admin = ? WHERE id = ?', [role, isAdminVal, targetId]);
+  const updatedUser = await db.get('SELECT id, name, email, role, is_admin FROM users WHERE id = ?', [targetId]);
   res.json({ message: `อัปเดตกลุ่มผู้ใช้งานเป็น ${role} เรียบร้อยแล้ว`, user: updatedUser });
 });
 
-app.put('/api/admin/users/:id/password', requireOwner, (req, res) => {
+app.put('/api/admin/users/:id/password', requireOwner, async (req, res) => {
   const targetId = Number(req.params.id);
   const { new_password } = req.body || {};
 
@@ -965,7 +997,7 @@ app.put('/api/admin/users/:id/password', requireOwner, (req, res) => {
 
   const plain = String(new_password).trim();
   const hash = bcrypt.hashSync(plain, 10);
-  db.prepare('UPDATE users SET password = ?, plain_password = ? WHERE id = ?').run(hash, plain, targetId);
+  await db.run('UPDATE users SET password = ?, plain_password = ? WHERE id = ?', [hash, plain, targetId]);
 
   res.json({ message: `เปลี่ยนรหัสผ่านของผู้ใช้เรียบร้อยแล้ว (รหัสผ่านใหม่: ${plain})`, plain_password: plain });
 });
@@ -978,15 +1010,15 @@ app.post('/api/admin/reports/:id/warn', requireAdmin, async (req, res) => {
     return res.status(400).json({ message: 'กรุณากรอกข้อความตักเตือน' });
   }
 
-  const report = db.prepare('SELECT * FROM reports WHERE id = ?').get(Number(id));
+  const report = await db.get('SELECT * FROM reports WHERE id = ?', [Number(id)]);
   if (!report) {
     return res.status(404).json({ message: 'ไม่พบรายงานนี้' });
   }
 
-  const targetUser = db.prepare(`
+  const targetUser = await db.get(`
     SELECT * FROM users 
     WHERE CAST(id AS TEXT) = CAST(? AS TEXT) OR name = ? OR email = ?
-  `).get(report.reported_user, report.reported_user, report.reported_user);
+  `, [report.reported_user, report.reported_user, report.reported_user]);
 
   if (!targetUser) {
     return res.status(404).json({ message: 'ไม่พบผู้ถูกรายงานในระบบ' });
@@ -994,51 +1026,32 @@ app.post('/api/admin/reports/:id/warn', requireAdmin, async (req, res) => {
 
   const adminId = req.session.user.id;
 
-  // Find or create chat between Admin and Target User
-  let chat = db.prepare(`
+  let chat = await db.get(`
     SELECT * FROM chats
     WHERE (user_a = ? AND user_b = ?) OR (user_a = ? AND user_b = ?)
-  `).get(adminId, targetUser.id, targetUser.id, adminId);
+  `, [adminId, targetUser.id, targetUser.id, adminId]);
 
   if (!chat) {
-    const chatResult = db.prepare(`
+    const chatResult = await db.run(`
       INSERT INTO chats (user_a, user_b, title)
       VALUES (?, ?, 'แจ้งเตือนจากผู้ดูแลระบบ')
-    `).run(adminId, targetUser.id);
-    chat = db.prepare('SELECT * FROM chats WHERE id = ?').get(chatResult.lastInsertRowid);
+    `, [adminId, targetUser.id]);
+    chat = await db.get('SELECT * FROM chats WHERE id = ?', [chatResult.lastInsertRowid]);
   }
 
   const warnText = `⚠️ [คำเตือนจากผู้ดูแลระบบเนื่องจากได้รับการรายงาน (${report.report_type})]: ${warning_message.trim()}`;
-  db.prepare(`
-    INSERT INTO chat_messages (chat_id, sender_id, content)
-    VALUES (?, ?, ?)
-  `).run(chat.id, adminId, warnText);
-
-  if (process.env.SMTP_USER && targetUser.email) {
-    try {
-      await transporter.sendMail({
-        from: `"MatchSpace Admin" <${process.env.SMTP_USER}>`,
-        to: targetUser.email,
-        subject: `⚠️ คำเตือนจากผู้ดูแลระบบ MatchSpace`,
-        text: warnText
-      });
-    } catch (e) {
-      console.error('[Email Warning Error]', e.message);
-    }
-  }
+  await db.run('INSERT INTO chat_messages (chat_id, sender_id, content) VALUES (?, ?, ?)', [chat.id, adminId, warnText]);
 
   const noteEntry = `[ส่งเตือนผู้ใช้ (${targetUser.name})]: ${warning_message.trim()}`;
   const newNote = report.admin_note ? `${report.admin_note}\n${noteEntry}` : noteEntry;
-  db.prepare(`
-    UPDATE reports SET status = 'reviewed', admin_note = ? WHERE id = ?
-  `).run(newNote, Number(id));
+  await db.run('UPDATE reports SET status = "reviewed", admin_note = ? WHERE id = ?', [newNote, Number(id)]);
 
   res.json({ message: `ส่งข้อความเตือนไปยัง ${targetUser.name} เรียบร้อยแล้ว` });
 });
 
-app.patch('/api/users/:id/disable', requireAdmin, (req, res) => {
+app.patch('/api/users/:id/disable', requireAdmin, async (req, res) => {
   const { id } = req.params;
-  const user = db.prepare('SELECT * FROM users WHERE id = ?').get(Number(id));
+  const user = await db.get('SELECT * FROM users WHERE id = ?', [Number(id)]);
   
   if (!user) {
     return res.status(404).json({ message: 'ไม่พบผู้ใช้งานนี้' });
@@ -1048,52 +1061,50 @@ app.patch('/api/users/:id/disable', requireAdmin, (req, res) => {
     return res.status(403).json({ message: 'ไม่สามารถปิดการใช้งานผู้ดูแลได้' });
   }
 
-  db.prepare('UPDATE users SET is_active = 0 WHERE id = ?').run(Number(id));
+  await db.run('UPDATE users SET is_active = 0 WHERE id = ?', [Number(id)]);
   res.json({ message: 'ปิดการใช้งานผู้ใช้งานสำเร็จ', user: { ...user, is_active: 0 } });
 });
 
-app.patch('/api/users/:id/enable', requireAdmin, (req, res) => {
+app.patch('/api/users/:id/enable', requireAdmin, async (req, res) => {
   const { id } = req.params;
-  const user = db.prepare('SELECT * FROM users WHERE id = ?').get(Number(id));
+  const user = await db.get('SELECT * FROM users WHERE id = ?', [Number(id)]);
   
   if (!user) {
     return res.status(404).json({ message: 'ไม่พบผู้ใช้งานนี้' });
   }
 
-  db.prepare('UPDATE users SET is_active = 1 WHERE id = ?').run(Number(id));
+  await db.run('UPDATE users SET is_active = 1 WHERE id = ?', [Number(id)]);
   res.json({ message: 'เปิดการใช้งานผู้ใช้งานสำเร็จ', user: { ...user, is_active: 1 } });
 });
 
-// --- Activity Join/Leave ---
-app.post('/api/activities/:id/join', requireAuth, (req, res) => {
+app.post('/api/activities/:id/join', requireAuth, async (req, res) => {
   const activityId = Number(req.params.id);
   const userId = req.session.user.id;
 
-  const activity = db.prepare('SELECT * FROM activities WHERE id = ? AND status = ?').get(activityId, 'approved');
+  const activity = await db.get('SELECT * FROM activities WHERE id = ? AND status = ?', [activityId, 'approved']);
   if (!activity) {
     return res.status(404).json({ message: 'ไม่พบกิจกรรมนี้' });
   }
 
   try {
-    db.prepare('INSERT INTO activity_members (activity_id, user_id) VALUES (?, ?)').run(activityId, userId);
+    await db.run('INSERT INTO activity_members (activity_id, user_id) VALUES (?, ?)', [activityId, userId]);
   } catch (e) {
     return res.status(409).json({ message: 'คุณเข้าร่วมกิจกรรมนี้แล้ว' });
   }
 
-  const count = db.prepare('SELECT COUNT(*) AS cnt FROM activity_members WHERE activity_id = ?').get(activityId).cnt;
-  res.json({ message: 'เข้าร่วมกิจกรรมสำเร็จ', member_count: count });
+  const countObj = await db.get('SELECT COUNT(*) AS cnt FROM activity_members WHERE activity_id = ?', [activityId]);
+  res.json({ message: 'เข้าร่วมกิจกรรมสำเร็จ', member_count: countObj ? countObj.cnt : 0 });
 });
 
-app.delete('/api/activities/:id/join', requireAuth, (req, res) => {
+app.delete('/api/activities/:id/join', requireAuth, async (req, res) => {
   const activityId = Number(req.params.id);
   const userId = req.session.user.id;
 
-  db.prepare('DELETE FROM activity_members WHERE activity_id = ? AND user_id = ?').run(activityId, userId);
-  const count = db.prepare('SELECT COUNT(*) AS cnt FROM activity_members WHERE activity_id = ?').get(activityId).cnt;
-  res.json({ message: 'ยกเลิกเข้าร่วมกิจกรรมสำเร็จ', member_count: count });
+  await db.run('DELETE FROM activity_members WHERE activity_id = ? AND user_id = ?', [activityId, userId]);
+  const countObj = await db.get('SELECT COUNT(*) AS cnt FROM activity_members WHERE activity_id = ?', [activityId]);
+  res.json({ message: 'ยกเลิกเข้าร่วมกิจกรรมสำเร็จ', member_count: countObj ? countObj.cnt : 0 });
 });
 
-// --- Greeting Suggestions API ---
 app.get('/api/greetings', requireAuth, (req, res) => {
   const greetings = [
     'สวัสดีค่า/ครับ ยินดีที่ได้แมตช์กัน 😊',

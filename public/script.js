@@ -828,10 +828,136 @@ document.addEventListener('DOMContentLoaded', async () => {
     async function loadProfile() {
       const result = await apiRequest('/api/me');
       renderProfile(result.user);
+      renderUserPhotos(result.photos || []);
+    }
+
+    function renderUserPhotos(photos) {
+      const grid = document.getElementById('userPhotosGrid');
+      if (!grid) return;
+      grid.innerHTML = photos.map(p => `
+        <div class="photo-thumb-box">
+          <img src="${p.photo_url}" alt="Photo" />
+          <button class="btn-delete-photo" data-photo-id="${p.id}" type="button" title="ลบรูปภาพ">✕</button>
+        </div>
+      `).join('');
+
+      grid.querySelectorAll('.btn-delete-photo').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+          e.stopPropagation();
+          const photoId = btn.dataset.photoId;
+          try {
+            await apiRequest(`/api/me/photos/${photoId}`, { method: 'DELETE' });
+            await loadProfile();
+          } catch(err) {
+            alert(err.message);
+          }
+        });
+      });
+    }
+
+    // Attach Photo Upload handler
+    const addPhotosBtn = document.getElementById('addPhotosBtn');
+    const userPhotosInput = document.getElementById('userPhotosInput');
+    if (addPhotosBtn && userPhotosInput) {
+      addPhotosBtn.addEventListener('click', () => userPhotosInput.click());
+      userPhotosInput.addEventListener('change', async () => {
+        if (!userPhotosInput.files || userPhotosInput.files.length === 0) return;
+        const formData = new FormData();
+        for (let i = 0; i < userPhotosInput.files.length; i++) {
+          formData.append('photos', userPhotosInput.files[i]);
+        }
+        try {
+          await apiRequest('/api/me/photos', { method: 'POST', body: formData });
+          userPhotosInput.value = '';
+          await loadProfile();
+        } catch(err) {
+          alert(err.message);
+        }
+      });
     }
 
     let discoverUsers = [];
     let currentDiscoverIndex = 0;
+    let modalCurrentPhotoIndex = 0;
+    let modalPhotosList = [];
+
+    async function openProfileModal(userId) {
+      try {
+        const data = await apiRequest(`/api/users/${userId}/profile`);
+        const { user, photos } = data;
+
+        modalPhotosList = photos && photos.length ? photos : [user.profile_image || 'data:image/svg+xml;charset=UTF-8,%3Csvg xmlns="http://www.w3.org/2000/svg" width="120" height="120"%3E%3Crect width="120" height="120" fill="%23efe9ff"/%3E%3Ctext x="50%" y="52%" dominant-baseline="middle" text-anchor="middle" font-size="38" fill="%234a4496"%3E%E2%99%A5%3C/text%3E%3C/svg%3E'];
+        modalCurrentPhotoIndex = 0;
+
+        const modal = document.getElementById('profileModal');
+        const modalImg = document.getElementById('modalProfileImg');
+        const modalName = document.getElementById('modalProfileName');
+        const modalGender = document.getElementById('modalProfileGender');
+        const modalAgeMajor = document.getElementById('modalProfileAgeMajor');
+        const modalBio = document.getElementById('modalProfileBio');
+        const modalInterests = document.getElementById('modalProfileInterests');
+        const galleryNav = document.getElementById('modalGalleryNav');
+        const indicators = document.getElementById('galleryIndicators');
+
+        modalName.textContent = user.nickname ? `${user.nickname} (${user.name})` : user.name;
+        modalGender.textContent = user.gender || 'ไม่ระบุ';
+        modalAgeMajor.textContent = `${user.age ? user.age + ' ปี • ' : ''}${user.major || 'ไม่ระบุคณะ'} ${user.year || ''}`;
+        modalBio.textContent = user.bio || 'ยังไม่มีรายละเอียดประวัติส่วนตัว';
+
+        const tags = (user.interests || '').split(',').map(t => t.trim()).filter(Boolean);
+        modalInterests.innerHTML = tags.length
+          ? tags.map(t => `<span class="tag selected">${t}</span>`).join('')
+          : '<span class="tag selected">ทั่วไป</span>';
+
+        function updateModalPhoto() {
+          modalImg.src = modalPhotosList[modalCurrentPhotoIndex];
+          if (modalPhotosList.length > 1) {
+            galleryNav.classList.remove('hidden');
+            indicators.innerHTML = modalPhotosList.map((_, i) => 
+              `<div class="indicator-dot ${i === modalCurrentPhotoIndex ? 'active' : ''}"></div>`
+            ).join('');
+          } else {
+            galleryNav.classList.add('hidden');
+          }
+        }
+
+        updateModalPhoto();
+
+        document.getElementById('prevPhotoBtn').onclick = () => {
+          modalCurrentPhotoIndex = (modalCurrentPhotoIndex - 1 + modalPhotosList.length) % modalPhotosList.length;
+          updateModalPhoto();
+        };
+
+        document.getElementById('nextPhotoBtn').onclick = () => {
+          modalCurrentPhotoIndex = (modalCurrentPhotoIndex + 1) % modalPhotosList.length;
+          updateModalPhoto();
+        };
+
+        const actionBtn = document.getElementById('modalActionBtn');
+        if (actionBtn) {
+          actionBtn.textContent = '💕 ส่งความสนใจ';
+          actionBtn.onclick = async () => {
+            try {
+              const res = await apiRequest('/api/matches', {
+                method: 'POST',
+                body: JSON.stringify({ matched_user_id: user.id, note: 'Interested', status: 'liked' })
+              });
+              if (res.mutual) showMatchToast(res.message);
+              modal.classList.add('hidden');
+              await loadDiscoverUsers();
+            } catch(e) { alert(e.message); }
+          };
+        }
+
+        modal.classList.remove('hidden');
+      } catch(e) {
+        alert(e.message || 'ไม่สามารถโหลดข้อมูลโปรไฟล์ได้');
+      }
+    }
+
+    document.getElementById('closeProfileModal')?.addEventListener('click', () => {
+      document.getElementById('profileModal').classList.add('hidden');
+    });
 
     function renderDiscoverCard() {
       if (!discoverUsers.length || currentDiscoverIndex >= discoverUsers.length) {
@@ -842,15 +968,16 @@ document.addEventListener('DOMContentLoaded', async () => {
       const user = discoverUsers[currentDiscoverIndex];
       const tags = (user.interests || '').split(',').map((tag) => tag.trim()).filter(Boolean);
       discoverUserCard.innerHTML = `
-        <div class="profile-card-top">
+        <div class="profile-card-top" style="cursor:pointer;" title="กดเพื่อดูโปรไฟล์เต็มและอัลบั้มรูปภาพ">
           <img class="discover-avatar" src="${user.profile_image || 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="120" height="120"><rect width="120" height="120" fill="#efe9ff"/><text x="50%" y="52%" dominant-baseline="middle" text-anchor="middle" font-size="38" fill="#4a4496">♥</text></svg>')}" alt="${user.name}" />
           <div class="discover-meta">
-            <h3>${user.nickname || user.name}</h3>
+            <h3>${user.nickname || user.name} 🔍</h3>
             <div class="meta-row">
               <span>${user.age || 'ไม่ระบุ'} ปี</span>
               <span>${user.major || 'ไม่ระบุคณะ'}</span>
               <span>${user.year || '-'}</span>
             </div>
+            <div style="font-size:0.8rem; color:var(--purple); font-weight:700; margin-top:4px;">📸 กดที่นี่เพื่อดูอัลบั้มรูปภาพ (${user.gender || 'ไม่ระบุ'})</div>
           </div>
         </div>
         <div>
@@ -864,6 +991,10 @@ document.addEventListener('DOMContentLoaded', async () => {
           <button class="button secondary-action" data-discover-action="skip" type="button">ข้าม</button>
         </div>
       `;
+
+      discoverUserCard.querySelector('.profile-card-top')?.addEventListener('click', () => {
+        openProfileModal(user.id);
+      });
 
       discoverUserCard.querySelectorAll('[data-discover-action]').forEach((button) => {
         button.addEventListener('click', async () => {
