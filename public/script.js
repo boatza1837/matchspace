@@ -260,14 +260,18 @@ document.addEventListener('DOMContentLoaded', async () => {
   };
 
   if (registerForm) {
-    // Auto-fill Google Email and Name if redirected from Google Auth
+    // Auto-fill Google Email, Name, and Profile Picture if redirected from Google Auth
     const urlParams = new URLSearchParams(window.location.search);
     const googleEmail = urlParams.get('google_email');
     const googleName = urlParams.get('google_name');
+    const googlePic = urlParams.get('google_pic');
 
     if (googleEmail) {
       const emailInput = document.getElementById('email');
       const nameInput = document.getElementById('name');
+      const googleProfileImageInput = document.getElementById('googleProfileImage');
+      const googleAvatarSection = document.getElementById('googleAvatarSection');
+      const googleAvatarImg = document.getElementById('googleAvatarImg');
       const messageEl = document.getElementById('registerMessage');
 
       if (emailInput) {
@@ -278,9 +282,15 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (nameInput && googleName) {
         nameInput.value = googleName;
       }
+      if (googlePic) {
+        if (googleProfileImageInput) googleProfileImageInput.value = googlePic;
+        if (googleAvatarImg) googleAvatarImg.src = googlePic;
+        if (googleAvatarSection) googleAvatarSection.classList.remove('hidden');
+      }
+
       if (messageEl) {
         messageEl.className = 'message success';
-        messageEl.textContent = 'ดึงข้อมูลอีเมลจาก Google เรียบร้อยแล้ว กรุณากรอกข้อมูลเพิ่มเติมและยินยอมข้อตกลงเพื่อสมัครสมาชิก';
+        messageEl.textContent = 'ดึงข้อมูลและรูปโปรไฟล์จาก Google เรียบร้อยแล้ว กรุณากรอกข้อมูลเพิ่มเติมและยินยอมข้อตกลงเพื่อสมัครสมาชิก';
       }
     }
 
@@ -352,6 +362,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         formData.append('year', document.getElementById('year')?.value || '');
         formData.append('interests', document.getElementById('interests')?.value || '');
         formData.append('bio', document.getElementById('bio')?.value || '');
+        formData.append('google_profile_image', document.getElementById('googleProfileImage')?.value || '');
 
         const fileInput = document.getElementById('profileImage');
         if (fileInput && fileInput.files.length > 0) {

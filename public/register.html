@@ -75,7 +75,15 @@
 
               <div class="form-group full">
                 <label for="profileImage">รูปโปรไฟล์</label>
+                <div id="googleAvatarSection" class="hidden" style="display:flex; align-items:center; gap:12px; margin-bottom:10px; padding:10px 14px; background:#f8f5ff; border:1px solid var(--purple-soft); border-radius:12px;">
+                  <img id="googleAvatarImg" src="" alt="Google Profile" style="width:48px; height:48px; border-radius:50%; object-fit:cover; border:2px solid var(--purple);" />
+                  <div style="font-size:0.85rem; color:var(--purple-dark); font-weight:600;">
+                    ✓ ใช้รูปโปรไฟล์จาก Google อัตโนมัติ
+                    <div style="font-weight:400; font-size:0.78rem; color:var(--muted);">หรือสามารถเลือกไฟล์รูปอื่นเพื่ออัปโหลดแทนที่ได้</div>
+                  </div>
+                </div>
                 <input type="file" id="profileImage" accept="image/*" />
+                <input type="hidden" id="googleProfileImage" name="google_profile_image" />
               </div>
 
               <div class="form-group full">

@@ -417,7 +417,7 @@ app.post('/api/logout', (req, res) => {
 });
 
 app.post('/api/register', upload.single('profile_image_file'), (req, res) => {
-  const { name, email, password, major, year, interests, bio, nickname, age, phone } = req.body || {};
+  const { name, email, password, major, year, interests, bio, nickname, age, phone, google_profile_image } = req.body || {};
 
   if (!name || !email || !password) {
     return res.status(400).json({ message: 'กรุณากรอกชื่อ อีเมล และรหัสผ่าน' });
@@ -429,7 +429,12 @@ app.post('/api/register', upload.single('profile_image_file'), (req, res) => {
     return res.status(409).json({ message: 'อีเมลนี้มีผู้ใช้งานแล้ว' });
   }
 
-  const profileImage = req.file ? `/uploads/${req.file.filename}` : '';
+  let profileImage = '';
+  if (req.file) {
+    profileImage = `/uploads/${req.file.filename}`;
+  } else if (google_profile_image) {
+    profileImage = String(google_profile_image).trim();
+  }
   const passwordHash = bcrypt.hashSync(String(password), 10);
   const result = db.prepare(`
     INSERT INTO users (name, email, password, major, year, interests, bio, nickname, age, phone, profile_image, is_admin)
