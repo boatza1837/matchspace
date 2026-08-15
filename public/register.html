@@ -85,13 +85,52 @@
                 <input type="hidden" id="interests" name="interests" />
               </div>
 
-              <div class="form-group full">
-                <label for="bio">ประวัติโดยย่อ</label>
-                <textarea name="bio" id="bio" placeholder="เล่าเรื่องตัวเองสั้น ๆ"></textarea>
+              <!-- ความยินยอมในการเก็บรวบรวมและใช้ข้อมูลส่วนบุคคล (PDPA Consent) -->
+              <div class="consent-container form-group full">
+                <div class="consent-box">
+                  <h3>ความยินยอมในการเก็บรวบรวมและใช้ข้อมูลส่วนบุคคล</h3>
+                  <p>เว็บไซต์ <strong>MatchSpace</strong> ขอความยินยอมจากท่านในการเก็บรวบรวม ใช้ และประมวลผลข้อมูลส่วนบุคคล เพื่อให้บริการจับคู่และแนะนำผู้ใช้งานที่มีความสนใจหรือมีกิจกรรมที่เหมาะสมร่วมกัน</p>
+
+                  <h4>ข้อมูลส่วนบุคคลที่เก็บรวบรวม</h4>
+                  <p>MatchSpace อาจเก็บรวบรวมข้อมูลที่ท่านให้ไว้ ได้แก่</p>
+                  <ul>
+                    <li>รูปภาพหรือรูปโปรไฟล์</li>
+                    <li>ชั้นปี</li>
+                    <li>ความสนใจและงานอดิเรก</li>
+                    <li>เวลาว่างที่สะดวกสำหรับทำกิจกรรม</li>
+                    <li>ลานหรือพื้นที่จัดกิจกรรมที่ท่านสนใจ</li>
+                  </ul>
+
+                  <h4>วัตถุประสงค์ในการเก็บและใช้ข้อมูล</h4>
+                  <p>ข้อมูลดังกล่าวจะถูกนำไปใช้เพื่อ</p>
+                  <ol>
+                    <li>สร้างและแสดงโปรไฟล์ของผู้ใช้งาน</li>
+                    <li>วิเคราะห์และจับคู่ผู้ใช้งานที่มีความสนใจหรือช่วงเวลาว่างที่ใกล้เคียงกัน</li>
+                    <li>แนะนำกิจกรรมหรือพื้นที่จัดกิจกรรมที่เหมาะสมกับผู้ใช้งาน</li>
+                    <li>ปรับปรุงการให้บริการและประสบการณ์การใช้งานของ MatchSpace</li>
+                  </ol>
+                  <p>MatchSpace จะเก็บรวบรวมและใช้ข้อมูลเท่าที่จำเป็นตามวัตถุประสงค์ที่แจ้งไว้ และจะไม่ใช้ข้อมูลเพื่อวัตถุประสงค์อื่นนอกเหนือจากที่ระบุ เว้นแต่จะได้รับความยินยอมหรือมีฐานทางกฎหมายที่สามารถดำเนินการได้ตามกฎหมาย</p>
+
+                  <h4>การให้ความยินยอม</h4>
+                  <p>โดยการกดปุ่ม <strong>“ยินยอม”</strong> ท่านรับทราบและยินยอมให้ MatchSpace เก็บรวบรวม ใช้ และประมวลผลข้อมูลส่วนบุคคลตามรายละเอียดข้างต้น</p>
+                  <p>ท่านมีสิทธิถอนความยินยอมได้ทุกเมื่อ โดยการถอนความยินยอมจะไม่กระทบต่อการประมวลผลข้อมูลที่ได้ดำเนินการไปแล้วก่อนการถอนความยินยอม ทั้งนี้ การถอนความยินยอมอาจทำให้ท่านไม่สามารถใช้งานฟังก์ชันบางอย่างของ MatchSpace ที่จำเป็นต้องใช้ข้อมูลดังกล่าวได้</p>
+                </div>
+
+                <div class="consent-checkbox-row">
+                  <label class="consent-label" for="consentCheckbox">
+                    <input type="checkbox" id="consentCheckbox" />
+                    <span>ข้าพเจ้าได้อ่านและเข้าใจรายละเอียดการเก็บรวบรวมและใช้ข้อมูลส่วนบุคคลแล้ว และยินยอมให้ MatchSpace เก็บรวบรวม ใช้ และประมวลผลข้อมูลส่วนบุคคลตามวัตถุประสงค์ที่ระบุไว้</span>
+                  </label>
+                </div>
+
+                <div class="consent-actions">
+                  <button type="button" id="btnAcceptConsent" class="button primary btn-consent-accept">ยินยอมและดำเนินการต่อ</button>
+                  <button type="button" id="btnDeclineConsent" class="button secondary-action btn-consent-decline">ไม่ยินยอม</button>
+                </div>
               </div>
             </div>
 
-            <button type="submit" class="button primary" style="width: 100%; margin-top: 12px;">สมัครสมาชิก</button>
+            <button type="submit" id="registerSubmitBtn" class="button primary register-btn-disabled" disabled style="width: 100%; margin-top: 16px;">สมัครสมาชิก</button>
           </form>
 
           <div style="margin-top: 14px; text-align: center; color: var(--muted);">

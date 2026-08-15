@@ -704,3 +704,96 @@ th {
 .match-toast.show {
   transform: translateX(-50%) translateY(0);
 }
+
+/* --- Privacy Consent Styling --- */
+.consent-container {
+  margin-top: 16px;
+  background: #f9f7fd;
+  border: 1.5px solid var(--purple-soft);
+  border-radius: 14px;
+  padding: 16px;
+}
+
+.consent-box {
+  max-height: 220px;
+  overflow-y: auto;
+  background: white;
+  padding: 14px 16px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  font-size: 0.85rem;
+  line-height: 1.65;
+  color: var(--text);
+}
+
+.consent-box h3 {
+  font-size: 0.95rem;
+  color: var(--purple-dark);
+  margin-top: 0;
+  margin-bottom: 8px;
+}
+
+.consent-box h4 {
+  font-size: 0.88rem;
+  color: var(--purple);
+  margin-top: 12px;
+  margin-bottom: 6px;
+}
+
+.consent-box ul, .consent-box ol {
+  padding-left: 20px;
+  margin: 6px 0;
+}
+
+.consent-checkbox-row {
+  margin-top: 14px;
+}
+
+.consent-label {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 0.84rem;
+  font-weight: 500;
+  cursor: pointer;
+  line-height: 1.5;
+  color: var(--text);
+}
+
+.consent-label input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  margin-top: 2px;
+  accent-color: var(--purple);
+  cursor: pointer;
+}
+
+.consent-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.btn-consent-accept {
+  flex: 1;
+  padding: 10px 16px;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.btn-consent-decline {
+  padding: 10px 16px;
+  font-size: 0.85rem;
+}
+
+/* Disabled Submit Button */
+.button.register-btn-disabled,
+.button:disabled {
+  background: #d4d4d4 !important;
+  color: #777777 !important;
+  border-color: #cccccc !important;
+  cursor: not-allowed !important;
+  box-shadow: none !important;
+  transform: none !important;
+  opacity: 0.7;
+}

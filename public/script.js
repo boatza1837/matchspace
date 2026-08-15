@@ -111,9 +111,56 @@ document.addEventListener('DOMContentLoaded', async () => {
       initializeTagsContainer('interestsTags', 'interests');
     }
 
+    const consentCheckbox = document.getElementById('consentCheckbox');
+    const btnAcceptConsent = document.getElementById('btnAcceptConsent');
+    const btnDeclineConsent = document.getElementById('btnDeclineConsent');
+    const registerSubmitBtn = document.getElementById('registerSubmitBtn');
+
+    function updateRegisterSubmitState() {
+      if (!registerSubmitBtn) return;
+      if (consentCheckbox && consentCheckbox.checked) {
+        registerSubmitBtn.disabled = false;
+        registerSubmitBtn.classList.remove('register-btn-disabled');
+      } else {
+        registerSubmitBtn.disabled = true;
+        registerSubmitBtn.classList.add('register-btn-disabled');
+      }
+    }
+
+    if (consentCheckbox) {
+      consentCheckbox.addEventListener('change', updateRegisterSubmitState);
+    }
+
+    if (btnAcceptConsent) {
+      btnAcceptConsent.addEventListener('click', () => {
+        if (consentCheckbox) consentCheckbox.checked = true;
+        updateRegisterSubmitState();
+      });
+    }
+
+    if (btnDeclineConsent) {
+      btnDeclineConsent.addEventListener('click', () => {
+        if (consentCheckbox) consentCheckbox.checked = false;
+        updateRegisterSubmitState();
+        const messageEl = document.getElementById('registerMessage');
+        if (messageEl) {
+          messageEl.className = 'message error';
+          messageEl.textContent = 'ท่านต้องยอมรับข้อตกลงความยินยอมข้อมูลส่วนบุคคลเพื่อสมัครสมาชิก';
+        }
+      });
+    }
+
+    updateRegisterSubmitState();
+
     registerForm.addEventListener('submit', async (event) => {
       event.preventDefault();
       const messageEl = document.getElementById('registerMessage');
+
+      if (!consentCheckbox || !consentCheckbox.checked) {
+        messageEl.className = 'message error';
+        messageEl.textContent = 'ท่านต้องยอมรับข้อตกลงความยินยอมข้อมูลส่วนบุคคลเพื่อสมัครสมาชิก';
+        return;
+      }
 
       try {
         const formData = new FormData();
