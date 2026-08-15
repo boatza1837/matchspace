@@ -155,7 +155,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     function initRecaptcha() {
-      if (typeof firebase !== 'undefined' && !recaptchaVerifier && document.getElementById('recaptcha-container')) {
+      if (typeof firebase !== 'undefined' && document.getElementById('recaptcha-container')) {
+        if (recaptchaVerifier) {
+          try { recaptchaVerifier.clear(); } catch(e) {}
+        }
+        document.getElementById('recaptcha-container').innerHTML = '';
         recaptchaVerifier = new firebase.auth.RecaptchaVerifier('recaptcha-container', {
           'size': 'invisible',
           'callback': () => {}
