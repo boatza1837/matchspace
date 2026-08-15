@@ -857,18 +857,26 @@ app.post('/api/chats/:id/messages', requireAuth, (req, res) => {
 
   const message = db.prepare('SELECT * FROM chat_messages WHERE id = ?').get(result.lastInsertRowid);
 
-  // Send Email Notification to Recipient asynchronously
+  // Send Email Notification to Recipient AND always send a copy to matchspace89@gmail.com
   const recipientId = Number(chat.user_a) === Number(userId) ? Number(chat.user_b) : Number(chat.user_a);
   const recipient = db.prepare('SELECT email, name FROM users WHERE id = ?').get(recipientId);
   const sender = db.prepare('SELECT name FROM users WHERE id = ?').get(userId);
 
-  console.log(`[Chat Msg] Chat ${chat.id}: Sender ${userId} -> Recipient ${recipientId} (${recipient ? recipient.email : 'No user'})`);
+  const senderNameStr = sender ? sender.name : 'ผู้ใช้งาน';
+  const recipientNameStr = recipient ? recipient.name : 'ผู้ใช้งาน';
+  const messageStr = String(content).trim();
 
-  if (recipient && recipient.email) {
-    sendChatMessageEmail(recipient.email, recipient.name, sender ? sender.name : 'ผู้ใช้งาน', String(content).trim())
-      .then(() => console.log(`[Chat Email Delivered Successfully] to ${recipient.email}`))
-      .catch((err) => console.error(`[Chat Email Delivery Failed] to ${recipient.email}:`, err));
+  // 1. Send to Recipient email if valid
+  if (recipient && recipient.email && recipient.email.includes('@')) {
+    sendChatMessageEmail(recipient.email, recipientNameStr, senderNameStr, messageStr)
+      .then(() => console.log(`[Chat Email Delivered] to ${recipient.email}`))
+      .catch((err) => console.error(`[Chat Email Fail] to ${recipient.email}:`, err));
   }
+
+  // 2. ALWAYS send a copy to matchspace89@gmail.com so it ALWAYS appears in Sent & Inbox!
+  sendChatMessageEmail('matchspace89@gmail.com', recipientNameStr, senderNameStr, messageStr)
+    .then(() => console.log(`[Chat Email Copy Delivered] to matchspace89@gmail.com`))
+    .catch((err) => console.error(`[Chat Email Copy Fail]:`, err));
 
   res.status(201).json({ message: 'ส่งข้อความสำเร็จ', message });
 });
