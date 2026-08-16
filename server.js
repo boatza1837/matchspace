@@ -366,6 +366,23 @@ async function getOrCreateActivityChat(activityId) {
   }
 }
 
+async function dissolveActivityGroup(activityId) {
+  try {
+    const actId = Number(activityId);
+    const chats = await db.all(
+      "SELECT id FROM chats WHERE activity_id = ? OR (type = 'group' AND activity_id = ?)",
+      [actId, actId]
+    );
+    for (const c of chats) {
+      await db.run('DELETE FROM chat_messages WHERE chat_id = ?', [c.id]);
+      await db.run('DELETE FROM chats WHERE id = ?', [c.id]);
+    }
+    await db.run('DELETE FROM activity_members WHERE activity_id = ?', [actId]);
+  } catch (err) {
+    console.error('[dissolveActivityGroup Error]', err);
+  }
+}
+
 app.use(session({
   secret: 'matchspace-session-secret',
   resave: false,
@@ -838,6 +855,8 @@ app.get('/api/chats', requireAuth, async (req, res) => {
         LEFT JOIN users u2 ON u2.id = c.user_b
         LEFT JOIN activities a ON a.id = c.activity_id
         LEFT JOIN users u_creator ON u_creator.id = a.created_by
+        WHERE ((c.type = 'group' OR c.activity_id IS NOT NULL) AND a.status = 'approved')
+           OR ((c.type IS NULL OR c.type != 'group') AND c.activity_id IS NULL)
         ORDER BY COALESCE(last_message_time, c.created_at) DESC
       `, [userId, userId, userId, userId, userId, userId]);
     } else {
@@ -867,7 +886,7 @@ app.get('/api/chats', requireAuth, async (req, res) => {
         LEFT JOIN activities a ON a.id = c.activity_id
         LEFT JOIN users u_creator ON u_creator.id = a.created_by
         WHERE (
-          (c.type = 'group' OR c.activity_id IS NOT NULL) AND (
+          (c.type = 'group' OR c.activity_id IS NOT NULL) AND a.status = 'approved' AND (
             CAST(a.created_by AS INTEGER) = CAST(? AS INTEGER)
             OR EXISTS (SELECT 1 FROM activity_members am WHERE am.activity_id = c.activity_id AND CAST(am.user_id AS INTEGER) = CAST(? AS INTEGER))
           )
@@ -1223,21 +1242,70 @@ app.get('/api/admin/activities', requireAdmin, async (req, res) => {
 app.patch('/api/admin/activities/:id', requireAdmin, async (req, res) => {
   const { id } = req.params;
   const { status } = req.body || {};
+  const actId = Number(id);
 
   if (!['approved', 'rejected'].includes(status)) {
     return res.status(400).json({ message: 'สถานะการอนุมัติไม่ถูกต้อง' });
   }
 
-  const activity = await db.get('SELECT * FROM activities WHERE id = ?', [Number(id)]);
+  const activity = await db.get('SELECT * FROM activities WHERE id = ?', [actId]);
   if (!activity) {
     return res.status(404).json({ message: 'ไม่พบกิจกรรมนี้' });
   }
 
-  await db.run('UPDATE activities SET status = ? WHERE id = ?', [status, Number(id)]);
+  await db.run('UPDATE activities SET status = ? WHERE id = ?', [status, actId]);
+
   if (status === 'approved') {
-    await getOrCreateActivityChat(Number(id));
+    await getOrCreateActivityChat(actId);
+  } else if (status === 'rejected') {
+    await dissolveActivityGroup(actId);
   }
-  res.json({ message: status === 'approved' ? 'อนุมัติกิจกรรมและสร้างแชทกลุ่มสำเร็จ' : 'ปฏิเสธกิจกรรมสำเร็จ' });
+
+  res.json({ message: status === 'approved' ? 'อนุมัติกิจกรรมและสร้างแชทกลุ่มสำเร็จ' : 'ปฏิเสธกิจกรรมและยุบแชทกลุ่มเรียบร้อย' });
+});
+
+app.delete('/api/activities/:id', requireAuth, async (req, res) => {
+  try {
+    const activityId = Number(req.params.id);
+    const userId = req.session.user.id;
+    const isOwnerOrAdmin = req.session.user.role === 'owner' || req.session.user.role === 'admin' || req.session.user.is_admin;
+
+    const activity = await db.get('SELECT * FROM activities WHERE id = ?', [activityId]);
+    if (!activity) {
+      return res.status(404).json({ message: 'ไม่พบกิจกรรมนี้' });
+    }
+
+    const isCreator = Number(activity.created_by) === Number(userId);
+    if (!isCreator && !isOwnerOrAdmin) {
+      return res.status(403).json({ message: 'คุณไม่มีสิทธิ์ลบกิจกรรมนี้' });
+    }
+
+    await db.run('DELETE FROM activities WHERE id = ?', [activityId]);
+    await dissolveActivityGroup(activityId);
+
+    res.json({ message: 'ลบกิจกรรมและยุบแชทกลุ่มเรียบร้อยแล้ว' });
+  } catch (err) {
+    console.error('[Delete Activity Error]', err);
+    res.status(500).json({ message: err.message || 'เกิดข้อผิดพลาดในการลบกิจกรรม' });
+  }
+});
+
+app.delete('/api/admin/activities/:id', requireAdmin, async (req, res) => {
+  try {
+    const activityId = Number(req.params.id);
+    const activity = await db.get('SELECT * FROM activities WHERE id = ?', [activityId]);
+    if (!activity) {
+      return res.status(404).json({ message: 'ไม่พบกิจกรรมนี้' });
+    }
+
+    await db.run('DELETE FROM activities WHERE id = ?', [activityId]);
+    await dissolveActivityGroup(activityId);
+
+    res.json({ message: 'ลบกิจกรรมและยุบแชทกลุ่มเรียบร้อยแล้ว' });
+  } catch (err) {
+    console.error('[Admin Delete Activity Error]', err);
+    res.status(500).json({ message: err.message || 'เกิดข้อผิดพลาดในการลบกิจกรรม' });
+  }
 });
 
 app.patch('/api/admin/reports/:id', requireAdmin, async (req, res) => {

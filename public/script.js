@@ -646,7 +646,8 @@ document.addEventListener('DOMContentLoaded', async () => {
               <td>
                 <div class="actions">
                   <button class="inline-button resolve" data-activity-id="${activity.id}" data-activity-action="approved">Approve</button>
-                  <button class="inline-button reject" data-activity-id="${activity.id}" data-activity-action="rejected">Reject</button>
+                  <button class="inline-button reject" data-activity-id="${activity.id}" data-activity-action="rejected">Reject (ยุบกลุ่ม)</button>
+                  <button class="inline-button reject" data-activity-delete-id="${activity.id}" style="background:#d32f2f;">Delete</button>
                 </div>
               </td>
             </tr>
@@ -656,20 +657,39 @@ document.addEventListener('DOMContentLoaded', async () => {
             button.addEventListener('click', async () => {
               const id = button.dataset.activityId;
               const status = button.dataset.activityAction;
-              const label = status === 'approved' ? 'อนุมัติ' : 'ปฏิเสธ';
+              const label = status === 'approved' ? 'อนุมัติ' : 'ปฏิเสธและยุบกลุ่ม';
               try {
                 button.disabled = true;
                 button.textContent = '⏳ กำลังดำเนินการ...';
-                await apiRequest(`/api/admin/activities/${id}`, {
+                const res = await apiRequest(`/api/admin/activities/${id}`, {
                   method: 'PATCH',
                   body: JSON.stringify({ status })
                 });
-                alert(`✅ ${label}กิจกรรมสำเร็จ! กิจกรรมจะแสดงในหน้ากิจกรรมทันที`);
+                alert(`✅ ${res.message || label + 'สำเร็จ!'}`);
                 loadAdminDashboard();
               } catch (err) {
                 button.disabled = false;
-                button.textContent = status === 'approved' ? 'Approve' : 'Reject';
+                button.textContent = status === 'approved' ? 'Approve' : 'Reject (ยุบกลุ่ม)';
                 alert('เกิดข้อผิดพลาด: ' + err.message);
+              }
+            });
+          });
+
+          document.querySelectorAll('[data-activity-delete-id]').forEach((button) => {
+            button.addEventListener('click', async () => {
+              const id = button.dataset.activityDeleteId;
+              if (confirm('คุณต้องการลบกิจกรรมนี้ออกจากระบบและยุบแชทกลุ่มใช่หรือไม่?')) {
+                try {
+                  button.disabled = true;
+                  button.textContent = '⏳ กำลังลบ...';
+                  const res = await apiRequest(`/api/admin/activities/${id}`, { method: 'DELETE' });
+                  alert(`✅ ${res.message || 'ลบกิจกรรมและยุบแชทกลุ่มสำเร็จ'}`);
+                  loadAdminDashboard();
+                } catch (err) {
+                  button.disabled = false;
+                  button.textContent = 'Delete';
+                  alert('เกิดข้อผิดพลาด: ' + err.message);
+                }
               }
             });
           });
@@ -1348,7 +1368,18 @@ document.addEventListener('DOMContentLoaded', async () => {
             renderMessageList(data);
           }
           await loadChats();
-        } catch(e) { /* ignore polling errors */ }
+        } catch(e) {
+          if (e.message && (e.message.includes('สิทธิ์') || e.message.includes('ไม่พบ'))) {
+            stopChatPolling();
+            currentChatId = null;
+            messageThread.innerHTML = '<div class="list-item" style="color:var(--muted); text-align:center; padding:20px;">⚠️ กลุ่มนี้ถูกยุบแล้ว เนื่องจากกิจกรรมถูกลบออกหรือปฏิเสธ</div>';
+            const titleHeader = document.getElementById('chatTitleHeader');
+            if (titleHeader) titleHeader.textContent = 'ข้อความ';
+            const subHeader = document.getElementById('chatSubHeader');
+            if (subHeader) subHeader.innerHTML = '';
+            await loadChats();
+          }
+        }
       }, 3000);
     }
 
@@ -1360,18 +1391,26 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     async function loadMessages(chatId) {
-      const data = await apiRequest(`/api/chats/${chatId}/messages`);
-      lastMessageCount = data.messages.length;
-      renderMessageList(data);
+      try {
+        const data = await apiRequest(`/api/chats/${chatId}/messages`);
+        lastMessageCount = data.messages.length;
+        renderMessageList(data);
 
-      if (!data.chat.activity_id && data.chat.type !== 'group') {
-        await loadGreetingSuggestions(data.messages.length === 0);
-      } else {
-        const container = document.getElementById('greetingSuggestions');
-        if (container) container.classList.add('hidden');
+        if (!data.chat.activity_id && data.chat.type !== 'group') {
+          await loadGreetingSuggestions(data.messages.length === 0);
+        } else {
+          const container = document.getElementById('greetingSuggestions');
+          if (container) container.classList.add('hidden');
+        }
+
+        startChatPolling();
+      } catch(e) {
+        messageThread.innerHTML = `<div class="list-item" style="color:var(--muted); text-align:center; padding:20px;">⚠️ ${e.message || 'ไม่สามารถโหลดข้อความได้'}</div>`;
+        const titleHeader = document.getElementById('chatTitleHeader');
+        if (titleHeader) titleHeader.textContent = 'ข้อความ';
+        const subHeader = document.getElementById('chatSubHeader');
+        if (subHeader) subHeader.innerHTML = '';
       }
-
-      startChatPolling();
     }
 
     async function loadGreetingSuggestions(isEmpty) {
@@ -1401,10 +1440,14 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     async function loadActivities() {
       const activities = await apiRequest('/api/activities');
+      const isOwnerOrAdmin = sessionState.user && (sessionState.user.role === 'owner' || sessionState.user.role === 'admin' || sessionState.user.is_admin);
+
       activityBoardList.innerHTML = activities.length
         ? activities.map((activity) => {
             const isCreator = Number(activity.created_by) === Number(sessionState.user.id);
-            const canAccessChat = activity.has_joined || isCreator || (sessionState.user && sessionState.user.role === 'owner');
+            const canAccessChat = activity.has_joined || isCreator || isOwnerOrAdmin;
+            const canDeleteActivity = isCreator || isOwnerOrAdmin;
+
             return `
               <div class="activity-card">
                 <h3>${activity.name}</h3>
@@ -1428,6 +1471,11 @@ document.addEventListener('DOMContentLoaded', async () => {
                   ${canAccessChat && activity.chat_id ? `
                     <button class="button secondary-action btn-open-group-chat" data-chat-id="${activity.chat_id}" type="button" style="padding:10px 16px; font-size:0.85rem;">
                       💬 เข้าแชทกลุ่ม
+                    </button>
+                  ` : ''}
+                  ${canDeleteActivity ? `
+                    <button class="button outline btn-delete-activity" data-delete-activity-id="${activity.id}" type="button" style="padding:8px 14px; font-size:0.82rem; color:#d32f2f; border-color:#ffcdd2;">
+                      🗑️ ลบกิจกรรม
                     </button>
                   ` : ''}
                 </div>
@@ -1465,6 +1513,23 @@ document.addEventListener('DOMContentLoaded', async () => {
           const chatId = Number(btn.dataset.chatId);
           if (chatId) {
             await openChatTabAndLoad(chatId);
+          }
+        });
+      });
+
+      // Attach delete activity handlers
+      activityBoardList.querySelectorAll('[data-delete-activity-id]').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const id = btn.dataset.deleteActivityId;
+          if (confirm('คุณต้องการลบกิจกรรมนี้และยุบแชทกลุ่มใช่หรือไม่?')) {
+            try {
+              const res = await apiRequest(`/api/activities/${id}`, { method: 'DELETE' });
+              alert(res.message || 'ลบกิจกรรมและยุบกลุ่มเรียบร้อย');
+              await loadActivities();
+              await loadChats();
+            } catch(err) {
+              alert('เกิดข้อผิดพลาด: ' + err.message);
+            }
           }
         });
       });
