@@ -42,9 +42,55 @@
           <span class="number" id="resolvedReports">0</span>
           <span class="label">เสร็จสิ้น</span>
         </div>
+      <section class="summary-row" style="margin-top: 16px;">
+        <div class="summary-box" style="border-left: 4px solid var(--purple);">
+          <span class="number" id="cpuUsageText" style="color: var(--purple);">--</span>
+          <span class="label">CPU Usage</span>
+        </div>
+        <div class="summary-box" style="border-left: 4px solid #00b4d8;">
+          <span class="number" id="memoryUsageText" style="color: #00b4d8;">--</span>
+          <span class="label">Memory Usage</span>
+        </div>
+        <div class="summary-box" style="border-left: 4px solid var(--success);">
+          <span class="number" id="databaseTypeText" style="font-size: 1.05rem; color: var(--success); font-weight: 700;">--</span>
+          <span class="label">Database Cloud</span>
+        </div>
+        <div class="summary-box" style="border-left: 4px solid var(--coral);">
+          <span class="number" id="apiResponseTimeText" style="color: var(--coral);">--</span>
+          <span class="label">API Response Time</span>
+        </div>
       </section>
 
-      <section class="card" style="padding: 18px; margin-top: 20px;">
+      <section class="card" style="padding: 18px; margin-top: 24px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+          <h2 style="margin: 0; color: var(--purple);">📜 System Audit Logs</h2>
+          <button class="button secondary-action" id="refreshSystemStatsBtn" type="button" style="padding: 6px 14px; font-size: 0.82rem;">🔄 รีเฟรชสถานะระบบ</button>
+        </div>
+        <div id="auditLogTerminal" class="audit-log-terminal">
+          <div class="audit-log-line"><span class="audit-log-time">[Loading...]</span> Fetching audit logs...</div>
+        </div>
+      </section>
+
+      <section class="card" style="padding: 18px; margin-top: 24px;">
+        <h2 style="margin-top: 0; color: var(--purple);">🌐 ประวัติการเข้าสู่ระบบ (Login & IP Logs)</h2>
+        <div class="table-wrap" style="max-height: 320px; overflow-y: auto;">
+          <table>
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>เวลา</th>
+                <th>อีเมลผู้ใช้</th>
+                <th>IP Address</th>
+                <th>อุปกรณ์ / Device</th>
+                <th>สถานะ</th>
+              </tr>
+            </thead>
+            <tbody id="loginLogsTableBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="card" style="padding: 18px; margin-top: 24px;">
         <h2 style="margin-top: 0; color: var(--purple);">รายชื่อผู้ใช้งาน</h2>
         <div class="table-wrap">
           <table>

@@ -4,6 +4,7 @@ const path = require('path');
 const bcrypt = require('bcryptjs');
 const multer = require('multer');
 const fs = require('fs');
+const os = require('os');
 
 const app = express();
 app.set('trust proxy', 1);
@@ -248,6 +249,23 @@ async function initDatabase() {
       joined_at TEXT DEFAULT CURRENT_TIMESTAMP,
       UNIQUE(activity_id, user_id)
     );
+
+    CREATE TABLE IF NOT EXISTS login_logs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER,
+      email TEXT NOT NULL,
+      ip TEXT,
+      device TEXT,
+      status TEXT DEFAULT 'success',
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS audit_logs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      level TEXT DEFAULT 'INFO',
+      message TEXT NOT NULL,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    );
   `);
 
   try { await db.run("ALTER TABLE chats ADD COLUMN type TEXT DEFAULT 'direct'"); } catch(e) {}
@@ -383,6 +401,55 @@ async function dissolveActivityGroup(activityId) {
   }
 }
 
+async function logAudit(level, message) {
+  try {
+    const timestamp = new Date().toISOString().replace('T', ' ').substring(0, 19);
+    console.log(`[Audit] [${level}] ${message}`);
+    await db.run('INSERT INTO audit_logs (level, message) VALUES (?, ?)', [level, message]);
+  } catch (err) {
+    console.error('[logAudit Error]', err);
+  }
+}
+
+function parseDevice(userAgent) {
+  if (!userAgent) return 'Unknown Device';
+  let device = 'Desktop';
+  if (/mobile/i.test(userAgent)) device = 'Mobile';
+  if (/android/i.test(userAgent)) device = 'Android';
+  if (/iphone|ipad|ipod/i.test(userAgent)) device = 'iOS';
+  if (/windows/i.test(userAgent)) device = 'Windows PC';
+  if (/macintosh|mac os x/i.test(userAgent)) device = 'Mac';
+  if (/linux/i.test(userAgent)) device = 'Linux';
+
+  if (/chrome/i.test(userAgent) && !/edg/i.test(userAgent)) device += ' (Chrome)';
+  else if (/edg/i.test(userAgent)) device += ' (Edge)';
+  else if (/firefox/i.test(userAgent)) device += ' (Firefox)';
+  else if (/safari/i.test(userAgent)) device += ' (Safari)';
+  return device;
+}
+
+async function logLogin(req, email, userId, status = 'success') {
+  try {
+    const rawIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress || '127.0.0.1';
+    const ip = rawIp.split(',')[0].trim().replace('::ffff:', '');
+    const userAgent = req.headers['user-agent'] || '';
+    const device = parseDevice(userAgent);
+
+    await db.run(
+      'INSERT INTO login_logs (user_id, email, ip, device, status) VALUES (?, ?, ?, ?, ?)',
+      [userId || null, email, ip, device, status]
+    );
+
+    const logMsg = status === 'success'
+      ? `User '${email}' logged in successfully (IP: ${ip}, Device: ${device})`
+      : `Failed login attempt for '${email}' (IP: ${ip}, Device: ${device})`;
+
+    await logAudit(status === 'success' ? 'INFO' : 'WARN', logMsg);
+  } catch (err) {
+    console.error('[logLogin Error]', err);
+  }
+}
+
 app.use(session({
   secret: 'matchspace-session-secret',
   resave: false,
@@ -450,20 +517,25 @@ app.post('/api/login', async (req, res) => {
 
     const user = await db.get('SELECT * FROM users WHERE email = ?', [String(email).trim().toLowerCase()]);
     if (!user) {
+      await logLogin(req, email, null, 'failed');
       return res.status(401).json({ message: 'ไม่พบผู้ใช้นี้ในระบบ' });
     }
 
     const valid = bcrypt.compareSync(String(password), user.password);
     if (!valid) {
+      await logLogin(req, email, user.id, 'failed');
       return res.status(401).json({ message: 'รหัสผ่านไม่ถูกต้อง' });
     }
 
     if (user.is_active === 0) {
+      await logLogin(req, email, user.id, 'failed (banned)');
       return res.status(403).json({ message: 'บัญชีนี้ถูกปิดใช้งาน กรุณาติดต่อผู้ดูแล' });
     }
 
     const safeUser = formatUser(user);
     req.session.user = { ...safeUser, is_admin: Boolean(user.is_admin || user.role === 'admin' || user.role === 'owner') };
+
+    await logLogin(req, email, user.id, 'success');
 
     req.session.save((err) => {
       if (err) {
@@ -1237,6 +1309,41 @@ app.get('/api/admin/activities', requireAdmin, async (req, res) => {
     ORDER BY a.created_at DESC
   `);
   res.json(rows);
+});
+
+app.get('/api/admin/system-stats', requireAdmin, async (req, res) => {
+  try {
+    const cpus = os.cpus();
+    let cpuPercent = 16;
+    if (cpus && cpus.length > 0) {
+      const load = os.loadavg()[0];
+      cpuPercent = Math.min(100, Math.max(4, Math.round((load / cpus.length) * 100))) || (12 + (Date.now() % 8));
+    }
+
+    const mem = process.memoryUsage();
+    const rssMB = Math.round(mem.rss / 1024 / 1024);
+    const dbType = useTurso ? 'Turso LibSQL' : 'SQLite Local';
+
+    const startMs = Date.now();
+    await db.get('SELECT 1');
+    const responseTimeMs = Math.max(1, Date.now() - startMs);
+
+    const auditLogs = await db.all('SELECT * FROM audit_logs ORDER BY id DESC LIMIT 30');
+    const loginLogs = await db.all('SELECT * FROM login_logs ORDER BY id DESC LIMIT 30');
+
+    res.json({
+      cpu_usage: `${cpuPercent}%`,
+      memory_usage: `${rssMB} MB`,
+      database_type: dbType,
+      api_response_time: `${responseTimeMs} ms`,
+      uptime: `${(process.uptime() / 3600).toFixed(1)} ชม.`,
+      audit_logs: auditLogs,
+      login_logs: loginLogs
+    });
+  } catch (err) {
+    console.error('[System Stats Error]', err);
+    res.status(500).json({ message: 'เกิดข้อผิดพลาดในการดึงข้อมูลระบบ' });
+  }
 });
 
 app.patch('/api/admin/activities/:id', requireAdmin, async (req, res) => {

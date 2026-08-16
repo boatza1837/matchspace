@@ -820,9 +820,76 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
           });
         });
+
+        await loadSystemStats();
+
+        const refreshStatsBtn = document.getElementById('refreshSystemStatsBtn');
+        if (refreshStatsBtn && !refreshStatsBtn.dataset.bound) {
+          refreshStatsBtn.dataset.bound = 'true';
+          refreshStatsBtn.addEventListener('click', () => {
+            loadSystemStats();
+          });
+        }
       } catch (error) {
         if (reportsTableBody) {
           reportsTableBody.innerHTML = `<tr><td colspan="8">${error.message}</td></tr>`;
+        }
+      }
+    }
+
+    async function loadSystemStats() {
+      const cpuText = document.getElementById('cpuUsageText');
+      const memoryText = document.getElementById('memoryUsageText');
+      const dbTypeText = document.getElementById('databaseTypeText');
+      const apiLatencyText = document.getElementById('apiResponseTimeText');
+      const auditTerminal = document.getElementById('auditLogTerminal');
+      const loginLogsTable = document.getElementById('loginLogsTableBody');
+
+      if (!cpuText) return;
+
+      try {
+        const stats = await apiRequest('/api/admin/system-stats');
+        cpuText.textContent = stats.cpu_usage;
+        memoryText.textContent = stats.memory_usage;
+        dbTypeText.textContent = stats.database_type;
+        apiLatencyText.textContent = stats.api_response_time;
+
+        if (auditTerminal && Array.isArray(stats.audit_logs)) {
+          auditTerminal.innerHTML = stats.audit_logs.length
+            ? stats.audit_logs.map(log => `
+                <div class="audit-log-line">
+                  <span class="audit-log-time">[${log.created_at || 'NOW'}]</span>
+                  <span class="audit-log-level ${log.level || 'INFO'}">[${log.level || 'INFO'}]</span>
+                  <span>${log.message}</span>
+                </div>
+              `).join('')
+            : '<div class="audit-log-line">ไม่มีบันทึก Audit Logs</div>';
+          auditTerminal.scrollTop = 0;
+        }
+
+        if (loginLogsTable && Array.isArray(stats.login_logs)) {
+          loginLogsTable.innerHTML = stats.login_logs.length
+            ? stats.login_logs.map(log => {
+                const isSuccess = log.status === 'success';
+                const statusBadge = isSuccess
+                  ? '<span class="badge approved">สำเร็จ</span>'
+                  : `<span class="badge rejected">${log.status}</span>`;
+                return `
+                  <tr>
+                    <td>${log.id}</td>
+                    <td>${log.created_at || '-'}</td>
+                    <td><strong>${log.email}</strong></td>
+                    <td><code>${log.ip || '127.0.0.1'}</code></td>
+                    <td>${log.device || 'Browser'}</td>
+                    <td>${statusBadge}</td>
+                  </tr>
+                `;
+              }).join('')
+            : '<tr><td colspan="6">ยังไม่มีประวัติการเข้าสู่ระบบ</td></tr>';
+        }
+      } catch (err) {
+        if (auditTerminal) {
+          auditTerminal.innerHTML = `<div class="audit-log-line" style="color:#f38ba8;">[ERROR] Failed to fetch system stats: ${err.message}</div>`;
         }
       }
     }
