@@ -1208,11 +1208,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         ? chats.map((chat) => {
             const isGroup = chat.type === 'group' || chat.activity_id;
             const icon = isGroup ? '👥' : '💬';
-            const badge = isGroup ? '<span style="font-size:0.72rem; background:#efe9ff; color:var(--purple); padding:2px 6px; border-radius:6px; margin-left:6px; font-weight:600;">กลุ่ม</span>' : '';
+            const badge = isGroup ? '<span style="font-size:0.7rem; background:#efe9ff; color:var(--purple); padding:2px 6px; border-radius:6px; margin-left:6px; font-weight:700; flex-shrink:0;">กลุ่ม</span>' : '';
             return `
-              <div class="list-item ${chat.id === currentChatId ? 'active' : ''}" data-chat-id="${chat.id}" style="cursor:pointer;">
-                <strong>${icon} ${chat.partner_name || 'แชท'} ${badge}</strong>
-                <div style="font-size:0.85rem; color:var(--muted); text-overflow:ellipsis; overflow:hidden; white-space:nowrap; margin-top:4px;">
+              <div class="list-item ${chat.id === currentChatId ? 'active' : ''}" data-chat-id="${chat.id}">
+                <div class="chat-title">
+                  <span class="chat-title-text">${icon} ${chat.partner_name || 'แชท'}</span>
+                  ${badge}
+                </div>
+                <div class="chat-preview">
                   ${chat.last_message || 'เริ่มต้นบทสนทนาใหม่'}
                 </div>
               </div>
