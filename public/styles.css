@@ -1121,3 +1121,56 @@ th {
 .profile-modal-actions {
   margin-top: 18px;
 }
+
+/* --- Group Chat Message Styling --- */
+.msg-wrapper {
+  display: flex;
+  flex-direction: column;
+  max-width: 82%;
+}
+
+.msg-wrapper.me {
+  align-self: flex-end;
+  align-items: flex-end;
+}
+
+.msg-wrapper.them {
+  align-self: flex-start;
+  align-items: flex-start;
+}
+
+.msg-sender-name {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--purple);
+  margin-bottom: 3px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.host-badge {
+  background: #fff3cd;
+  color: #856404;
+  border: 1px solid #ffeeba;
+  font-size: 0.7rem;
+  padding: 2px 6px;
+  border-radius: 999px;
+  font-weight: 700;
+}
+
+.btn-delete-msg {
+  background: none;
+  border: none;
+  color: #bbb;
+  font-size: 0.8rem;
+  cursor: pointer;
+  padding: 0 4px;
+  margin-left: 6px;
+  transition: color 0.2s ease;
+}
+
+.btn-delete-msg:hover {
+  color: var(--danger, #e53935);
+}
+

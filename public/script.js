@@ -1192,14 +1192,32 @@ document.addEventListener('DOMContentLoaded', async () => {
       renderDiscoverCard();
     }
 
+    async function openChatTabAndLoad(chatId) {
+      const tabButtons = document.querySelectorAll('.tab-button');
+      const tabPanels = document.querySelectorAll('.tab-panel');
+      tabButtons.forEach((tab) => tab.classList.toggle('active', tab.dataset.tab === 'chat'));
+      tabPanels.forEach((panel) => panel.classList.toggle('active', panel.id === 'tab-chat'));
+
+      currentChatId = chatId;
+      await loadChats();
+      await loadMessages(chatId);
+    }
+
     function renderChatsList(chats) {
       chatList.innerHTML = chats.length
-        ? chats.map((chat) => `
-            <div class="list-item ${chat.id === currentChatId ? 'active' : ''}" data-chat-id="${chat.id}" style="cursor:pointer;">
-              <strong>${chat.partner_name}</strong>
-              <div>${chat.last_message || 'เริ่มต้นบทสนทนาใหม่'}</div>
-            </div>
-          `).join('')
+        ? chats.map((chat) => {
+            const isGroup = chat.type === 'group' || chat.activity_id;
+            const icon = isGroup ? '👥' : '💬';
+            const badge = isGroup ? '<span style="font-size:0.72rem; background:#efe9ff; color:var(--purple); padding:2px 6px; border-radius:6px; margin-left:6px; font-weight:600;">กลุ่ม</span>' : '';
+            return `
+              <div class="list-item ${chat.id === currentChatId ? 'active' : ''}" data-chat-id="${chat.id}" style="cursor:pointer;">
+                <strong>${icon} ${chat.partner_name || 'แชท'} ${badge}</strong>
+                <div style="font-size:0.85rem; color:var(--muted); text-overflow:ellipsis; overflow:hidden; white-space:nowrap; margin-top:4px;">
+                  ${chat.last_message || 'เริ่มต้นบทสนทนาใหม่'}
+                </div>
+              </div>
+            `;
+          }).join('')
         : '<div class="list-item">ยังไม่มีแชท</div>';
 
       chatList.querySelectorAll('[data-chat-id]').forEach((item) => {
@@ -1221,7 +1239,6 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (globalPollInterval) clearInterval(globalPollInterval);
       globalPollInterval = setInterval(async () => {
         try {
-          // 1. Auto-refresh chats & new matches in real-time
           const chats = await apiRequest('/api/chats');
           if (chats.length !== lastChatsCount) {
             if (lastChatsCount > 0 && chats.length > lastChatsCount) {
@@ -1231,7 +1248,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             renderChatsList(chats);
           }
 
-          // 2. Auto-refresh discover candidates when new user registers
           const candidates = await apiRequest('/api/candidates');
           if (discoverUsers.length === 0 && candidates.length > 0) {
             discoverUsers = candidates;
@@ -1262,6 +1278,62 @@ document.addEventListener('DOMContentLoaded', async () => {
     let chatPollInterval = null;
     let lastMessageCount = 0;
 
+    function renderMessageList(data) {
+      const titleHeader = document.getElementById('chatTitleHeader');
+      const subHeader = document.getElementById('chatSubHeader');
+      if (titleHeader) {
+        const isGroup = data.chat.type === 'group' || data.chat.activity_id;
+        titleHeader.textContent = isGroup ? `👥 ${data.chat.title || data.chat.activity_name || 'แชทกลุ่ม'}` : (data.chat.partner_name || 'ข้อความ');
+      }
+      if (subHeader) {
+        if (data.chat.activity_id) {
+          subHeader.innerHTML = `👑 หัวหน้ากิจกรรม: <strong>${data.chat.creator_name || 'ผู้ขอสร้าง'}</strong>`;
+        } else {
+          subHeader.innerHTML = '';
+        }
+      }
+
+      const isHost = data.chat.activity_id && Number(data.chat.creator_id) === Number(sessionState.user.id);
+      const isOwner = sessionState.user && sessionState.user.role === 'owner';
+
+      messageThread.innerHTML = data.messages.map((msg) => {
+        const isMe = msg.sender_id === sessionState.user.id;
+        const isMsgHost = data.chat.activity_id && Number(msg.sender_id) === Number(data.chat.creator_id);
+        const canDelete = isMe || isHost || isOwner;
+
+        const hostBadgeHtml = isMsgHost ? '<span class="host-badge">👑 หัวหน้ากิจกรรม</span>' : '';
+        const deleteBtnHtml = canDelete ? `<button type="button" class="btn-delete-msg" data-msg-id="${msg.id}" title="ลบข้อความ">✕</button>` : '';
+
+        return `
+          <div class="msg-wrapper ${isMe ? 'me' : 'them'}">
+            ${!isMe ? `<div class="msg-sender-name">${msg.sender_name || 'สมาชิก'} ${hostBadgeHtml}</div>` : (isMsgHost ? `<div class="msg-sender-name">${hostBadgeHtml}</div>` : '')}
+            <div class="bubble ${isMe ? 'me' : 'them'}">
+              ${msg.content}
+              ${deleteBtnHtml}
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      messageThread.scrollTop = messageThread.scrollHeight;
+
+      // Attach delete handlers
+      messageThread.querySelectorAll('.btn-delete-msg').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+          e.stopPropagation();
+          const msgId = btn.dataset.msgId;
+          if (confirm('คุณต้องการลบข้อความนี้ใช่หรือไม่?')) {
+            try {
+              await apiRequest(`/api/chats/${data.chat.id}/messages/${msgId}`, { method: 'DELETE' });
+              await loadMessages(data.chat.id);
+            } catch(err) {
+              alert(err.message);
+            }
+          }
+        });
+      });
+    }
+
     function startChatPolling() {
       stopChatPolling();
       chatPollInterval = setInterval(async () => {
@@ -1270,12 +1342,8 @@ document.addEventListener('DOMContentLoaded', async () => {
           const data = await apiRequest(`/api/chats/${currentChatId}/messages`);
           if (data.messages.length !== lastMessageCount) {
             lastMessageCount = data.messages.length;
-            messageThread.innerHTML = data.messages.map((msg) => `
-              <div class="bubble ${msg.sender_id === sessionState.user.id ? 'me' : 'them'}">${msg.content}</div>
-            `).join('');
-            messageThread.scrollTop = messageThread.scrollHeight;
+            renderMessageList(data);
           }
-          // Also refresh chat list for latest message preview
           await loadChats();
         } catch(e) { /* ignore polling errors */ }
       }, 3000);
@@ -1291,15 +1359,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     async function loadMessages(chatId) {
       const data = await apiRequest(`/api/chats/${chatId}/messages`);
       lastMessageCount = data.messages.length;
-      messageThread.innerHTML = data.messages.map((msg) => `
-        <div class="bubble ${msg.sender_id === sessionState.user.id ? 'me' : 'them'}">${msg.content}</div>
-      `).join('');
-      messageThread.scrollTop = messageThread.scrollHeight;
+      renderMessageList(data);
 
-      // Show greeting suggestions
-      await loadGreetingSuggestions(data.messages.length === 0);
+      if (!data.chat.activity_id && data.chat.type !== 'group') {
+        await loadGreetingSuggestions(data.messages.length === 0);
+      } else {
+        const container = document.getElementById('greetingSuggestions');
+        if (container) container.classList.add('hidden');
+      }
 
-      // Start real-time polling
       startChatPolling();
     }
 
@@ -1310,7 +1378,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       try {
         const greetings = await apiRequest('/api/greetings');
-        // Show a random subset of 4 greetings
         const shuffled = greetings.sort(() => 0.5 - Math.random()).slice(0, 4);
         chipsEl.innerHTML = shuffled.map(g => 
           `<div class="greeting-chip">${g}</div>`
@@ -1332,29 +1399,38 @@ document.addEventListener('DOMContentLoaded', async () => {
     async function loadActivities() {
       const activities = await apiRequest('/api/activities');
       activityBoardList.innerHTML = activities.length
-        ? activities.map((activity) => `
-            <div class="activity-card">
-              <h3>${activity.name}</h3>
-              <p>${activity.description || 'ไม่มีรายละเอียด'}</p>
-              <div class="activity-location">${activity.location || 'ไม่ระบุสถานที่'}</div>
-              <div class="meta">
-                <span>ผู้สร้าง: ${activity.creator_name || 'ไม่ระบุ'}</span>
-                <span>คณะ: ${activity.creator_major || '-'}</span>
+        ? activities.map((activity) => {
+            const isCreator = Number(activity.created_by) === Number(sessionState.user.id);
+            const canAccessChat = activity.has_joined || isCreator || (sessionState.user && sessionState.user.role === 'owner');
+            return `
+              <div class="activity-card">
+                <h3>${activity.name}</h3>
+                <p>${activity.description || 'ไม่มีรายละเอียด'}</p>
+                <div class="activity-location">${activity.location || 'ไม่ระบุสถานที่'}</div>
+                <div class="meta">
+                  <span>ผู้สร้าง: ${activity.creator_name || 'ไม่ระบุ'} ${isCreator ? '👑' : ''}</span>
+                  <span>คณะ: ${activity.creator_major || '-'}</span>
+                </div>
+                <div style="font-size:0.82rem; color:var(--purple); margin-top:8px; font-weight:600; background:#f8f5ff; padding:6px 12px; border-radius:10px; display:flex; flex-wrap:wrap; gap:8px;">
+                  <span>👥 รวม: ${activity.actual_members || 0} คน</span>
+                  <span>👨 ชาย: ${activity.male_count || 0} คน</span>
+                  <span>👩 หญิง: ${activity.female_count || 0} คน</span>
+                  <span>🌈 LGBTQ+: ${activity.lgbtq_count || 0} คน</span>
+                </div>
+                <div class="activity-actions" style="margin-top:12px; display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+                  <button class="btn-join-activity ${activity.has_joined ? 'joined' : ''}" 
+                    data-join-activity-id="${activity.id}" type="button">
+                    ${activity.has_joined ? '✓ เข้าร่วมแล้ว' : '🙋 สนใจเข้าร่วม'}
+                  </button>
+                  ${canAccessChat && activity.chat_id ? `
+                    <button class="button secondary-action btn-open-group-chat" data-chat-id="${activity.chat_id}" type="button" style="padding:10px 16px; font-size:0.85rem;">
+                      💬 เข้าแชทกลุ่ม
+                    </button>
+                  ` : ''}
+                </div>
               </div>
-              <div style="font-size:0.82rem; color:var(--purple); margin-top:8px; font-weight:600; background:#f8f5ff; padding:6px 12px; border-radius:10px; display:flex; flex-wrap:wrap; gap:8px;">
-                <span>👥 รวม: ${activity.actual_members || 0} คน</span>
-                <span>👨 ชาย: ${activity.male_count || 0} คน</span>
-                <span>👩 หญิง: ${activity.female_count || 0} คน</span>
-                <span>🌈 LGBTQ+: ${activity.lgbtq_count || 0} คน</span>
-              </div>
-              <div class="activity-actions">
-                <button class="btn-join-activity ${activity.has_joined ? 'joined' : ''}" 
-                  data-join-activity-id="${activity.id}" type="button">
-                  ${activity.has_joined ? '✓ เข้าร่วมแล้ว' : '🙋 สนใจเข้าร่วม'}
-                </button>
-              </div>
-            </div>
-          `).join('')
+            `;
+          }).join('')
         : '<div class="list-item">ยังไม่มีกิจกรรมที่ได้รับการอนุมัติ</div>';
 
       // Attach join/leave handlers
@@ -1365,12 +1441,27 @@ document.addEventListener('DOMContentLoaded', async () => {
           try {
             if (isJoined) {
               await apiRequest(`/api/activities/${id}/join`, { method: 'DELETE' });
+              await loadActivities();
             } else {
-              await apiRequest(`/api/activities/${id}/join`, { method: 'POST' });
+              const res = await apiRequest(`/api/activities/${id}/join`, { method: 'POST' });
+              if (res.chat_id) {
+                await openChatTabAndLoad(res.chat_id);
+              } else {
+                await loadActivities();
+              }
             }
-            await loadActivities();
           } catch (err) {
             alert(err.message);
+          }
+        });
+      });
+
+      // Attach open group chat handlers
+      activityBoardList.querySelectorAll('.btn-open-group-chat').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const chatId = Number(btn.dataset.chatId);
+          if (chatId) {
+            await openChatTabAndLoad(chatId);
           }
         });
       });

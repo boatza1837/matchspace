@@ -215,6 +215,8 @@ async function initDatabase() {
       user_a INTEGER NOT NULL,
       user_b INTEGER NOT NULL,
       title TEXT,
+      type TEXT DEFAULT 'direct',
+      activity_id INTEGER DEFAULT NULL,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP
     );
 
@@ -247,6 +249,9 @@ async function initDatabase() {
       UNIQUE(activity_id, user_id)
     );
   `);
+
+  try { await db.run("ALTER TABLE chats ADD COLUMN type TEXT DEFAULT 'direct'"); } catch(e) {}
+  try { await db.run("ALTER TABLE chats ADD COLUMN activity_id INTEGER DEFAULT NULL"); } catch(e) {}
 
   if (!useTurso) {
     const userCols = await db.all("PRAGMA table_info(users)");
@@ -334,6 +339,32 @@ async function initDatabase() {
 }
 
 initDatabase().catch(err => console.error('[Init DB Error]', err));
+
+async function getOrCreateActivityChat(activityId) {
+  try {
+    let chat = await db.get("SELECT * FROM chats WHERE activity_id = ? OR (type = 'group' AND activity_id = ?)", [Number(activityId), Number(activityId)]);
+    if (!chat) {
+      const activity = await db.get('SELECT * FROM activities WHERE id = ?', [Number(activityId)]);
+      if (!activity) return null;
+      const title = `กลุ่ม: ${activity.name}`;
+      const result = await db.run(
+        "INSERT INTO chats (user_a, user_b, title, type, activity_id) VALUES (?, 0, ?, 'group', ?)",
+        [activity.created_by, title, activity.id]
+      );
+      chat = await db.get('SELECT * FROM chats WHERE id = ?', [result.lastInsertRowid]);
+    }
+    const activity = await db.get('SELECT * FROM activities WHERE id = ?', [Number(activityId)]);
+    if (activity) {
+      try {
+        await db.run('INSERT OR IGNORE INTO activity_members (activity_id, user_id) VALUES (?, ?)', [activity.id, activity.created_by]);
+      } catch(e) {}
+    }
+    return chat;
+  } catch(e) {
+    console.error('[getOrCreateActivityChat Error]', e);
+    return null;
+  }
+}
 
 app.use(session({
   secret: 'matchspace-session-secret',
@@ -769,18 +800,85 @@ app.post('/api/matches', requireAuth, async (req, res) => {
 app.get('/api/chats', requireAuth, async (req, res) => {
   try {
     const userId = req.session.user.id;
-    const rows = await db.all(`
-      SELECT c.id, c.user_a, c.user_b, c.title, c.created_at,
-             CASE WHEN Number(c.user_a) = Number(?) THEN u2.name ELSE u1.name END AS partner_name,
-             CASE WHEN Number(c.user_a) = Number(?) THEN u2.id ELSE u1.id END AS partner_id,
-             CASE WHEN Number(c.user_a) = Number(?) THEN u2.profile_image ELSE u1.profile_image END AS partner_profile_image,
-             (SELECT content FROM chat_messages WHERE chat_id = c.id ORDER BY created_at DESC LIMIT 1) AS last_message
-      FROM chats c
-      JOIN users u1 ON u1.id = c.user_a
-      JOIN users u2 ON u2.id = c.user_b
-      WHERE Number(c.user_a) = Number(?) OR Number(c.user_b) = Number(?)
-      ORDER BY c.created_at DESC
-    `, [userId, userId, userId, userId, userId]);
+    const isOwner = req.session.user.role === 'owner';
+
+    // Ensure all approved activities have group chats
+    const approvedActivities = await db.all("SELECT id FROM activities WHERE status = 'approved'");
+    for (const act of approvedActivities) {
+      await getOrCreateActivityChat(act.id);
+    }
+
+    let rows = [];
+    if (isOwner) {
+      rows = await db.all(`
+        SELECT c.id, c.user_a, c.user_b, c.title, c.type, c.activity_id, c.created_at,
+               a.name AS activity_name, a.created_by AS creator_id, u_creator.name AS creator_name,
+               CASE 
+                 WHEN c.type = 'group' OR c.activity_id IS NOT NULL THEN COALESCE(c.title, a.name, 'แชทกลุ่มกิจกรรม')
+                 WHEN CAST(c.user_a AS INTEGER) = CAST(? AS INTEGER) THEN u2.name 
+                 ELSE u1.name 
+               END AS partner_name,
+               CASE 
+                 WHEN c.type = 'group' OR c.activity_id IS NOT NULL THEN NULL
+                 WHEN CAST(c.user_a AS INTEGER) = CAST(? AS INTEGER) THEN u2.id 
+                 ELSE u1.id 
+               END AS partner_id,
+               CASE 
+                 WHEN c.type = 'group' OR c.activity_id IS NOT NULL THEN NULL
+                 WHEN CAST(c.user_a AS INTEGER) = CAST(? AS INTEGER) THEN u2.profile_image 
+                 ELSE u1.profile_image 
+               END AS partner_profile_image,
+               (SELECT content FROM chat_messages WHERE chat_id = c.id ORDER BY created_at DESC LIMIT 1) AS last_message,
+               (SELECT created_at FROM chat_messages WHERE chat_id = c.id ORDER BY created_at DESC LIMIT 1) AS last_message_time
+        FROM chats c
+        LEFT JOIN users u1 ON u1.id = c.user_a
+        LEFT JOIN users u2 ON u2.id = c.user_b
+        LEFT JOIN activities a ON a.id = c.activity_id
+        LEFT JOIN users u_creator ON u_creator.id = a.created_by
+        WHERE (c.type = 'group' OR c.activity_id IS NOT NULL)
+           OR CAST(c.user_a AS INTEGER) = CAST(? AS INTEGER) 
+           OR CAST(c.user_b AS INTEGER) = CAST(? AS INTEGER)
+        ORDER BY COALESCE(last_message_time, c.created_at) DESC
+      `, [userId, userId, userId, userId, userId]);
+    } else {
+      rows = await db.all(`
+        SELECT c.id, c.user_a, c.user_b, c.title, c.type, c.activity_id, c.created_at,
+               a.name AS activity_name, a.created_by AS creator_id, u_creator.name AS creator_name,
+               CASE 
+                 WHEN c.type = 'group' OR c.activity_id IS NOT NULL THEN COALESCE(c.title, a.name, 'แชทกลุ่มกิจกรรม')
+                 WHEN CAST(c.user_a AS INTEGER) = CAST(? AS INTEGER) THEN u2.name 
+                 ELSE u1.name 
+               END AS partner_name,
+               CASE 
+                 WHEN c.type = 'group' OR c.activity_id IS NOT NULL THEN NULL
+                 WHEN CAST(c.user_a AS INTEGER) = CAST(? AS INTEGER) THEN u2.id 
+                 ELSE u1.id 
+               END AS partner_id,
+               CASE 
+                 WHEN c.type = 'group' OR c.activity_id IS NOT NULL THEN NULL
+                 WHEN CAST(c.user_a AS INTEGER) = CAST(? AS INTEGER) THEN u2.profile_image 
+                 ELSE u1.profile_image 
+               END AS partner_profile_image,
+               (SELECT content FROM chat_messages WHERE chat_id = c.id ORDER BY created_at DESC LIMIT 1) AS last_message,
+               (SELECT created_at FROM chat_messages WHERE chat_id = c.id ORDER BY created_at DESC LIMIT 1) AS last_message_time
+        FROM chats c
+        LEFT JOIN users u1 ON u1.id = c.user_a
+        LEFT JOIN users u2 ON u2.id = c.user_b
+        LEFT JOIN activities a ON a.id = c.activity_id
+        LEFT JOIN users u_creator ON u_creator.id = a.created_by
+        WHERE (
+          (c.type = 'group' OR c.activity_id IS NOT NULL) AND (
+            CAST(a.created_by AS INTEGER) = CAST(? AS INTEGER)
+            OR EXISTS (SELECT 1 FROM activity_members am WHERE am.activity_id = c.activity_id AND CAST(am.user_id AS INTEGER) = CAST(? AS INTEGER))
+          )
+        ) OR (
+          (c.type IS NULL OR c.type != 'group') AND c.activity_id IS NULL AND (
+            CAST(c.user_a AS INTEGER) = CAST(? AS INTEGER) OR CAST(c.user_b AS INTEGER) = CAST(? AS INTEGER)
+          )
+        )
+        ORDER BY COALESCE(last_message_time, c.created_at) DESC
+      `, [userId, userId, userId, userId, userId, userId, userId]);
+    }
 
     res.json(rows);
   } catch (err) {
@@ -812,7 +910,7 @@ app.post('/api/chats', requireAuth, async (req, res) => {
       return res.json({ message: 'มีแชทนี้อยู่แล้ว', chat: existing });
     }
 
-    const result = await db.run('INSERT INTO chats (user_a, user_b, title) VALUES (?, ?, ?)', [userId, Number(user_id), 'Chat']);
+    const result = await db.run("INSERT INTO chats (user_a, user_b, title, type) VALUES (?, ?, ?, 'direct')", [userId, Number(user_id), 'Chat']);
     const chat = await db.get('SELECT * FROM chats WHERE id = ?', [result.lastInsertRowid]);
     res.status(201).json({ message: 'สร้างแชทสำเร็จ', chat });
   } catch (err) {
@@ -824,23 +922,45 @@ app.post('/api/chats', requireAuth, async (req, res) => {
 app.get('/api/chats/:id/messages', requireAuth, async (req, res) => {
   try {
     const userId = req.session.user.id;
-    const chat = await db.get('SELECT * FROM chats WHERE id = ?', [Number(req.params.id)]);
+    const isOwner = req.session.user.role === 'owner';
+    const chatId = Number(req.params.id);
+
+    const chat = await db.get(`
+      SELECT c.*, a.name AS activity_name, a.created_by AS creator_id, u_creator.name AS creator_name
+      FROM chats c
+      LEFT JOIN activities a ON a.id = c.activity_id
+      LEFT JOIN users u_creator ON u_creator.id = a.created_by
+      WHERE c.id = ?
+    `, [chatId]);
 
     if (!chat) {
       return res.status(404).json({ message: 'ไม่พบแชทนี้' });
     }
 
-    if (Number(chat.user_a) !== Number(userId) && Number(chat.user_b) !== Number(userId)) {
-      return res.status(403).json({ message: 'คุณไม่ได้มีสิทธิ์เข้าถึงแชทนี้' });
+    let hasAccess = isOwner;
+    if (!hasAccess) {
+      if (chat.activity_id || chat.type === 'group') {
+        const isCreator = Number(chat.creator_id) === Number(userId);
+        const isMember = await db.get('SELECT 1 FROM activity_members WHERE activity_id = ? AND user_id = ?', [chat.activity_id, userId]);
+        if (isCreator || isMember) hasAccess = true;
+      } else {
+        if (Number(chat.user_a) === Number(userId) || Number(chat.user_b) === Number(userId)) {
+          hasAccess = true;
+        }
+      }
+    }
+
+    if (!hasAccess) {
+      return res.status(403).json({ message: 'คุณไม่มีสิทธิ์เข้าถึงแชทนี้' });
     }
 
     const messages = await db.all(`
-      SELECT m.*, u.name AS sender_name
+      SELECT m.*, u.name AS sender_name, u.profile_image AS sender_profile_image, u.role AS sender_role
       FROM chat_messages m
       JOIN users u ON u.id = m.sender_id
       WHERE m.chat_id = ?
       ORDER BY m.created_at ASC
-    `, [Number(req.params.id)]);
+    `, [chatId]);
 
     res.json({ chat, messages });
   } catch (err) {
@@ -852,14 +972,35 @@ app.get('/api/chats/:id/messages', requireAuth, async (req, res) => {
 app.post('/api/chats/:id/messages', requireAuth, async (req, res) => {
   try {
     const userId = req.session.user.id;
-    const chat = await db.get('SELECT * FROM chats WHERE id = ?', [Number(req.params.id)]);
+    const isOwner = req.session.user.role === 'owner';
+    const chatId = Number(req.params.id);
+
+    const chat = await db.get(`
+      SELECT c.*, a.created_by AS creator_id
+      FROM chats c
+      LEFT JOIN activities a ON a.id = c.activity_id
+      WHERE c.id = ?
+    `, [chatId]);
 
     if (!chat) {
       return res.status(404).json({ message: 'ไม่พบแชทนี้' });
     }
 
-    if (Number(chat.user_a) !== Number(userId) && Number(chat.user_b) !== Number(userId)) {
-      return res.status(403).json({ message: 'คุณไม่ได้มีสิทธิ์ส่งข้อความในแชทนี้' });
+    let hasAccess = isOwner;
+    if (!hasAccess) {
+      if (chat.activity_id || chat.type === 'group') {
+        const isCreator = Number(chat.creator_id) === Number(userId);
+        const isMember = await db.get('SELECT 1 FROM activity_members WHERE activity_id = ? AND user_id = ?', [chat.activity_id, userId]);
+        if (isCreator || isMember) hasAccess = true;
+      } else {
+        if (Number(chat.user_a) === Number(userId) || Number(chat.user_b) === Number(userId)) {
+          hasAccess = true;
+        }
+      }
+    }
+
+    if (!hasAccess) {
+      return res.status(403).json({ message: 'คุณไม่มีสิทธิ์ส่งข้อความในแชทนี้' });
     }
 
     const { content } = req.body || {};
@@ -868,7 +1009,7 @@ app.post('/api/chats/:id/messages', requireAuth, async (req, res) => {
     }
 
     const result = await db.run('INSERT INTO chat_messages (chat_id, sender_id, content) VALUES (?, ?, ?)', [
-      Number(req.params.id), userId, String(content).trim()
+      chatId, userId, String(content).trim()
     ]);
 
     const message = await db.get('SELECT * FROM chat_messages WHERE id = ?', [result.lastInsertRowid]);
@@ -876,6 +1017,34 @@ app.post('/api/chats/:id/messages', requireAuth, async (req, res) => {
   } catch (err) {
     console.error('[Send Message Error]', err);
     res.status(500).json({ message: err.message || 'เกิดข้อผิดพลาดในการส่งข้อความ' });
+  }
+});
+
+app.delete('/api/chats/:chatId/messages/:messageId', requireAuth, async (req, res) => {
+  try {
+    const userId = req.session.user.id;
+    const isOwner = req.session.user.role === 'owner';
+    const chatId = Number(req.params.chatId);
+    const messageId = Number(req.params.messageId);
+
+    const chat = await db.get('SELECT c.*, a.created_by AS creator_id FROM chats c LEFT JOIN activities a ON a.id = c.activity_id WHERE c.id = ?', [chatId]);
+    if (!chat) return res.status(404).json({ message: 'ไม่พบแชทนี้' });
+
+    const message = await db.get('SELECT * FROM chat_messages WHERE id = ? AND chat_id = ?', [messageId, chatId]);
+    if (!message) return res.status(404).json({ message: 'ไม่พบข้อความนี้' });
+
+    const isSender = Number(message.sender_id) === Number(userId);
+    const isHost = chat.activity_id && Number(chat.creator_id) === Number(userId);
+
+    if (!isSender && !isHost && !isOwner) {
+      return res.status(403).json({ message: 'คุณไม่มีสิทธิ์ลบข้อความนี้' });
+    }
+
+    await db.run('DELETE FROM chat_messages WHERE id = ?', [messageId]);
+    res.json({ message: 'ลบข้อความสำเร็จ' });
+  } catch (err) {
+    console.error('[Delete Message Error]', err);
+    res.status(500).json({ message: err.message || 'เกิดข้อผิดพลาดในการลบข้อความ' });
   }
 });
 
@@ -981,7 +1150,16 @@ app.get('/api/activities', requireAuth, async (req, res) => {
     const joined = await db.all('SELECT activity_id FROM activity_members WHERE user_id = ?', [userId]);
     const joinedSet = new Set(joined.map(j => j.activity_id));
 
-    const result = rows.map(r => ({ ...r, has_joined: joinedSet.has(r.id) }));
+    const result = [];
+    for (const r of rows) {
+      const chat = await getOrCreateActivityChat(r.id);
+      result.push({
+        ...r,
+        has_joined: joinedSet.has(r.id),
+        chat_id: chat ? chat.id : null
+      });
+    }
+
     res.json(result);
   } catch (err) {
     console.error('[Get Activities Error]', err);
@@ -1056,7 +1234,10 @@ app.patch('/api/admin/activities/:id', requireAdmin, async (req, res) => {
   }
 
   await db.run('UPDATE activities SET status = ? WHERE id = ?', [status, Number(id)]);
-  res.json({ message: status === 'approved' ? 'อนุมัติกิจกรรมสำเร็จ' : 'ปฏิเสธกิจกรรมสำเร็จ' });
+  if (status === 'approved') {
+    await getOrCreateActivityChat(Number(id));
+  }
+  res.json({ message: status === 'approved' ? 'อนุมัติกิจกรรมและสร้างแชทกลุ่มสำเร็จ' : 'ปฏิเสธกิจกรรมสำเร็จ' });
 });
 
 app.patch('/api/admin/reports/:id', requireAdmin, async (req, res) => {
@@ -1215,11 +1396,16 @@ app.post('/api/activities/:id/join', requireAuth, async (req, res) => {
   try {
     await db.run('INSERT INTO activity_members (activity_id, user_id) VALUES (?, ?)', [activityId, userId]);
   } catch (e) {
-    return res.status(409).json({ message: 'คุณเข้าร่วมกิจกรรมนี้แล้ว' });
+    // Already joined
   }
 
+  const chat = await getOrCreateActivityChat(activityId);
   const countObj = await db.get('SELECT COUNT(*) AS cnt FROM activity_members WHERE activity_id = ?', [activityId]);
-  res.json({ message: 'เข้าร่วมกิจกรรมสำเร็จ', member_count: countObj ? countObj.cnt : 0 });
+  res.json({
+    message: 'เข้าร่วมกิจกรรมสำเร็จ',
+    member_count: countObj ? countObj.cnt : 0,
+    chat_id: chat ? chat.id : null
+  });
 });
 
 app.delete('/api/activities/:id/join', requireAuth, async (req, res) => {
