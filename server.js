@@ -816,17 +816,20 @@ app.get('/api/chats', requireAuth, async (req, res) => {
                CASE 
                  WHEN c.type = 'group' OR c.activity_id IS NOT NULL THEN COALESCE(c.title, a.name, 'แชทกลุ่มกิจกรรม')
                  WHEN CAST(c.user_a AS INTEGER) = CAST(? AS INTEGER) THEN u2.name 
-                 ELSE u1.name 
+                 WHEN CAST(c.user_b AS INTEGER) = CAST(? AS INTEGER) THEN u1.name 
+                 ELSE u1.name || ' 💕 ' || u2.name 
                END AS partner_name,
                CASE 
                  WHEN c.type = 'group' OR c.activity_id IS NOT NULL THEN NULL
                  WHEN CAST(c.user_a AS INTEGER) = CAST(? AS INTEGER) THEN u2.id 
-                 ELSE u1.id 
+                 WHEN CAST(c.user_b AS INTEGER) = CAST(? AS INTEGER) THEN u1.id 
+                 ELSE u2.id 
                END AS partner_id,
                CASE 
                  WHEN c.type = 'group' OR c.activity_id IS NOT NULL THEN NULL
                  WHEN CAST(c.user_a AS INTEGER) = CAST(? AS INTEGER) THEN u2.profile_image 
-                 ELSE u1.profile_image 
+                 WHEN CAST(c.user_b AS INTEGER) = CAST(? AS INTEGER) THEN u1.profile_image 
+                 ELSE u2.profile_image 
                END AS partner_profile_image,
                (SELECT content FROM chat_messages WHERE chat_id = c.id ORDER BY created_at DESC LIMIT 1) AS last_message,
                (SELECT created_at FROM chat_messages WHERE chat_id = c.id ORDER BY created_at DESC LIMIT 1) AS last_message_time
@@ -835,11 +838,8 @@ app.get('/api/chats', requireAuth, async (req, res) => {
         LEFT JOIN users u2 ON u2.id = c.user_b
         LEFT JOIN activities a ON a.id = c.activity_id
         LEFT JOIN users u_creator ON u_creator.id = a.created_by
-        WHERE (c.type = 'group' OR c.activity_id IS NOT NULL)
-           OR CAST(c.user_a AS INTEGER) = CAST(? AS INTEGER) 
-           OR CAST(c.user_b AS INTEGER) = CAST(? AS INTEGER)
         ORDER BY COALESCE(last_message_time, c.created_at) DESC
-      `, [userId, userId, userId, userId, userId]);
+      `, [userId, userId, userId, userId, userId, userId]);
     } else {
       rows = await db.all(`
         SELECT c.id, c.user_a, c.user_b, c.title, c.type, c.activity_id, c.created_at,
