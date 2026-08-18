@@ -5,6 +5,7 @@ const bcrypt = require('bcryptjs');
 const multer = require('multer');
 const fs = require('fs');
 const os = require('os');
+const https = require('https');
 
 const app = express();
 app.set('trust proxy', 1);
@@ -456,6 +457,188 @@ async function logLogin(req, email, userId, status = 'success', action = 'Login'
     console.error('[logLogin Error]', err);
   }
 }
+
+// === Telegram & LINE Notification Senders ===
+function sendTelegramMessage(text) {
+  return new Promise((resolve) => {
+    const token = process.env.TELEGRAM_BOT_TOKEN;
+    const chatId = process.env.TELEGRAM_CHAT_ID;
+
+    if (!token || !chatId) {
+      console.log('[Telegram Skip] TELEGRAM_BOT_TOKEN or TELEGRAM_CHAT_ID not configured.');
+      return resolve({ success: false, reason: 'TELEGRAM_BOT_TOKEN or TELEGRAM_CHAT_ID missing' });
+    }
+
+    const payload = JSON.stringify({
+      chat_id: chatId,
+      text: text,
+      parse_mode: 'HTML'
+    });
+
+    const options = {
+      hostname: 'api.telegram.org',
+      port: 443,
+      path: `/bot${token}/sendMessage`,
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Content-Length': Buffer.byteLength(payload)
+      }
+    };
+
+    const req = https.request(options, (res) => {
+      let body = '';
+      res.on('data', chunk => body += chunk);
+      res.on('end', () => {
+        console.log(`[Telegram Sent] Status: ${res.statusCode}`);
+        resolve({ success: res.statusCode === 200, body });
+      });
+    });
+
+    req.on('error', (err) => {
+      console.error('[Telegram Error]', err.message);
+      resolve({ success: false, error: err.message });
+    });
+
+    req.write(payload);
+    req.end();
+  });
+}
+
+function sendLineMessage(text) {
+  return new Promise((resolve) => {
+    const lineNotifyToken = process.env.LINE_NOTIFY_TOKEN;
+    const lineChannelToken = process.env.LINE_CHANNEL_ACCESS_TOKEN;
+    const lineUserId = process.env.LINE_USER_ID;
+
+    if (lineNotifyToken) {
+      const params = new URLSearchParams({ message: text }).toString();
+      const options = {
+        hostname: 'notify-api.line.me',
+        port: 443,
+        path: '/api/notify',
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'Authorization': `Bearer ${lineNotifyToken}`,
+          'Content-Length': Buffer.byteLength(params)
+        }
+      };
+
+      const req = https.request(options, (res) => {
+        let body = '';
+        res.on('data', chunk => body += chunk);
+        res.on('end', () => {
+          console.log(`[LINE Notify Sent] Status: ${res.statusCode}`);
+          resolve({ success: res.statusCode === 200, body });
+        });
+      });
+
+      req.on('error', (err) => {
+        console.error('[LINE Notify Error]', err.message);
+        resolve({ success: false, error: err.message });
+      });
+
+      req.write(params);
+      req.end();
+    } else if (lineChannelToken && lineUserId) {
+      const payload = JSON.stringify({
+        to: lineUserId,
+        messages: [{ type: 'text', text: text }]
+      });
+
+      const options = {
+        hostname: 'api.line.me',
+        port: 443,
+        path: '/v2/bot/message/push',
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${lineChannelToken}`,
+          'Content-Length': Buffer.byteLength(payload)
+        }
+      };
+
+      const req = https.request(options, (res) => {
+        let body = '';
+        res.on('data', chunk => body += chunk);
+        res.on('end', () => {
+          console.log(`[LINE Bot Push Sent] Status: ${res.statusCode}`);
+          resolve({ success: res.statusCode === 200, body });
+        });
+      });
+
+      req.on('error', (err) => {
+        console.error('[LINE Bot Error]', err.message);
+        resolve({ success: false, error: err.message });
+      });
+
+      req.write(payload);
+      req.end();
+    } else {
+      console.log('[LINE Skip] LINE_NOTIFY_TOKEN or LINE_CHANNEL_ACCESS_TOKEN missing.');
+      resolve({ success: false, reason: 'LINE tokens missing' });
+    }
+  });
+}
+
+async function triggerDaily0909Notification() {
+  try {
+    const totalUsers = (await db.get('SELECT COUNT(*) AS cnt FROM users')).cnt || 0;
+    const pendingAct = (await db.get("SELECT COUNT(*) AS cnt FROM activities WHERE status = 'pending'")).cnt || 0;
+    const pendingReports = (await db.get("SELECT COUNT(*) AS cnt FROM reports WHERE status = 'pending'")).cnt || 0;
+
+    const nowBangkok = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Bangkok' }));
+    const hours = String(nowBangkok.getHours()).padStart(2, '0');
+    const minutes = String(nowBangkok.getMinutes()).padStart(2, '0');
+    const dateStr = nowBangkok.toISOString().substring(0, 10);
+    const timeStr24hr = `${hours}:${minutes}`;
+
+    const textMessage = `⏰ [MatchSpace แจ้งเตือนอัปเดตรายการประจำวัน ${dateStr} ${timeStr24hr} น.]
+📌 กรุณาอัปเดตและตรวจสอบรายการในระบบ:
+• 👥 ผู้ใช้งานทั้งหมด: ${totalUsers} คน
+• 📋 กิจกรรมรออนุมัติ: ${pendingAct} รายการ
+• 🚨 รายงานรอดำเนินการ: ${pendingReports} รายการ
+
+🚀 เข้าสู่ระบบเพื่ออัปเดตรายการ:
+https://matchspace-production.up.railway.app/admin`;
+
+    console.log(`[Daily 09:09 Trigger] Sending notifications for ${dateStr} ${timeStr24hr}...`);
+    await logAudit('INFO', `Daily 09:09 Reminder sent to LINE & Telegram (24hr: ${timeStr24hr})`);
+
+    const telegramResult = await sendTelegramMessage(textMessage);
+    const lineResult = await sendLineMessage(textMessage);
+
+    return {
+      success: true,
+      time: `${dateStr} ${timeStr24hr}`,
+      text: textMessage,
+      telegram: telegramResult,
+      line: lineResult
+    };
+  } catch (err) {
+    console.error('[Daily 09:09 Notification Error]', err);
+    return { success: false, error: err.message };
+  }
+}
+
+// Daily 09:09 AM (24hr format) Scheduler Loop
+let lastTriggeredDate0909 = '';
+setInterval(async () => {
+  try {
+    const nowBangkok = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Bangkok' }));
+    const hours = String(nowBangkok.getHours()).padStart(2, '0');
+    const minutes = String(nowBangkok.getMinutes()).padStart(2, '0');
+    const dateStr = nowBangkok.toISOString().substring(0, 10);
+
+    if (hours === '09' && minutes === '09' && lastTriggeredDate0909 !== dateStr) {
+      lastTriggeredDate0909 = dateStr;
+      await triggerDaily0909Notification();
+    }
+  } catch (e) {
+    console.error('[09:09 Scheduler Loop Error]', e);
+  }
+}, 30000);
 
 app.use(session({
   secret: 'matchspace-session-secret',
@@ -1378,6 +1561,11 @@ app.get('/api/admin/login-logs', requireAdmin, async (req, res) => {
     console.error('[Get Login Logs Error]', err);
     res.status(500).json({ message: 'เกิดข้อผิดพลาดในการดึงข้อมูลประวัติการเข้าใช้งาน' });
   }
+});
+
+app.post('/api/admin/trigger-daily-notify', requireAdmin, async (req, res) => {
+  const result = await triggerDaily0909Notification();
+  res.json({ message: 'ส่งแจ้งเตือนประจำวัน (09:09 น. LINE & Telegram) เรียบร้อยแล้ว', result });
 });
 
 app.patch('/api/admin/activities/:id', requireAdmin, async (req, res) => {
