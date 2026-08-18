@@ -270,6 +270,8 @@ async function initDatabase() {
 
   try { await db.run("ALTER TABLE chats ADD COLUMN type TEXT DEFAULT 'direct'"); } catch(e) {}
   try { await db.run("ALTER TABLE chats ADD COLUMN activity_id INTEGER DEFAULT NULL"); } catch(e) {}
+  try { await db.run("ALTER TABLE login_logs ADD COLUMN action TEXT DEFAULT 'Login'"); } catch(e) {}
+  try { await db.run("ALTER TABLE login_logs ADD COLUMN details TEXT DEFAULT 'เข้าสู่ระบบ'"); } catch(e) {}
 
   if (!useTurso) {
     const userCols = await db.all("PRAGMA table_info(users)");
@@ -412,23 +414,28 @@ async function logAudit(level, message) {
 }
 
 function parseDevice(userAgent) {
-  if (!userAgent) return 'Unknown Device';
-  let device = 'Desktop';
-  if (/mobile/i.test(userAgent)) device = 'Mobile';
-  if (/android/i.test(userAgent)) device = 'Android';
-  if (/iphone|ipad|ipod/i.test(userAgent)) device = 'iOS';
-  if (/windows/i.test(userAgent)) device = 'Windows PC';
-  if (/macintosh|mac os x/i.test(userAgent)) device = 'Mac';
-  if (/linux/i.test(userAgent)) device = 'Linux';
+  if (!userAgent) return '💻 Google Chrome (Windows 10/11)';
+  let os = 'Windows 10/11';
+  let isMobile = false;
 
-  if (/chrome/i.test(userAgent) && !/edg/i.test(userAgent)) device += ' (Chrome)';
-  else if (/edg/i.test(userAgent)) device += ' (Edge)';
-  else if (/firefox/i.test(userAgent)) device += ' (Firefox)';
-  else if (/safari/i.test(userAgent)) device += ' (Safari)';
-  return device;
+  if (/iphone/i.test(userAgent)) { os = 'iPhone (iOS)'; isMobile = true; }
+  else if (/ipad/i.test(userAgent)) { os = 'iPad (iPadOS)'; isMobile = true; }
+  else if (/android/i.test(userAgent)) { os = 'Android'; isMobile = true; }
+  else if (/macintosh|mac os x/i.test(userAgent)) { os = 'macOS'; }
+  else if (/linux/i.test(userAgent)) { os = 'Linux'; }
+  else if (/windows/i.test(userAgent)) { os = 'Windows 10/11'; }
+
+  let browser = 'Google Chrome';
+  if (/edg/i.test(userAgent)) browser = 'Microsoft Edge';
+  else if (/firefox/i.test(userAgent)) browser = 'Mozilla Firefox';
+  else if (/safari/i.test(userAgent) && !/chrome/i.test(userAgent)) browser = 'Apple Safari';
+  else if (/chrome/i.test(userAgent)) browser = 'Google Chrome';
+
+  const icon = isMobile ? '📱' : '💻';
+  return `${icon} ${browser} (${os})`;
 }
 
-async function logLogin(req, email, userId, status = 'success') {
+async function logLogin(req, email, userId, status = 'success', action = 'Login', details = 'เข้าสู่ระบบ') {
   try {
     const rawIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress || '127.0.0.1';
     const ip = rawIp.split(',')[0].trim().replace('::ffff:', '');
@@ -436,13 +443,13 @@ async function logLogin(req, email, userId, status = 'success') {
     const device = parseDevice(userAgent);
 
     await db.run(
-      'INSERT INTO login_logs (user_id, email, ip, device, status) VALUES (?, ?, ?, ?, ?)',
-      [userId || null, email, ip, device, status]
+      'INSERT INTO login_logs (user_id, email, ip, device, status, action, details) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      [userId || null, email, ip, device, status, action, details]
     );
 
     const logMsg = status === 'success'
-      ? `User '${email}' logged in successfully (IP: ${ip}, Device: ${device})`
-      : `Failed login attempt for '${email}' (IP: ${ip}, Device: ${device})`;
+      ? `[${action}] '${email}' ${details} (IP: ${ip}, Device: ${device})`
+      : `[${action} Failed] '${email}' ${details} (IP: ${ip}, Device: ${device})`;
 
     await logAudit(status === 'success' ? 'INFO' : 'WARN', logMsg);
   } catch (err) {
@@ -517,25 +524,28 @@ app.post('/api/login', async (req, res) => {
 
     const user = await db.get('SELECT * FROM users WHERE email = ?', [String(email).trim().toLowerCase()]);
     if (!user) {
-      await logLogin(req, email, null, 'failed');
+      await logLogin(req, email, null, 'failed', 'Email Login', 'ไม่พบผู้ใช้ในระบบ');
       return res.status(401).json({ message: 'ไม่พบผู้ใช้นี้ในระบบ' });
     }
 
     const valid = bcrypt.compareSync(String(password), user.password);
     if (!valid) {
-      await logLogin(req, email, user.id, 'failed');
+      await logLogin(req, email, user.id, 'failed', 'Email Login', 'รหัสผ่านไม่ถูกต้อง');
       return res.status(401).json({ message: 'รหัสผ่านไม่ถูกต้อง' });
     }
 
     if (user.is_active === 0) {
-      await logLogin(req, email, user.id, 'failed (banned)');
+      await logLogin(req, email, user.id, 'failed', 'Email Login', 'บัญชีถูกแบน/ระงับการใช้งาน');
       return res.status(403).json({ message: 'บัญชีนี้ถูกปิดใช้งาน กรุณาติดต่อผู้ดูแล' });
     }
 
     const safeUser = formatUser(user);
-    req.session.user = { ...safeUser, is_admin: Boolean(user.is_admin || user.role === 'admin' || user.role === 'owner') };
+    const isAdmin = Boolean(user.is_admin || user.role === 'admin' || user.role === 'owner');
+    req.session.user = { ...safeUser, is_admin: isAdmin };
 
-    await logLogin(req, email, user.id, 'success');
+    const actionName = isAdmin ? 'Admin Login' : 'Email Login';
+    const detailText = isAdmin ? 'เข้าสู่ระบบผู้ดูแลระบบ' : 'เข้าสู่ระบบด้วยอีเมล/รหัสผ่าน';
+    await logLogin(req, email, user.id, 'success', actionName, detailText);
 
     req.session.save((err) => {
       if (err) {
@@ -587,11 +597,15 @@ app.post('/api/auth/google', async (req, res) => {
     }
 
     if (user.is_active === 0) {
+      await logLogin(req, normalizedEmail, user.id, 'failed', 'Google OAuth', 'บัญชีถูกระงับการใช้งาน');
       return res.status(403).json({ message: 'บัญชีนี้ถูกปิดใช้งาน กรุณาติดต่อผู้ดูแล', banned: true });
     }
 
     const safeUser = formatUser(user);
-    req.session.user = { ...safeUser, is_admin: Boolean(user.is_admin || user.role === 'admin' || user.role === 'owner') };
+    const isAdmin = Boolean(user.is_admin || user.role === 'admin' || user.role === 'owner');
+    req.session.user = { ...safeUser, is_admin: isAdmin };
+
+    await logLogin(req, normalizedEmail, user.id, 'success', 'Google OAuth', 'เข้าสู่ระบบด้วย Google');
 
     req.session.save((err) => {
       if (err) {
@@ -1343,6 +1357,26 @@ app.get('/api/admin/system-stats', requireAdmin, async (req, res) => {
   } catch (err) {
     console.error('[System Stats Error]', err);
     res.status(500).json({ message: 'เกิดข้อผิดพลาดในการดึงข้อมูลระบบ' });
+  }
+});
+
+app.get('/api/admin/login-logs', requireAdmin, async (req, res) => {
+  try {
+    const q = req.query.q ? String(req.query.q).trim() : '';
+    let sql = 'SELECT * FROM login_logs';
+    let params = [];
+    if (q) {
+      sql += ' WHERE email LIKE ? OR ip LIKE ? OR device LIKE ? OR action LIKE ? OR details LIKE ?';
+      const pattern = `%${q}%`;
+      params = [pattern, pattern, pattern, pattern, pattern];
+    }
+    sql += ' ORDER BY id DESC LIMIT 100';
+
+    const logs = await db.all(sql, params);
+    res.json(logs);
+  } catch (err) {
+    console.error('[Get Login Logs Error]', err);
+    res.status(500).json({ message: 'เกิดข้อผิดพลาดในการดึงข้อมูลประวัติการเข้าใช้งาน' });
   }
 });
 

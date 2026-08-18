@@ -72,17 +72,32 @@
         </div>
       </section>
 
-      <section class="card" style="padding: 18px; margin-top: 24px;">
-        <h2 style="margin-top: 0; color: var(--purple);">🌐 ประวัติการเข้าสู่ระบบ (Login & IP Logs)</h2>
-        <div class="table-wrap" style="max-height: 320px; overflow-y: auto;">
-          <table>
+      <section class="card" style="padding: 22px; margin-top: 24px;">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 16px; margin-bottom: 16px;">
+          <div>
+            <h2 style="margin: 0; color: var(--purple); font-size: 1.35rem; display: flex; align-items: center; gap: 8px;">
+              🛡️ บันทึกประวัติการเข้าใช้งาน & อุปกรณ์ (Login & Access Logs)
+            </h2>
+            <p style="margin: 4px 0 0; color: var(--muted); font-size: 0.88rem;">
+              ติดตาม IP Address, อุปกรณ์ (Device), เบราว์เซอร์ และวันเวลาที่ผู้ใช้และผู้ดูแลระบบเข้าใช้งาน
+            </p>
+          </div>
+          <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+            <input id="loginLogsSearchInput" type="text" placeholder="🔍 ค้นหา IP, อีเมล หรือ อุปกรณ์..." style="padding: 8px 14px; font-size: 0.86rem; width: 240px; border-radius: 10px; border: 1px solid var(--line);" />
+            <button class="button secondary-action" id="refreshLoginLogsBtn" type="button" style="padding: 8px 16px; font-size: 0.85rem;">🔄 รีเฟรช</button>
+          </div>
+        </div>
+
+        <div class="table-wrap" style="max-height: 480px; overflow-y: auto;">
+          <table class="access-logs-table">
             <thead>
               <tr>
-                <th>#</th>
-                <th>เวลา</th>
-                <th>อีเมลผู้ใช้</th>
-                <th>IP Address</th>
-                <th>อุปกรณ์ / Device</th>
+                <th>🕒 วัน-เวลา</th>
+                <th>👤 บัญชีผู้ใช้ (Email)</th>
+                <th>🌐 IP Address</th>
+                <th>💻 อุปกรณ์ / เบราว์เซอร์ (Device & OS)</th>
+                <th>⚡ กิจกรรม (Action)</th>
+                <th>🏷️ รายละเอียด</th>
                 <th>สถานะ</th>
               </tr>
             </thead>

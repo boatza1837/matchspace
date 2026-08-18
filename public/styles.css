@@ -1312,3 +1312,63 @@ th {
   background: rgba(243, 139, 168, 0.15);
 }
 
+/* --- Access Logs Table Styling --- */
+.access-logs-table th {
+  background: #f8f6ff;
+  color: var(--purple-dark);
+  font-weight: 700;
+  font-size: 0.84rem;
+  padding: 12px 14px;
+  border-bottom: 2px solid var(--line);
+}
+
+.access-logs-table td {
+  padding: 12px 14px;
+  font-size: 0.86rem;
+  vertical-align: middle;
+  border-bottom: 1px solid #f1eeff;
+}
+
+.ip-pill {
+  display: inline-block;
+  background: #e3f2fd;
+  color: #1976d2;
+  font-family: 'Consolas', 'Monaco', monospace;
+  font-size: 0.82rem;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 8px;
+  border: 1px solid #bbdefb;
+}
+
+.action-text {
+  color: #4f46e5;
+  font-weight: 700;
+}
+
+.status-badge-success {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: #e8f5e9;
+  color: #2e7d32;
+  font-weight: 700;
+  font-size: 0.78rem;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid #a5d6a7;
+}
+
+.status-badge-failed {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: #ffebee;
+  color: #c62828;
+  font-weight: 700;
+  font-size: 0.78rem;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid #ef9a9a;
+}
+

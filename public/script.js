@@ -822,12 +822,34 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
 
         await loadSystemStats();
+        await loadLoginLogs();
 
         const refreshStatsBtn = document.getElementById('refreshSystemStatsBtn');
         if (refreshStatsBtn && !refreshStatsBtn.dataset.bound) {
           refreshStatsBtn.dataset.bound = 'true';
           refreshStatsBtn.addEventListener('click', () => {
             loadSystemStats();
+          });
+        }
+
+        const searchInput = document.getElementById('loginLogsSearchInput');
+        if (searchInput && !searchInput.dataset.bound) {
+          searchInput.dataset.bound = 'true';
+          let timeout = null;
+          searchInput.addEventListener('input', () => {
+            clearTimeout(timeout);
+            timeout = setTimeout(() => {
+              loadLoginLogs(searchInput.value);
+            }, 300);
+          });
+        }
+
+        const refreshLogsBtn = document.getElementById('refreshLoginLogsBtn');
+        if (refreshLogsBtn && !refreshLogsBtn.dataset.bound) {
+          refreshLogsBtn.dataset.bound = 'true';
+          refreshLogsBtn.addEventListener('click', () => {
+            const q = searchInput ? searchInput.value : '';
+            loadLoginLogs(q);
           });
         }
       } catch (error) {
@@ -837,13 +859,45 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
     }
 
+    async function loadLoginLogs(searchQuery = '') {
+      const tableBody = document.getElementById('loginLogsTableBody');
+      if (!tableBody) return;
+
+      try {
+        const url = searchQuery ? `/api/admin/login-logs?q=${encodeURIComponent(searchQuery)}` : '/api/admin/login-logs';
+        const logs = await apiRequest(url);
+
+        tableBody.innerHTML = logs.length
+          ? logs.map(log => {
+              const isSuccess = log.status === 'success';
+              const statusHtml = isSuccess
+                ? '<span class="status-badge-success">✅ สำเร็จ</span>'
+                : `<span class="status-badge-failed">❌ ${log.status || 'ล้มเหลว'}</span>`;
+
+              return `
+                <tr>
+                  <td style="color:var(--muted); font-size:0.84rem;">${log.created_at || '-'}</td>
+                  <td><strong>${log.email}</strong></td>
+                  <td><span class="ip-pill">${log.ip || '127.0.0.1'}</span></td>
+                  <td>${log.device || '💻 Google Chrome (Windows 10/11)'}</td>
+                  <td><span class="action-text">${log.action || 'Login'}</span></td>
+                  <td>${log.details || 'เข้าสู่ระบบ'}</td>
+                  <td>${statusHtml}</td>
+                </tr>
+              `;
+            }).join('')
+          : '<tr><td colspan="7" style="text-align:center; padding:20px; color:var(--muted);">ไม่พบข้อมูลบันทึกประวัติการเข้าใช้งาน</td></tr>';
+      } catch (err) {
+        tableBody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:20px; color:#d32f2f;">${err.message}</td></tr>`;
+      }
+    }
+
     async function loadSystemStats() {
       const cpuText = document.getElementById('cpuUsageText');
       const memoryText = document.getElementById('memoryUsageText');
       const dbTypeText = document.getElementById('databaseTypeText');
       const apiLatencyText = document.getElementById('apiResponseTimeText');
       const auditTerminal = document.getElementById('auditLogTerminal');
-      const loginLogsTable = document.getElementById('loginLogsTableBody');
 
       if (!cpuText) return;
 
@@ -865,27 +919,6 @@ document.addEventListener('DOMContentLoaded', async () => {
               `).join('')
             : '<div class="audit-log-line">ไม่มีบันทึก Audit Logs</div>';
           auditTerminal.scrollTop = 0;
-        }
-
-        if (loginLogsTable && Array.isArray(stats.login_logs)) {
-          loginLogsTable.innerHTML = stats.login_logs.length
-            ? stats.login_logs.map(log => {
-                const isSuccess = log.status === 'success';
-                const statusBadge = isSuccess
-                  ? '<span class="badge approved">สำเร็จ</span>'
-                  : `<span class="badge rejected">${log.status}</span>`;
-                return `
-                  <tr>
-                    <td>${log.id}</td>
-                    <td>${log.created_at || '-'}</td>
-                    <td><strong>${log.email}</strong></td>
-                    <td><code>${log.ip || '127.0.0.1'}</code></td>
-                    <td>${log.device || 'Browser'}</td>
-                    <td>${statusBadge}</td>
-                  </tr>
-                `;
-              }).join('')
-            : '<tr><td colspan="6">ยังไม่มีประวัติการเข้าสู่ระบบ</td></tr>';
         }
       } catch (err) {
         if (auditTerminal) {
