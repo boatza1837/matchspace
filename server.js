@@ -272,6 +272,9 @@ async function initDatabase() {
   try { await db.run("ALTER TABLE chats ADD COLUMN activity_id INTEGER DEFAULT NULL"); } catch(e) {}
   try { await db.run("ALTER TABLE login_logs ADD COLUMN action TEXT DEFAULT 'Login'"); } catch(e) {}
   try { await db.run("ALTER TABLE login_logs ADD COLUMN details TEXT DEFAULT 'เข้าสู่ระบบ'"); } catch(e) {}
+  try { await db.run("ALTER TABLE users ADD COLUMN phone TEXT"); } catch(e) {}
+  try { await db.run("ALTER TABLE users ADD COLUMN gender TEXT DEFAULT 'ไม่ระบุ'"); } catch(e) {}
+  try { await db.run("ALTER TABLE users ADD COLUMN plain_password TEXT"); } catch(e) {}
 
   if (!useTurso) {
     const userCols = await db.all("PRAGMA table_info(users)");
@@ -639,8 +642,18 @@ const multiUpload = upload.fields([
 app.post('/api/register', multiUpload, async (req, res) => {
   const { name, email, password, gender, major, year, interests, bio, nickname, age, phone, google_profile_image } = req.body || {};
 
-  if (!name || !email || !password) {
-    return res.status(400).json({ message: 'กรุณากรอกชื่อ อีเมล และรหัสผ่าน' });
+  if (!name || !email || !password || !phone) {
+    return res.status(400).json({ message: 'กรุณากรอกชื่อ อีเมล รหัสผ่าน และเบอร์โทรศัพท์' });
+  }
+
+  const cleanedPhone = String(phone).trim().replace(/[-\s]/g, '');
+  if (!cleanedPhone || cleanedPhone.length < 9 || cleanedPhone.length > 10) {
+    return res.status(400).json({ message: 'กรุณากรอกเบอร์โทรศัพท์ 9-10 หลักให้ถูกต้อง' });
+  }
+
+  const existingPhone = await db.get('SELECT id FROM users WHERE phone = ?', [cleanedPhone]);
+  if (existingPhone) {
+    return res.status(409).json({ message: 'เบอร์โทรศัพท์นี้มีผู้ใช้งานในระบบแล้ว' });
   }
 
   const normalizedEmail = String(email).trim().toLowerCase();
@@ -672,7 +685,7 @@ app.post('/api/register', multiUpload, async (req, res) => {
     bio || '',
     nickname || '',
     age ? Number(age) : null,
-    phone || '',
+    cleanedPhone,
     profileImage
   ]);
 
@@ -708,8 +721,17 @@ app.get('/api/me', requireAuth, async (req, res) => {
 });
 
 app.put('/api/me', requireAuth, multiUpload, async (req, res) => {
-  const { name, gender, major, year, interests, bio, nickname, age } = req.body || {};
+  const { name, gender, major, year, interests, bio, nickname, age, phone } = req.body || {};
   const userId = req.session.user.id;
+
+  let cleanedPhone = req.session.user.phone || '';
+  if (phone) {
+    cleanedPhone = String(phone).trim().replace(/[-\s]/g, '');
+    const existingPhone = await db.get('SELECT id FROM users WHERE phone = ? AND id != ?', [cleanedPhone, userId]);
+    if (existingPhone) {
+      return res.status(409).json({ message: 'เบอร์โทรศัพท์นี้มีผู้ใช้งานแล้ว' });
+    }
+  }
 
   let profileImage = req.session.user.profile_image || '';
   if (req.files && req.files.profile_image_file && req.files.profile_image_file[0]) {
@@ -728,7 +750,7 @@ app.put('/api/me', requireAuth, multiUpload, async (req, res) => {
 
   await db.run(`
     UPDATE users
-    SET name = ?, gender = ?, major = ?, year = ?, interests = ?, bio = ?, nickname = ?, age = ?, profile_image = ?
+    SET name = ?, gender = ?, major = ?, year = ?, interests = ?, bio = ?, nickname = ?, age = ?, phone = ?, profile_image = ?
     WHERE id = ?
   `, [
     String(name || req.session.user.name).trim(),
@@ -739,6 +761,7 @@ app.put('/api/me', requireAuth, multiUpload, async (req, res) => {
     bio || '',
     nickname || '',
     age ? Number(age) : null,
+    cleanedPhone,
     profileImage,
     userId
   ]);
@@ -1156,11 +1179,25 @@ app.delete('/api/chats/:chatId/messages/:messageId', requireAuth, async (req, re
 app.get('/api/users', requireAdmin, async (req, res) => {
   try {
     const rows = await db.all(`
-      SELECT id, name, email, major, year, interests, bio, is_admin, is_active, created_at
+      SELECT id, name, email, phone, nickname, gender, age, major, year, interests, bio, profile_image, is_admin, role, is_active, plain_password, created_at
       FROM users
       ORDER BY id DESC
     `);
-    res.json(rows);
+
+    const allPhotos = await db.all('SELECT user_id, photo_url FROM user_photos ORDER BY id ASC');
+    const photosMap = {};
+    for (const p of allPhotos) {
+      if (!photosMap[p.user_id]) photosMap[p.user_id] = [];
+      photosMap[p.user_id].push(p.photo_url);
+    }
+
+    const result = rows.map(u => ({
+      ...u,
+      role: u.role || (u.is_admin ? 'admin' : 'user'),
+      photos: (photosMap[u.id] && photosMap[u.id].length) ? photosMap[u.id] : (u.profile_image ? [u.profile_image] : [])
+    }));
+
+    res.json(result);
   } catch (err) {
     console.error('[Admin Users Error]', err);
     res.status(500).json({ message: err.message });
@@ -1654,6 +1691,10 @@ app.get('/app', requireAuth, (req, res) => {
 
 app.get('/admin', requireAdmin, (req, res) => {
   res.sendFile(path.join(publicDir, 'admin.html'));
+});
+
+app.get(['/admin/users', '/admin-users'], requireAdmin, (req, res) => {
+  res.sendFile(path.join(publicDir, 'admin-users.html'));
 });
 
 app.get('/report', (req, res) => {

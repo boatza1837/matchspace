@@ -75,6 +75,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const reportsTableBody = document.getElementById('reportsTableBody');
   const userTableBody = document.getElementById('userTableBody');
   const activityTableBody = document.getElementById('activityTableBody');
+  const adminUsersTableBody = document.getElementById('adminUsersTableBody');
 
   if (loginForm) {
     loginForm.addEventListener('submit', async (event) => {
@@ -930,6 +931,381 @@ document.addEventListener('DOMContentLoaded', async () => {
     loadAdminDashboard();
   }
 
+  if (adminUsersTableBody) {
+    let allAdminUsers = [];
+    const searchInput = document.getElementById('userSearchInput');
+    const filterGender = document.getElementById('filterGender');
+    const filterRole = document.getElementById('filterRole');
+    const filterStatus = document.getElementById('filterStatus');
+    const btnRefresh = document.getElementById('btnRefreshUsers');
+    const modal = document.getElementById('userDetailModal');
+    const modalCloseBtn = document.getElementById('modalCloseBtn');
+    const modalBody = document.getElementById('modalUserContent');
+    const modalTitle = document.getElementById('modalUserName');
+    const logoutBtn = document.getElementById('logoutButton');
+
+    let currentUserSession = null;
+
+    if (logoutBtn) {
+      logoutBtn.addEventListener('click', async () => {
+        await apiRequest('/api/logout', { method: 'POST' });
+        window.location.href = '/';
+      });
+    }
+
+    if (modalCloseBtn && modal) {
+      modalCloseBtn.addEventListener('click', () => modal.classList.add('hidden'));
+      modal.addEventListener('click', (e) => {
+        if (e.target === modal) modal.classList.add('hidden');
+      });
+    }
+
+    async function loadAdminUsers() {
+      try {
+        const session = await apiRequest('/api/session');
+        if (!session.user || (!session.user.is_admin && session.user.role !== 'admin' && session.user.role !== 'owner')) {
+          window.location.href = '/';
+          return;
+        }
+        currentUserSession = session.user;
+
+        allAdminUsers = await apiRequest('/api/users');
+        updateUserStats(allAdminUsers);
+        renderFilteredUsers();
+      } catch (err) {
+        adminUsersTableBody.innerHTML = `<tr><td colspan="8" style="text-align:center; color:var(--danger); padding:20px;">⚠️ ${escapeHtml(err.message || 'ไม่สามารถโหลดข้อมูลผู้ใช้ได้')}</td></tr>`;
+      }
+    }
+
+    function updateUserStats(users) {
+      const total = users.length;
+      let male = 0, female = 0, lgbtq = 0, active = 0, banned = 0;
+      for (const u of users) {
+        if (u.gender === 'ชาย') male++;
+        else if (u.gender === 'หญิง') female++;
+        else if (u.gender === 'เพศหลากหลาย') lgbtq++;
+
+        if (u.is_active === 0) banned++;
+        else active++;
+      }
+
+      const totalEl = document.getElementById('countTotalUsers');
+      if (totalEl) totalEl.textContent = total;
+      const maleEl = document.getElementById('countMaleUsers');
+      if (maleEl) maleEl.textContent = male;
+      const femaleEl = document.getElementById('countFemaleUsers');
+      if (femaleEl) femaleEl.textContent = female;
+      const lgbtqEl = document.getElementById('countLgbtqUsers');
+      if (lgbtqEl) lgbtqEl.textContent = lgbtq;
+      const activeEl = document.getElementById('countActiveUsers');
+      if (activeEl) activeEl.textContent = active;
+      const bannedEl = document.getElementById('countBannedUsers');
+      if (bannedEl) bannedEl.textContent = banned;
+    }
+
+    function renderFilteredUsers() {
+      const q = (searchInput?.value || '').toLowerCase().trim();
+      const genderFilter = filterGender?.value || '';
+      const roleFilter = filterRole?.value || '';
+      const statusFilter = filterStatus?.value || '';
+
+      const filtered = allAdminUsers.filter(u => {
+        if (genderFilter && u.gender !== genderFilter) return false;
+        if (roleFilter && (u.role || (u.is_admin ? 'admin' : 'user')) !== roleFilter) return false;
+        if (statusFilter === 'active' && u.is_active === 0) return false;
+        if (statusFilter === 'banned' && u.is_active !== 0) return false;
+        if (q) {
+          const matchName = (u.name || '').toLowerCase().includes(q);
+          const matchEmail = (u.email || '').toLowerCase().includes(q);
+          const matchPhone = (u.phone || '').toLowerCase().includes(q);
+          const matchNick = (u.nickname || '').toLowerCase().includes(q);
+          const matchMajor = (u.major || '').toLowerCase().includes(q);
+          const matchInterests = (u.interests || '').toLowerCase().includes(q);
+          if (!matchName && !matchEmail && !matchPhone && !matchNick && !matchMajor && !matchInterests) return false;
+        }
+        return true;
+      });
+
+      const countEl = document.getElementById('userCountDisplay');
+      if (countEl) countEl.textContent = filtered.length;
+
+      if (!filtered.length) {
+        adminUsersTableBody.innerHTML = `<tr><td colspan="8" style="text-align:center; padding:30px; color:var(--muted);">ไม่พบข้อมูลผู้ใช้ที่ตรงกับเงื่อนไขการค้นหา</td></tr>`;
+        return;
+      }
+
+      const isOwner = currentUserSession && currentUserSession.role === 'owner';
+
+      adminUsersTableBody.innerHTML = filtered.map(user => {
+        const userRole = user.role || (user.is_admin ? 'admin' : 'user');
+        const isBanned = user.is_active === 0;
+        const avatarImg = user.profile_image
+          ? `<img src="${escapeHtml(user.profile_image)}" class="user-table-avatar" alt="${escapeHtml(user.name)}" data-view-detail-id="${user.id}" />`
+          : `<div class="user-table-avatar-initial" data-view-detail-id="${user.id}">${escapeHtml((user.name || 'U').charAt(0))}</div>`;
+
+        const plainPassDisplay = user.plain_password ? user.plain_password : '(ตั้งผ่านระบบเก่า/Google)';
+        const resetPasswordHtml = isOwner ? `
+          <div style="display:flex; flex-direction:column; gap:4px;">
+            <div style="display:flex; align-items:center; gap:4px;">
+              <span id="uPassText-${user.id}" style="font-family:monospace; font-weight:bold; color:var(--purple); background:#f0edff; padding:2px 6px; border-radius:4px; font-size:0.8rem;" data-plain="${escapeHtml(plainPassDisplay)}">••••••••</span>
+              <button type="button" class="inline-button review" data-uaction-toggle-pass="${user.id}" data-user-email="${escapeHtml(user.email)}" style="padding:2px 6px; font-size:0.75rem;" title="ดู/ซ่อนรหัสผ่าน">👁️</button>
+            </div>
+            <button type="button" class="inline-button review" data-uaction-reset-pass="${user.id}" data-user-email="${escapeHtml(user.email)}" style="padding:2px 6px; font-size:0.75rem;">🔑 เปลี่ยนรหัส</button>
+          </div>
+        ` : `<span style="color:#aaa; font-size:0.75rem;">สิทธิ์เฉพาะ Owner</span>`;
+
+        const roleSelectHtml = isOwner ? `
+          <div style="display:flex; flex-direction:column; gap:4px;">
+            <select data-urole-select-id="${user.id}" style="padding:3px 6px; border-radius:6px; border:1px solid #ccc; font-size:0.8rem;">
+              <option value="user" ${userRole === 'user' ? 'selected' : ''}>User (ทั่วไป)</option>
+              <option value="admin" ${userRole === 'admin' ? 'selected' : ''}>Admin (ผู้ดูแล)</option>
+              <option value="owner" ${userRole === 'owner' ? 'selected' : ''}>Owner (ผู้ดูแลสูงสุด)</option>
+            </select>
+            <button class="inline-button review" data-uaction-save-role="${user.id}" style="padding:2px 6px; font-size:0.75rem;">บันทึกสิทธิ์</button>
+          </div>
+        ` : `<span class="badge ${userRole === 'owner' ? 'resolved' : (userRole === 'admin' ? 'reviewed' : '')}">${userRole.toUpperCase()}</span>`;
+
+        const interestsList = (user.interests || '').split(',').map(s => s.trim()).filter(Boolean);
+        const interestsHtml = interestsList.length
+          ? interestsList.slice(0, 3).map(t => `<span class="interest-tag-pill">${escapeHtml(t)}</span>`).join('') + (interestsList.length > 3 ? `<span class="interest-tag-pill">+${interestsList.length - 3}</span>` : '')
+          : '<span style="color:#bbb; font-size:0.75rem;">-</span>';
+
+        return `
+          <tr>
+            <td>
+              <div class="user-profile-cell">
+                ${avatarImg}
+                <div>
+                  <div class="user-name-title">
+                    <span style="cursor:pointer;" data-view-detail-id="${user.id}">${escapeHtml(user.name)}</span>
+                    <span class="user-id-badge">#${user.id}</span>
+                  </div>
+                  ${user.nickname ? `<div class="user-nickname-pill">ชื่อเล่น: ${escapeHtml(user.nickname)}</div>` : ''}
+                </div>
+              </div>
+            </td>
+            <td>
+              <div class="user-contact-email">${escapeHtml(user.email)}</div>
+              ${user.phone ? `<div class="user-contact-phone">📞 ${escapeHtml(user.phone)}</div>` : '<div style="color:#bbb; font-size:0.75rem;">ไม่มีเบอร์</div>'}
+            </td>
+            <td>
+              <div><strong>${escapeHtml(user.gender || 'ไม่ระบุ')}</strong></div>
+              <div style="font-size:0.8rem; color:var(--muted);">${user.age ? user.age + ' ปี' : 'ไม่ระบุอายุ'} • ${escapeHtml(user.year || '-')}</div>
+            </td>
+            <td>
+              <div style="font-weight:600; color:var(--purple-dark); font-size:0.86rem;">${escapeHtml(user.major || '-')}</div>
+            </td>
+            <td>
+              <div>${interestsHtml}</div>
+              ${user.bio ? `<div class="bio-snippet" title="${escapeHtml(user.bio)}">${escapeHtml(user.bio)}</div>` : ''}
+            </td>
+            <td>${resetPasswordHtml}</td>
+            <td>${roleSelectHtml}</td>
+            <td>
+              <div style="display:flex; flex-direction:column; gap:6px;">
+                <button class="inline-button ${isBanned ? 'resolve' : 'reject'}" data-uaction-ban="${user.id}" data-action="${isBanned ? 'enable' : 'disable'}" style="padding:4px 8px; font-size:0.78rem;">
+                  ${isBanned ? '✅ ปลดแบน' : '🚫 แบนผู้ใช้'}
+                </button>
+                <button class="inline-button review" data-view-detail-id="${user.id}" style="padding:4px 8px; font-size:0.78rem; background:#6366f1; color:white;">
+                  🔍 ดูข้อมูลเต็ม
+                </button>
+              </div>
+            </td>
+          </tr>
+        `;
+      }).join('');
+
+      attachUserTableEvents();
+    }
+
+    function attachUserTableEvents() {
+      // Toggle plain password
+      adminUsersTableBody.querySelectorAll('[data-uaction-toggle-pass]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const userId = btn.dataset.uactionTogglePass;
+          const passEl = document.getElementById(`uPassText-${userId}`);
+          if (!passEl) return;
+          const plainVal = passEl.dataset.plain;
+          if (plainVal === '(ตั้งผ่านระบบเก่า/Google)' || !plainVal) {
+            alert('บัญชีนี้สร้างจากระบบเก่า/Google ยังไม่มีรหัสผ่านข้อความธรรมดา (สามารถกดเปลี่ยนรหัสเพื่อตั้งใหม่ได้)');
+            return;
+          }
+          if (passEl.textContent === '••••••••') {
+            passEl.textContent = plainVal;
+            btn.textContent = '🔒';
+          } else {
+            passEl.textContent = '••••••••';
+            btn.textContent = '👁️';
+          }
+        });
+      });
+
+      // Reset password
+      adminUsersTableBody.querySelectorAll('[data-uaction-reset-pass]').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const userId = btn.dataset.uactionResetPass;
+          const userEmail = btn.dataset.userEmail;
+          const newPassword = prompt(`กรอกรหัสผ่านใหม่สำหรับ ${userEmail}:`);
+          if (newPassword && newPassword.trim()) {
+            try {
+              const res = await apiRequest(`/api/admin/users/${userId}/password`, {
+                method: 'PUT',
+                body: JSON.stringify({ new_password: newPassword.trim() })
+              });
+              alert(res.message);
+              await loadAdminUsers();
+            } catch(e) {
+              alert('เกิดข้อผิดพลาด: ' + e.message);
+            }
+          }
+        });
+      });
+
+      // Save role
+      adminUsersTableBody.querySelectorAll('[data-uaction-save-role]').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const userId = btn.dataset.uactionSaveRole;
+          const selectEl = document.querySelector(`[data-urole-select-id="${userId}"]`);
+          const newRole = selectEl ? selectEl.value : 'user';
+          try {
+            const res = await apiRequest(`/api/admin/users/${userId}/role`, {
+              method: 'PUT',
+              body: JSON.stringify({ role: newRole })
+            });
+            alert(res.message);
+            await loadAdminUsers();
+          } catch(e) {
+            alert('เกิดข้อผิดพลาด: ' + e.message);
+          }
+        });
+      });
+
+      // Ban / Unban
+      adminUsersTableBody.querySelectorAll('[data-uaction-ban]').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const userId = btn.dataset.uactionBan;
+          const action = btn.dataset.action;
+          try {
+            const res = await apiRequest(`/api/users/${userId}/${action}`, { method: 'PATCH' });
+            alert(res.message);
+            await loadAdminUsers();
+          } catch(e) {
+            alert('เกิดข้อผิดพลาด: ' + e.message);
+          }
+        });
+      });
+
+      // View Detail Modal
+      adminUsersTableBody.querySelectorAll('[data-view-detail-id]').forEach(el => {
+        el.addEventListener('click', () => {
+          const userId = Number(el.dataset.viewDetailId);
+          const user = allAdminUsers.find(u => Number(u.id) === userId);
+          if (user) openUserDetailModal(user);
+        });
+      });
+    }
+
+    function openUserDetailModal(user) {
+      if (!modal || !modalBody) return;
+      if (modalTitle) modalTitle.textContent = `ข้อมูลการสมัครสมาชิก: ${user.name} (#${user.id})`;
+
+      const avatarSrc = user.profile_image
+        ? `<img src="${escapeHtml(user.profile_image)}" class="modal-main-avatar" alt="${escapeHtml(user.name)}" />`
+        : `<div class="modal-main-avatar-initial">${escapeHtml((user.name || 'U').charAt(0))}</div>`;
+
+      const photos = user.photos && user.photos.length ? user.photos : (user.profile_image ? [user.profile_image] : []);
+      const photosGridHtml = photos.length
+        ? `
+          <div style="margin-top:14px;">
+            <div class="info-field-label">📸 รูปภาพทั้งหมด (${photos.length} รูป):</div>
+            <div class="user-gallery-grid">
+              ${photos.map(p => `
+                <a href="${escapeHtml(p)}" target="_blank" title="คลิกเพื่อดูรูปขนาดเต็ม">
+                  <img src="${escapeHtml(p)}" class="gallery-thumb" alt="Photo" />
+                </a>
+              `).join('')}
+            </div>
+          </div>
+        `
+        : '<div style="color:var(--muted); font-size:0.85rem; margin:8px 0;">ไม่มีรูปภาพเพิ่มเติม</div>';
+
+      const interestsList = (user.interests || '').split(',').map(s => s.trim()).filter(Boolean);
+      const interestsTagsHtml = interestsList.length
+        ? interestsList.map(t => `<span class="interest-tag-pill" style="font-size:0.85rem; padding:4px 10px;">${escapeHtml(t)}</span>`).join(' ')
+        : '<span style="color:var(--muted);">-</span>';
+
+      const userRole = user.role || (user.is_admin ? 'admin' : 'user');
+      const isBanned = user.is_active === 0;
+
+      modalBody.innerHTML = `
+        <div class="user-detail-header-card">
+          ${avatarSrc}
+          <div style="flex:1;">
+            <h3 style="margin:0 0 4px; color:var(--purple-dark); font-size:1.25rem;">
+              ${escapeHtml(user.name)} ${user.nickname ? `(${escapeHtml(user.nickname)})` : ''}
+            </h3>
+            <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-top:6px;">
+              <span class="badge ${userRole === 'owner' ? 'resolved' : (userRole === 'admin' ? 'reviewed' : '')}">${userRole.toUpperCase()}</span>
+              <span class="badge ${isBanned ? 'reject' : 'resolve'}">${isBanned ? '🚫 ถูกระงับ' : '✅ ใช้งานปกติ'}</span>
+              <span class="user-id-badge" style="font-size:0.8rem;">ID: ${user.id}</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="user-info-grid-2col">
+          <div class="info-field-card">
+            <div class="info-field-label">📧 อีเมล (Email)</div>
+            <div class="info-field-value">${escapeHtml(user.email)}</div>
+          </div>
+          <div class="info-field-card">
+            <div class="info-field-label">📞 เบอร์โทรศัพท์ (Phone)</div>
+            <div class="info-field-value" style="color:#059669; font-weight:700;">${escapeHtml(user.phone || 'ไม่ระบุ')}</div>
+          </div>
+          <div class="info-field-card">
+            <div class="info-field-label">👤 ชื่อเล่น & เพศ</div>
+            <div class="info-field-value">${escapeHtml(user.nickname || '-')} (${escapeHtml(user.gender || 'ไม่ระบุ')})</div>
+          </div>
+          <div class="info-field-card">
+            <div class="info-field-label">🎂 อายุ & ชั้นปี</div>
+            <div class="info-field-value">${user.age ? user.age + ' ปี' : 'ไม่ระบุ'} • ${escapeHtml(user.year || 'ไม่ระบุชั้นปี')}</div>
+          </div>
+          <div class="info-field-card" style="grid-column: 1 / -1;">
+            <div class="info-field-label">🎓 คณะ / สาขา</div>
+            <div class="info-field-value">${escapeHtml(user.major || 'ไม่ระบุ')}</div>
+          </div>
+          <div class="info-field-card" style="grid-column: 1 / -1;">
+            <div class="info-field-label">💡 ความสนใจ (Interests)</div>
+            <div class="info-field-value" style="margin-top:4px;">${interestsTagsHtml}</div>
+          </div>
+          <div class="info-field-card" style="grid-column: 1 / -1;">
+            <div class="info-field-label">📝 ประวัติโดยย่อ (Bio)</div>
+            <div class="info-field-value" style="font-weight:normal; line-height:1.5;">${escapeHtml(user.bio || 'ไม่มีข้อมูล')}</div>
+          </div>
+          <div class="info-field-card">
+            <div class="info-field-label">🕒 วันที่ลงทะเบียน</div>
+            <div class="info-field-value" style="font-size:0.85rem;">${escapeHtml(user.created_at || '-')}</div>
+          </div>
+          <div class="info-field-card">
+            <div class="info-field-label">🔐 รหัสผ่าน (Plain Password)</div>
+            <div class="info-field-value" style="font-family:monospace; color:var(--purple);">${escapeHtml(user.plain_password || '(ไม่ได้ตั้งไว้)')}</div>
+          </div>
+        </div>
+
+        ${photosGridHtml}
+      `;
+
+      modal.classList.remove('hidden');
+    }
+
+    if (searchInput) searchInput.addEventListener('input', renderFilteredUsers);
+    if (filterGender) filterGender.addEventListener('change', renderFilteredUsers);
+    if (filterRole) filterRole.addEventListener('change', renderFilteredUsers);
+    if (filterStatus) filterStatus.addEventListener('change', renderFilteredUsers);
+    if (btnRefresh) btnRefresh.addEventListener('click', loadAdminUsers);
+
+    loadAdminUsers();
+  }
+
   const appRoot = document.getElementById('appRoot');
   if (appRoot) {
     const sessionState = await apiRequest('/api/session').catch(() => ({ user: null }));
@@ -981,6 +1357,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (yearEl) yearEl.value = user.year || '';
       const genderEl = document.getElementById('profileGender');
       if (genderEl) genderEl.value = user.gender || 'ชาย';
+      const phoneEl = document.getElementById('profilePhone');
+      if (phoneEl) phoneEl.value = user.phone || '';
       if (bioEl) bioEl.value = user.bio || '';
       if (emailEl) emailEl.textContent = user.email || '';
       if (nicknameEl) nicknameEl.value = user.nickname || '';
@@ -1719,6 +2097,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         formData.append('major', document.getElementById('profileMajor').value);
         formData.append('year', document.getElementById('profileYear').value);
         formData.append('age', document.getElementById('profileAge').value);
+        formData.append('phone', document.getElementById('profilePhone')?.value || '');
         formData.append('interests', document.getElementById('profileInterests').value);
         formData.append('bio', document.getElementById('profileBio').value);
 

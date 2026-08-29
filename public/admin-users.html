@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="th">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MatchSpace | รายชื่อผู้ใช้งาน (User Management)</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="container">
+      <header>
+        <div class="brand">
+          <div class="brand-mark">👥</div>
+          <span>MatchSpace Admin</span>
+        </div>
+        <nav class="nav">
+          <a href="/admin">📊 Dashboard</a>
+          <a href="/admin-users" style="font-weight:700; color:var(--purple);">👥 รายชื่อผู้ใช้งาน</a>
+          <a href="/app">หน้า user</a>
+          <a href="/report">รายงานปัญหา</a>
+          <button class="button secondary-action" id="logoutButton" type="button">ออกจากระบบ</button>
+        </nav>
+      </header>
+
+      <section class="page-head">
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+          <div>
+            <h1 style="margin:0;">👥 รายชื่อผู้ใช้งานทั้งหมด</h1>
+            <p style="margin:4px 0 0;">ดูรายละเอียดข้อมูลการสมัคร รูปถ่าย เบอร์โทรศัพท์ และจัดการสิทธิ์ผู้ใช้งาน</p>
+          </div>
+          <button id="btnRefreshUsers" class="button secondary-action" type="button" style="display:flex; align-items:center; gap:6px;">
+            🔄 รีเฟรชข้อมูล
+          </button>
+        </div>
+      </section>
+
+      <!-- User Stats Counters -->
+      <section class="summary-row" style="margin-bottom: 20px;">
+        <div class="summary-box">
+          <span class="number" id="countTotalUsers">0</span>
+          <span class="label">ผู้ใช้ทั้งหมด</span>
+        </div>
+        <div class="summary-box">
+          <span class="number" id="countMaleUsers" style="color:#0284c7;">0</span>
+          <span class="label">👨 ชาย</span>
+        </div>
+        <div class="summary-box">
+          <span class="number" id="countFemaleUsers" style="color:#db2777;">0</span>
+          <span class="label">👩 หญิง</span>
+        </div>
+        <div class="summary-box">
+          <span class="number" id="countLgbtqUsers" style="color:#7c3aed;">0</span>
+          <span class="label">🌈 LGBTQ+</span>
+        </div>
+        <div class="summary-box">
+          <span class="number" id="countActiveUsers" style="color:#16a34a;">0</span>
+          <span class="label">✅ ใช้งานปกติ</span>
+        </div>
+        <div class="summary-box">
+          <span class="number" id="countBannedUsers" style="color:#dc2626;">0</span>
+          <span class="label">🚫 ถูกระงับ</span>
+        </div>
+      </section>
+
+      <!-- Search & Filters Toolbar -->
+      <section class="card" style="padding: 16px 20px; margin-bottom: 20px;">
+        <div class="users-filter-bar">
+          <div class="search-input-wrap" style="flex: 2; min-width: 240px;">
+            <input type="text" id="userSearchInput" placeholder="🔍 ค้นหาชื่อ, อีเมล, เบอร์โทร, ชื่อเล่น, คณะ..." />
+          </div>
+          <div class="filter-select-wrap">
+            <select id="filterGender">
+              <option value="">เพศทั้งหมด</option>
+              <option value="ชาย">👨 ชาย</option>
+              <option value="หญิง">👩 หญิง</option>
+              <option value="เพศหลากหลาย">🌈 LGBTQ+</option>
+            </select>
+          </div>
+          <div class="filter-select-wrap">
+            <select id="filterRole">
+              <option value="">สิทธิ์ทั้งหมด (Role)</option>
+              <option value="user">User (ทั่วไป)</option>
+              <option value="admin">Admin (ผู้ดูแล)</option>
+              <option value="owner">Owner (เจ้าของระบบ)</option>
+            </select>
+          </div>
+          <div class="filter-select-wrap">
+            <select id="filterStatus">
+              <option value="">สถานะทั้งหมด</option>
+              <option value="active">✅ ใช้งานปกติ</option>
+              <option value="banned">🚫 ถูกระงับ</option>
+            </select>
+          </div>
+        </div>
+      </section>
+
+      <!-- Main Users Table Card -->
+      <section class="card" style="padding: 20px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; flex-wrap:wrap; gap:8px;">
+          <h2 style="margin:0; color:var(--purple); font-size:1.15rem;">
+            📋 รายการผู้ใช้ (<span id="userCountDisplay">0</span> รายการ)
+          </h2>
+          <span style="font-size:0.85rem; color:var(--muted);">
+            💡 คลิกที่แถวหรือปุ่ม <strong>"ดูข้อมูลเต็ม"</strong> เพื่อดูรูปทั้งหมดและประวัติ
+          </span>
+        </div>
+
+        <div class="table-wrap" style="max-height: 700px; overflow-y: auto;">
+          <table class="admin-users-table">
+            <thead>
+              <tr>
+                <th>รูปโปรไฟล์ & ชื่อ</th>
+                <th>อีเมล & เบอร์โทร</th>
+                <th>เพศ / อายุ / ชั้นปี</th>
+                <th>คณะ / สาขา</th>
+                <th>ความสนใจ & ประวัติย่อ</th>
+                <th>รหัสผ่าน (Owner)</th>
+                <th>กลุ่มสิทธิ์ (Role)</th>
+                <th>สถานะ & การจัดการ</th>
+              </tr>
+            </thead>
+            <tbody id="adminUsersTableBody">
+              <tr>
+                <td colspan="8" style="text-align:center; padding:30px; color:var(--muted);">
+                  กำลังโหลดข้อมูลผู้ใช้...
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+
+    <!-- User Full Detail Modal -->
+    <div id="userDetailModal" class="modal-backdrop hidden">
+      <div class="modal-box user-detail-modal-box">
+        <div class="modal-header">
+          <h3 id="modalUserName">รายละเอียดผู้ใช้งาน</h3>
+          <button type="button" id="modalCloseBtn" class="modal-close-btn">&times;</button>
+        </div>
+        <div class="modal-body" id="modalUserContent">
+          <!-- Populated by JavaScript -->
+        </div>
+      </div>
+    </div>
+
+    <script src="script.js"></script>
+  </body>
+</html>
