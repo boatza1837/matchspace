@@ -3,8 +3,13 @@ const bcrypt = require('bcryptjs');
 const fs = require('fs');
 const path = require('path');
 
-const TURSO_URL = 'libsql://matchspace-boatza1837.aws-ap-northeast-1.turso.io';
-const TURSO_TOKEN = 'eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJhIjoicnciLCJpYXQiOjE3ODY4Mjc4MzQsImlkIjoiMDFhMDA3M2MtZWUwMS03NDcxLTkyMzktMDVkYzgzMzJjNmYzIiwia2lkIjoiUHR0ZlBzcU5vWXBvbWg4R2k3MzNQNm5ybWVtcGxtYjNsb1lfV2pIVE1jcyIsInJpZCI6ImIxYTI3NjRiLTkzY2QtNGZhMi05NmJmLTQ1YzllNTZkMzdjYyJ9.JaFriD-yiTCKuTsfSEh3LkdqzTUzhla4L1iME92izKbElstDZPP4aRGMjbvj2RaA628odJ_XVprfoldIOSq2BA';
+const TURSO_URL = process.env.TURSO_DATABASE_URL || '';
+const TURSO_TOKEN = process.env.TURSO_AUTH_TOKEN || '';
+
+if (!TURSO_URL || !TURSO_TOKEN) {
+  console.error('Please set TURSO_DATABASE_URL and TURSO_AUTH_TOKEN environment variables.');
+  process.exit(1);
+}
 
 const db = createClient({ url: TURSO_URL, authToken: TURSO_TOKEN });
 

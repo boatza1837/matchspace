@@ -39,10 +39,10 @@ const upload = multer({
 });
 
 // === Turso Cloud & Local SQLite Unified Database Adapter ===
-const tursoUrl = process.env.TURSO_DATABASE_URL || 'libsql://matchspace-boatza1837.aws-ap-northeast-1.turso.io';
-const tursoToken = process.env.TURSO_AUTH_TOKEN || 'eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJhIjoicnciLCJpYXQiOjE3ODY4Mjc4MzQsImlkIjoiMDFhMDA3M2MtZWUwMS03NDcxLTkyMzktMDVkYzgzMzJjNmYzIiwia2lkIjoiUHR0ZlBzcU5vWXBvbWg4R2k3MzNQNm5ybWVtcGxtYjNsb1lfV2pIVE1jcyIsInJpZCI6ImIxYTI3NjRiLTkzY2QtNGZhMi05NmJmLTQ1YzllNTZkMzdjYyJ9.JaFriD-yiTCKuTsfSEh3LkdqzTUzhla4L1iME92izKbElstDZPP4aRGMjbvj2RaA628odJ_XVprfoldIOSq2BA';
+const tursoUrl = process.env.TURSO_DATABASE_URL || '';
+const tursoToken = process.env.TURSO_AUTH_TOKEN || '';
 
-const useTurso = Boolean(tursoUrl && tursoUrl.startsWith('libsql://'));
+const useTurso = Boolean(tursoUrl && tursoUrl.startsWith('libsql://') && tursoToken);
 
 let sqliteDb = null;
 let tursoClient = null;

@@ -11,9 +11,15 @@ public/uploads/*
 
 # Environment secrets
 .env
+.env.*
+!.env.example
 
 # OS/editor junk
 .DS_Store
+Thumbs.db
 
-# Test files
-test-features.js
+# Test & seed scratch files
+test-*.js
+seed-*.js
+scratch/
+gehuedeee.html

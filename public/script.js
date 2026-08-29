@@ -1323,25 +1323,55 @@ document.addEventListener('DOMContentLoaded', async () => {
       await loadMessages(chatId);
     }
 
+    function escapeHtml(str) {
+      if (!str) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    function formatChatTime(createdAt) {
+      if (!createdAt) return '';
+      try {
+        const parts = String(createdAt).split(' ');
+        if (parts.length >= 2) {
+          const timeParts = parts[1].split(':');
+          return `${timeParts[0]}:${timeParts[1]}`;
+        }
+        const d = new Date(createdAt);
+        if (!isNaN(d.getTime())) {
+          return d.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', hour12: false });
+        }
+      } catch(e) {}
+      return '';
+    }
+
     function renderChatsList(chats) {
       chatList.innerHTML = chats.length
         ? chats.map((chat) => {
             const isGroup = chat.type === 'group' || chat.activity_id;
             const icon = isGroup ? '👥' : '💬';
-            const badge = isGroup ? '<span style="font-size:0.7rem; background:#efe9ff; color:var(--purple); padding:2px 6px; border-radius:6px; margin-left:6px; font-weight:700; flex-shrink:0;">กลุ่ม</span>' : '';
+            const badge = isGroup ? '<span class="chat-badge-group">กลุ่ม</span>' : '';
+            const timeStr = formatChatTime(chat.last_message_time);
             return `
               <div class="list-item ${chat.id === currentChatId ? 'active' : ''}" data-chat-id="${chat.id}">
-                <div class="chat-title">
-                  <span class="chat-title-text">${icon} ${chat.partner_name || 'แชท'}</span>
-                  ${badge}
+                <div class="chat-item-header">
+                  <div class="chat-title">
+                    <span class="chat-title-text">${icon} ${escapeHtml(chat.partner_name || 'แชท')}</span>
+                    ${badge}
+                  </div>
+                  ${timeStr ? `<span class="chat-item-time">${timeStr}</span>` : ''}
                 </div>
                 <div class="chat-preview">
-                  ${chat.last_message || 'เริ่มต้นบทสนทนาใหม่'}
+                  ${escapeHtml(chat.last_message || 'เริ่มต้นบทสนทนาใหม่')}
                 </div>
               </div>
             `;
           }).join('')
-        : '<div class="list-item">ยังไม่มีแชท</div>';
+        : '<div class="list-item" style="color:var(--muted); text-align:center;">ยังไม่มีแชท</div>';
 
       chatList.querySelectorAll('[data-chat-id]').forEach((item) => {
         item.addEventListener('click', async () => {
@@ -1404,13 +1434,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     function renderMessageList(data) {
       const titleHeader = document.getElementById('chatTitleHeader');
       const subHeader = document.getElementById('chatSubHeader');
+      const isGroup = data.chat.type === 'group' || data.chat.activity_id;
+
       if (titleHeader) {
-        const isGroup = data.chat.type === 'group' || data.chat.activity_id;
         titleHeader.textContent = isGroup ? `👥 ${data.chat.title || data.chat.activity_name || 'แชทกลุ่ม'}` : (data.chat.partner_name || 'ข้อความ');
       }
       if (subHeader) {
         if (data.chat.activity_id) {
-          subHeader.innerHTML = `👑 หัวหน้ากิจกรรม: <strong>${data.chat.creator_name || 'ผู้ขอสร้าง'}</strong>`;
+          subHeader.innerHTML = `👑 หัวหน้ากิจกรรม: <strong>${escapeHtml(data.chat.creator_name || 'ผู้ขอสร้าง')}</strong>`;
         } else {
           subHeader.innerHTML = '';
         }
@@ -1419,20 +1450,63 @@ document.addEventListener('DOMContentLoaded', async () => {
       const isHost = data.chat.activity_id && Number(data.chat.creator_id) === Number(sessionState.user.id);
       const isOwner = sessionState.user && sessionState.user.role === 'owner';
 
+      if (!data.messages || data.messages.length === 0) {
+        messageThread.innerHTML = `
+          <div class="chat-empty-placeholder">
+            <div class="chat-empty-icon">💬</div>
+            <div class="chat-empty-title">ยังไม่มีข้อความ</div>
+            <div class="chat-empty-desc">ส่งข้อความแรกเพื่อเริ่มการสนทนาได้เลย!</div>
+          </div>
+        `;
+        return;
+      }
+
       messageThread.innerHTML = data.messages.map((msg) => {
         const isMe = msg.sender_id === sessionState.user.id;
         const isMsgHost = data.chat.activity_id && Number(msg.sender_id) === Number(data.chat.creator_id);
         const canDelete = isMe || isHost || isOwner;
+        const timeStr = formatChatTime(msg.created_at);
 
         const hostBadgeHtml = isMsgHost ? '<span class="host-badge">👑 หัวหน้ากิจกรรม</span>' : '';
         const deleteBtnHtml = canDelete ? `<button type="button" class="btn-delete-msg" data-msg-id="${msg.id}" title="ลบข้อความ">✕</button>` : '';
 
+        const senderAvatar = msg.sender_profile_image
+          ? `<img src="${escapeHtml(msg.sender_profile_image)}" class="chat-msg-avatar" alt="${escapeHtml(msg.sender_name || '')}" />`
+          : `<div class="chat-msg-avatar-initial">${escapeHtml((msg.sender_name || 'U').charAt(0))}</div>`;
+
+        if (isMe) {
+          return `
+            <div class="msg-wrapper me">
+              <div class="msg-content-col">
+                <div class="bubble me">
+                  <div class="bubble-text">${escapeHtml(msg.content)}</div>
+                  <div class="bubble-meta">
+                    <span class="msg-time me-time">${timeStr}</span>
+                    ${deleteBtnHtml}
+                  </div>
+                </div>
+              </div>
+            </div>
+          `;
+        }
+
         return `
-          <div class="msg-wrapper ${isMe ? 'me' : 'them'}">
-            ${!isMe ? `<div class="msg-sender-name">${msg.sender_name || 'สมาชิก'} ${hostBadgeHtml}</div>` : (isMsgHost ? `<div class="msg-sender-name">${hostBadgeHtml}</div>` : '')}
-            <div class="bubble ${isMe ? 'me' : 'them'}">
-              ${msg.content}
-              ${deleteBtnHtml}
+          <div class="msg-wrapper them">
+            <div class="msg-avatar-col">
+              ${senderAvatar}
+            </div>
+            <div class="msg-content-col">
+              <div class="msg-sender-name">
+                <span>${escapeHtml(msg.sender_name || 'สมาชิก')}</span>
+                ${hostBadgeHtml}
+              </div>
+              <div class="bubble them">
+                <div class="bubble-text">${escapeHtml(msg.content)}</div>
+                <div class="bubble-meta">
+                  <span class="msg-time">${timeStr}</span>
+                  ${deleteBtnHtml}
+                </div>
+              </div>
             </div>
           </div>
         `;
