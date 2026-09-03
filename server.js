@@ -1778,6 +1778,10 @@ app.get('/report', (req, res) => {
   res.sendFile(path.join(publicDir, 'report.html'));
 });
 
+app.get(['/survey', '/evaluation', '/feedback', '/satisfaction'], (req, res) => {
+  res.redirect('https://kku-creative.my.canva.site/matchspace-satisfaction-survey');
+});
+
 app.get('/', (req, res) => {
   if (req.session && req.session.user) {
     if (req.session.user.is_admin) return res.redirect('/admin');
