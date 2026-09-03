@@ -1330,25 +1330,54 @@ document.addEventListener('DOMContentLoaded', async () => {
     const activityMemberCount = document.getElementById('activityMemberCount');
     const newActivityBtn = document.getElementById('newActivityBtn');
 
-    function switchTab(tabName) {
+    const tabOrder = ['discover', 'liked', 'skipped', 'chat', 'activity', 'profile'];
+    let currentActiveTab = 'discover';
+
+    function switchTab(tabName, forceAnim) {
       const targetBtn = Array.from(tabButtons).find(b => b.dataset.tab === tabName);
-      if (targetBtn) targetBtn.click();
+      if (targetBtn) {
+        triggerTabSwitch(tabName, forceAnim);
+      }
+    }
+
+    function triggerTabSwitch(nextTab, customAnim) {
+      if (!nextTab) return;
+
+      const prevIndex = tabOrder.indexOf(currentActiveTab);
+      const nextIndex = tabOrder.indexOf(nextTab);
+      let animClass = customAnim || 'fade-up';
+      if (!customAnim && prevIndex !== -1 && nextIndex !== -1 && prevIndex !== nextIndex) {
+        animClass = nextIndex > prevIndex ? 'slide-right' : 'slide-left';
+      }
+      currentActiveTab = nextTab;
+
+      tabButtons.forEach((tab) => tab.classList.toggle('active', tab.dataset.tab === nextTab));
+      tabPanels.forEach((panel) => {
+        const isTarget = panel.id === `tab-${nextTab}`;
+        panel.classList.remove('slide-right', 'slide-left', 'fade-up');
+        if (isTarget) {
+          void panel.offsetWidth; // Force CSS animation reflow
+          panel.classList.add('active', animClass);
+        } else {
+          panel.classList.remove('active');
+        }
+      });
+
+      // Reload tabs fresh whenever user opens that tab
+      if (nextTab === 'activities' || nextTab === 'activity') {
+        loadActivities();
+      }
+      if (nextTab === 'liked') {
+        loadLikedUsers();
+      }
+      if (nextTab === 'skipped') {
+        loadSkippedUsers();
+      }
     }
 
     tabButtons.forEach((button) => {
       button.addEventListener('click', () => {
-        tabButtons.forEach((tab) => tab.classList.toggle('active', tab === button));
-        tabPanels.forEach((panel) => panel.classList.toggle('active', panel.id === `tab-${button.dataset.tab}`));
-        // Reload tabs fresh whenever user opens that tab
-        if (button.dataset.tab === 'activities' || button.dataset.tab === 'activity') {
-          loadActivities();
-        }
-        if (button.dataset.tab === 'liked') {
-          loadLikedUsers();
-        }
-        if (button.dataset.tab === 'skipped') {
-          loadSkippedUsers();
-        }
+        triggerTabSwitch(button.dataset.tab);
       });
     });
 
@@ -1998,11 +2027,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     async function openChatTabAndLoad(chatId) {
-      const tabButtons = document.querySelectorAll('.tab-button');
-      const tabPanels = document.querySelectorAll('.tab-panel');
-      tabButtons.forEach((tab) => tab.classList.toggle('active', tab.dataset.tab === 'chat'));
-      tabPanels.forEach((panel) => panel.classList.toggle('active', panel.id === 'tab-chat'));
-
+      triggerTabSwitch('chat', 'slide-right');
       currentChatId = chatId;
       await loadChats();
       await loadMessages(chatId);

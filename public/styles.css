@@ -314,6 +314,8 @@ th {
   display: flex;
   flex-direction: column;
   gap: 20px;
+  overflow-x: clip;
+  position: relative;
 }
 
 .tab-header {
@@ -341,10 +343,59 @@ th {
 
 .tab-panel {
   display: none;
+  width: 100%;
+  animation-duration: 0.3s;
+  animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+  animation-fill-mode: both;
 }
 
 .tab-panel.active {
   display: block;
+}
+
+.tab-panel.active.slide-right {
+  animation-name: panelSlideInRight;
+}
+
+.tab-panel.active.slide-left {
+  animation-name: panelSlideInLeft;
+}
+
+.tab-panel.active.fade-up {
+  animation-name: panelFadeSlideUp;
+}
+
+@keyframes panelSlideInRight {
+  0% {
+    opacity: 0;
+    transform: translate3d(26px, 0, 0);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes panelSlideInLeft {
+  0% {
+    opacity: 0;
+    transform: translate3d(-26px, 0, 0);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes panelFadeSlideUp {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 16px, 0) scale(0.99);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
 }
 
 .discover-panel {
@@ -2033,11 +2084,29 @@ body {
 .bottom-tab-item:hover {
   color: #ff6550;
   background: rgba(255, 240, 235, 0.5);
+  transform: translateY(-2px);
+}
+
+.bottom-tab-item:active {
+  transform: scale(0.92);
 }
 
 .bottom-tab-item.active {
   background: #fff0eb !important;
   color: #ff6550 !important;
+  animation: tabButtonPop 0.32s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+@keyframes tabButtonPop {
+  0% {
+    transform: scale(0.9);
+  }
+  50% {
+    transform: scale(1.08);
+  }
+  100% {
+    transform: scale(1);
+  }
 }
 
 .bottom-tab-icon {
@@ -2053,11 +2122,13 @@ body {
   width: 20px;
   height: 20px;
   stroke: currentColor;
-  transition: transform 0.2s ease, stroke 0.2s ease;
+  transition: transform 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275), stroke 0.2s ease, filter 0.2s ease;
 }
 
 .bottom-tab-item.active .bottom-tab-icon svg {
-  transform: scale(1.08);
+  transform: scale(1.14);
+  stroke: #ff6550;
+  filter: drop-shadow(0 2px 5px rgba(255, 101, 80, 0.28));
 }
 
 .bottom-tab-label {
