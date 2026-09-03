@@ -883,21 +883,21 @@ app.post('/api/matches', requireAuth, async (req, res) => {
     }
 
     const existing = await db.get('SELECT * FROM matches WHERE user_id = ? AND matched_user_id = ?', [userId, Number(matched_user_id)]);
+    let matchId;
     if (existing) {
       await db.run('UPDATE matches SET status = ?, note = ? WHERE id = ?', [status || existing.status || 'pending', note || existing.note || '', existing.id]);
-      const updated = await db.get('SELECT * FROM matches WHERE id = ?', [existing.id]);
-      return res.json({ message: 'อัปเดต match แล้ว', match: updated });
+      matchId = existing.id;
+    } else {
+      const result = await db.run('INSERT INTO matches (user_id, matched_user_id, status, note) VALUES (?, ?, ?, ?)', [userId, Number(matched_user_id), status || 'pending', note || '']);
+      matchId = result.lastInsertRowid;
     }
-
-    const result = await db.run('INSERT INTO matches (user_id, matched_user_id, status, note) VALUES (?, ?, ?, ?)', [userId, Number(matched_user_id), status || 'pending', note || '']);
-    const match = await db.get('SELECT * FROM matches WHERE id = ?', [result.lastInsertRowid]);
 
     let mutualMatch = false;
     if (status === 'liked') {
       const reverse = await db.get('SELECT * FROM matches WHERE user_id = ? AND matched_user_id = ? AND status = ?', [Number(matched_user_id), userId, 'liked']);
       if (reverse) {
         mutualMatch = true;
-        await db.run('UPDATE matches SET status = ? WHERE id = ?', ['matched', match.id]);
+        await db.run('UPDATE matches SET status = ? WHERE id = ?', ['matched', matchId]);
         await db.run('UPDATE matches SET status = ? WHERE id = ?', ['matched', reverse.id]);
 
         const existingChat = await db.get(`
@@ -911,15 +911,61 @@ app.post('/api/matches', requireAuth, async (req, res) => {
       }
     }
 
-    const updatedMatch = await db.get('SELECT * FROM matches WHERE id = ?', [match.id]);
-    res.status(201).json({
-      message: mutualMatch ? '🎉 แมตช์สำเร็จ! ระบบสร้างแชทให้แล้ว' : 'เพิ่ม match สำเร็จ',
+    const updatedMatch = await db.get('SELECT * FROM matches WHERE id = ?', [matchId]);
+    res.status(existing ? 200 : 201).json({
+      message: mutualMatch ? '🎉 แมตช์สำเร็จ! ระบบสร้างแชทให้แล้ว' : (status === 'liked' ? 'บันทึกความสนใจแล้ว' : 'บันทึกการปัดผ่านแล้ว'),
       match: updatedMatch,
       mutual: mutualMatch
     });
   } catch (err) {
     console.error('[Post Match Error]', err);
     res.status(500).json({ message: err.message || 'เกิดข้อผิดพลาดในการบันทึกข้อมูลแมตช์' });
+  }
+});
+
+// --- Skipped / Passed Profiles API ---
+app.get('/api/skipped', requireAuth, async (req, res) => {
+  try {
+    const rows = await db.all(`
+      SELECT m.id AS match_id, m.created_at AS skipped_at, m.note,
+             u.id, u.name, u.nickname, u.email, u.gender, u.age, u.major, u.year, 
+             u.interests, u.bio, u.profile_image
+      FROM matches m
+      JOIN users u ON u.id = m.matched_user_id
+      WHERE m.user_id = ? AND m.status = 'skipped'
+      ORDER BY m.created_at DESC
+    `, [req.session.user.id]);
+    res.json(rows);
+  } catch (err) {
+    console.error('[Skipped Error]', err);
+    res.status(500).json({ message: err.message || 'เกิดข้อผิดพลาดในการดึงข้อมูลคนที่ปัดผ่าน' });
+  }
+});
+
+app.delete('/api/matches/:id', requireAuth, async (req, res) => {
+  try {
+    const matchId = Number(req.params.id);
+    const userId = req.session.user.id;
+    const match = await db.get('SELECT * FROM matches WHERE id = ? AND user_id = ?', [matchId, userId]);
+    if (!match) {
+      return res.status(404).json({ message: 'ไม่พบรายการแมตช์นี้' });
+    }
+    await db.run('DELETE FROM matches WHERE id = ?', [matchId]);
+    res.json({ message: 'นำผู้ใช้นี้กลับไปที่หน้าค้นหาแล้ว' });
+  } catch (err) {
+    console.error('[Delete Match Error]', err);
+    res.status(500).json({ message: err.message || 'เกิดข้อผิดพลาดในการลบรายการแมตช์' });
+  }
+});
+
+app.post('/api/skipped/restore-all', requireAuth, async (req, res) => {
+  try {
+    const userId = req.session.user.id;
+    await db.run("DELETE FROM matches WHERE user_id = ? AND status = 'skipped'", [userId]);
+    res.json({ message: 'นำทุกคนที่ปัดผ่านกลับสู่หน้าค้นหาเรียบร้อยแล้ว' });
+  } catch (err) {
+    console.error('[Restore All Skipped Error]', err);
+    res.status(500).json({ message: err.message || 'เกิดข้อผิดพลาด' });
   }
 });
 

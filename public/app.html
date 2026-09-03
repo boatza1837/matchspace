@@ -23,6 +23,7 @@
         <div class="tab-header">
           <button class="tab-button active" data-tab="discover">Discover</button>
           <button class="tab-button" data-tab="chat">Chat</button>
+          <button class="tab-button" data-tab="skipped">ปัดผ่านแล้ว <span id="skippedTabCount" class="tab-count-badge">0</span></button>
           <button class="tab-button" data-tab="profile">Profile</button>
           <button class="tab-button" data-tab="activity">Activity board</button>
         </div>
@@ -181,6 +182,48 @@
             </form>
 
             <div id="activityBoardList" class="activity-board"></div>
+          </div>
+        </section>
+
+        <section id="tab-skipped" class="tab-panel">
+          <div class="panel">
+            <div class="skipped-header-row">
+              <div>
+                <h2 style="margin:0; color:var(--purple); display:flex; align-items:center; gap:8px;">
+                  📜 คนที่ปัดผ่านแล้ว
+                  <span id="skippedHeaderCountBadge" class="badge alt">0 คน</span>
+                </h2>
+                <p style="margin:4px 0 0; color:var(--muted); font-size:0.88rem;">
+                  รายชื่อคนที่คุณเคยปัดผ่านหรือกดข้าม สามารถดูโปรไฟล์ย้อนหลัง นำกลับไปหน้าค้นหา หรือเปลี่ยนใจกดสนใจได้ตลอดเวลา
+                </p>
+              </div>
+              <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+                <button id="btnRestoreAllSkipped" class="button secondary-action" type="button" style="font-size:0.82rem; padding:8px 14px;">
+                  🔄 นำทุกคนกลับไปหน้าค้นหา
+                </button>
+                <button id="btnRefreshSkipped" class="button secondary-action" type="button" style="font-size:0.82rem; padding:8px 14px;">
+                  🔄 รีเฟรช
+                </button>
+              </div>
+            </div>
+
+            <div class="skipped-filter-bar">
+              <div style="flex:1; min-width:200px;">
+                <input type="text" id="skippedSearchInput" placeholder="🔍 ค้นหาชื่อ, ชื่อเล่น, คณะ, ความสนใจ..." />
+              </div>
+              <div>
+                <select id="skippedGenderFilter" style="padding:10px 14px; border-radius:12px; border:1.5px solid var(--line); font-weight:600;">
+                  <option value="">เพศทั้งหมด</option>
+                  <option value="ชาย">👨 ชาย</option>
+                  <option value="หญิง">👩 หญิง</option>
+                  <option value="เพศหลากหลาย">🌈 LGBTQ+</option>
+                </select>
+              </div>
+            </div>
+
+            <div id="skippedCardsGrid" class="skipped-cards-grid">
+              <!-- Dynamically populated -->
+            </div>
           </div>
         </section>
       </div>

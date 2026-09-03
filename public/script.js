@@ -1330,13 +1330,21 @@ document.addEventListener('DOMContentLoaded', async () => {
     const activityMemberCount = document.getElementById('activityMemberCount');
     const newActivityBtn = document.getElementById('newActivityBtn');
 
+    function switchTab(tabName) {
+      const targetBtn = Array.from(tabButtons).find(b => b.dataset.tab === tabName);
+      if (targetBtn) targetBtn.click();
+    }
+
     tabButtons.forEach((button) => {
       button.addEventListener('click', () => {
         tabButtons.forEach((tab) => tab.classList.toggle('active', tab === button));
         tabPanels.forEach((panel) => panel.classList.toggle('active', panel.id === `tab-${button.dataset.tab}`));
         // Reload activities fresh whenever user opens that tab
-        if (button.dataset.tab === 'activities') {
+        if (button.dataset.tab === 'activities' || button.dataset.tab === 'activity') {
           loadActivities();
+        }
+        if (button.dataset.tab === 'skipped') {
+          loadSkippedUsers();
         }
       });
     });
@@ -1512,10 +1520,191 @@ document.addEventListener('DOMContentLoaded', async () => {
       document.getElementById('profileModal').classList.add('hidden');
     });
 
-    function updateSkippedCounter() {
-      const el = document.getElementById('skippedCount');
-      if (el) el.textContent = skippedHistory.length;
+    let skippedUsersList = [];
+
+    function updateSkippedCounters() {
+      const count = skippedUsersList.length;
+      const countTabBadge = document.getElementById('skippedTabCount');
+      if (countTabBadge) {
+        countTabBadge.textContent = count;
+        countTabBadge.style.display = count > 0 ? 'inline-block' : 'none';
+      }
+      const countDiscoverBtn = document.getElementById('skippedCount');
+      if (countDiscoverBtn) countDiscoverBtn.textContent = count;
+      const countHeader = document.getElementById('skippedHeaderCountBadge');
+      if (countHeader) countHeader.textContent = `${count} คน`;
     }
+
+    async function loadSkippedUsers() {
+      try {
+        const data = await apiRequest('/api/skipped');
+        skippedUsersList = Array.isArray(data) ? data : [];
+        skippedHistory = [...skippedUsersList];
+        updateSkippedCounters();
+        renderSkippedGrid();
+      } catch (err) {
+        console.error('Failed to load skipped users:', err);
+      }
+    }
+
+    function renderSkippedGrid() {
+      const grid = document.getElementById('skippedCardsGrid');
+      if (!grid) return;
+
+      const q = (document.getElementById('skippedSearchInput')?.value || '').toLowerCase().trim();
+      const genderFilter = document.getElementById('skippedGenderFilter')?.value || '';
+
+      const filtered = skippedUsersList.filter(u => {
+        if (genderFilter && u.gender !== genderFilter) return false;
+        if (q) {
+          const matchName = (u.name || '').toLowerCase().includes(q);
+          const matchNick = (u.nickname || '').toLowerCase().includes(q);
+          const matchMajor = (u.major || '').toLowerCase().includes(q);
+          const matchInterests = (u.interests || '').toLowerCase().includes(q);
+          if (!matchName && !matchNick && !matchMajor && !matchInterests) return false;
+        }
+        return true;
+      });
+
+      if (!filtered.length) {
+        grid.innerHTML = `
+          <div class="skipped-empty-state">
+            <div class="skipped-empty-icon">✨</div>
+            <div class="skipped-empty-title">${q || genderFilter ? 'ไม่พบคนที่ตรงกับเงื่อนไขการค้นหา' : 'ยังไม่มีคนที่คุณปัดผ่าน'}</div>
+            <div class="skipped-empty-desc">${q || genderFilter ? 'ลองเปลี่ยนคำค้นหาหรือตัวกรองเพศ' : 'เมื่อคุณกดข้ามผู้ใช้งานในหน้าค้นหา (Discover) รายชื่อทั้งหมดจะถูกรวบรวมไว้ที่นี่'}</div>
+            ${!q && !genderFilter ? `<button class="button primary" id="btnGoDiscoverFromEmpty" type="button">👉 ไปค้นหาคนที่ใช่ (Discover)</button>` : ''}
+          </div>
+        `;
+        document.getElementById('btnGoDiscoverFromEmpty')?.addEventListener('click', () => switchTab('discover'));
+        return;
+      }
+
+      grid.innerHTML = filtered.map((u) => {
+        const avatarSrc = u.profile_image || DEFAULT_AVATAR;
+        const tags = (u.interests || '').split(',').map(t => t.trim()).filter(Boolean);
+
+        return `
+          <div class="skipped-profile-card">
+            <div class="skipped-card-header">
+              <img src="${avatarSrc}" class="skipped-card-avatar" alt="${escapeHtml(u.name)}" data-open-profile-id="${u.id}" title="คลิกเพื่อดูโปรไฟล์เต็ม" />
+              <div class="skipped-card-user-info">
+                <div class="skipped-card-name" data-open-profile-id="${u.id}">
+                  <span>${escapeHtml(u.nickname || u.name)}</span>
+                  ${u.nickname ? `<span class="skipped-card-nickname">${escapeHtml(u.name)}</span>` : ''}
+                </div>
+                <div class="skipped-card-sub">
+                  <span>${u.gender ? (u.gender === 'ชาย' ? '👨 ชาย' : (u.gender === 'หญิง' ? '👩 หญิง' : '🌈 LGBTQ+')) : 'ไม่ระบุเพศ'}</span>
+                  <span>•</span>
+                  <span>${u.age ? u.age + ' ปี' : 'ไม่ระบุอายุ'}</span>
+                  <span>•</span>
+                  <span>${escapeHtml(u.year || '-')}</span>
+                </div>
+                <div style="font-size:0.82rem; color:var(--purple-dark); font-weight:600; margin-top:2px;">
+                  ${escapeHtml(u.major || 'ไม่ระบุคณะ')}
+                </div>
+              </div>
+            </div>
+
+            ${tags.length ? `
+              <div class="skipped-card-tags">
+                ${tags.map(t => `<span class="tag selected" style="font-size:0.75rem; padding:3px 8px;">${escapeHtml(t)}</span>`).join('')}
+              </div>
+            ` : ''}
+
+            ${u.bio ? `<div class="skipped-card-bio">💬 "${escapeHtml(u.bio)}"</div>` : ''}
+
+            <div class="skipped-card-time">
+              <span>🕒 ปัดผ่านเมื่อ: ${escapeHtml(u.skipped_at || 'ไม่ระบุ')}</span>
+            </div>
+
+            <div class="skipped-card-actions">
+              <button class="button primary" data-action-like-skipped="${u.id}" type="button" style="flex:2; font-size:0.84rem; padding:8px 12px;">
+                💕 สนใจ
+              </button>
+              <button class="button secondary-action" data-action-restore-skipped="${u.match_id}" type="button" style="flex:1; font-size:0.82rem; padding:8px 10px;" title="นำกลับไปแสดงในหน้าค้นหาอีกครั้ง">
+                🔄 ดึงกลับ
+              </button>
+              <button class="button secondary-action" data-open-profile-id="${u.id}" type="button" style="padding:8px 10px; font-size:0.82rem;" title="ดูอัลบั้มและโปรไฟล์เต็ม">
+                🔍
+              </button>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      // Attach card event listeners
+      grid.querySelectorAll('[data-action-like-skipped]').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+          e.stopPropagation();
+          const targetId = btn.dataset.actionLikeSkipped;
+          btn.disabled = true;
+          btn.textContent = '⏳ กำลังส่ง...';
+          try {
+            const res = await apiRequest('/api/matches', {
+              method: 'POST',
+              body: JSON.stringify({ matched_user_id: Number(targetId), note: 'Interested from Skipped', status: 'liked' })
+            });
+            if (res.mutual) {
+              showMatchToast(res.message);
+              await loadChats();
+            } else {
+              showMatchToast('บันทึกความสนใจเรียบร้อยแล้ว 💕');
+            }
+            await loadSkippedUsers();
+            await loadDiscoverUsers();
+          } catch (err) {
+            btn.disabled = false;
+            btn.textContent = '💕 สนใจ';
+            alert(err.message || 'เกิดข้อผิดพลาด');
+          }
+        });
+      });
+
+      grid.querySelectorAll('[data-action-restore-skipped]').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+          e.stopPropagation();
+          const matchId = btn.dataset.actionRestoreSkipped;
+          btn.disabled = true;
+          try {
+            await apiRequest(`/api/matches/${matchId}`, { method: 'DELETE' });
+            showMatchToast('นำกลับไปที่หน้าค้นหาแล้ว 🔄');
+            await loadSkippedUsers();
+            await loadDiscoverUsers();
+          } catch (err) {
+            btn.disabled = false;
+            alert(err.message || 'เกิดข้อผิดพลาด');
+          }
+        });
+      });
+
+      grid.querySelectorAll('[data-open-profile-id]').forEach(el => {
+        el.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const userId = el.dataset.openProfileId;
+          if (userId) openProfileModal(Number(userId));
+        });
+      });
+    }
+
+    document.getElementById('skippedSearchInput')?.addEventListener('input', renderSkippedGrid);
+    document.getElementById('skippedGenderFilter')?.addEventListener('change', renderSkippedGrid);
+    document.getElementById('btnRefreshSkipped')?.addEventListener('click', loadSkippedUsers);
+    document.getElementById('btnRestoreAllSkipped')?.addEventListener('click', async () => {
+      if (skippedUsersList.length === 0) {
+        alert('ไม่มีคนที่ปัดผ่านอยู่ในขณะนี้');
+        return;
+      }
+      if (confirm('คุณต้องการนำทุกคนที่เคยปัดผ่านกลับสู่หน้าค้นหาใช่หรือไม่?')) {
+        try {
+          const res = await apiRequest('/api/skipped/restore-all', { method: 'POST' });
+          showMatchToast(res.message || 'นำทุกคนกลับสู่หน้าค้นหาแล้ว');
+          await loadSkippedUsers();
+          await loadDiscoverUsers();
+        } catch (err) {
+          alert(err.message || 'เกิดข้อผิดพลาด');
+        }
+      }
+    });
 
     function renderDiscoverCard() {
       if (!discoverUsers.length || currentDiscoverIndex >= discoverUsers.length) {
@@ -1524,11 +1713,11 @@ document.addEventListener('DOMContentLoaded', async () => {
             <div style="font-size:2.5rem; margin-bottom:10px;">✨</div>
             <div style="font-weight:700; color:var(--purple); font-size:1.1rem; margin-bottom:6px;">สำรวจครบทุกคนแล้ว!</div>
             <div style="color:var(--muted); font-size:0.88rem; margin-bottom:14px;">คุณได้ดูโปรไฟล์แนะนำครบแล้วในขณะนี้</div>
-            ${skippedHistory.length > 0 ? `<button id="btnOpenSkippedEmpty" class="button secondary-action" type="button">📜 ดูคนที่เคยปัดผ่าน (${skippedHistory.length} คน)</button>` : ''}
+            ${skippedUsersList.length > 0 ? `<button id="btnOpenSkippedEmpty" class="button secondary-action" type="button">📜 ดูคนที่เคยปัดผ่าน (${skippedUsersList.length} คน)</button>` : ''}
           </div>
         `;
-        document.getElementById('btnOpenSkippedEmpty')?.addEventListener('click', openSkippedModal);
-        updateSkippedCounter();
+        document.getElementById('btnOpenSkippedEmpty')?.addEventListener('click', () => switchTab('skipped'));
+        updateSkippedCounters();
         return;
       }
 
@@ -1562,7 +1751,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         </div>
       `;
 
-      updateSkippedCounter();
+      updateSkippedCounters();
 
       discoverUserCard.querySelector('.profile-card-top')?.addEventListener('click', () => {
         openProfileModal(user.id);
@@ -1603,6 +1792,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 method: 'POST',
                 body: JSON.stringify({ matched_user_id: user.id, note: 'Skipped', status: 'skipped' })
               });
+              await loadSkippedUsers();
             } catch(e) { /* ignore */ }
           }
 
@@ -1615,56 +1805,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       });
     }
 
-    // Modal view for skipped candidates
-    function openSkippedModal() {
-      const modal = document.getElementById('skippedModal');
-      const listEl = document.getElementById('skippedList');
-      if (!modal || !listEl) return;
-
-      if (!skippedHistory.length) {
-        listEl.innerHTML = '<div class="list-item" style="text-align:center; color:var(--muted);">ยังไม่มีรายการคนที่เคยปัดผ่าน</div>';
-      } else {
-        listEl.innerHTML = skippedHistory.map((u, index) => `
-          <div class="skipped-card-item">
-            <img class="skipped-card-thumb" src="${u.profile_image || DEFAULT_AVATAR}" alt="${u.name}" />
-            <div class="skipped-card-info">
-              <h4>${u.nickname || u.name} (${u.gender || 'ไม่ระบุ'})</h4>
-              <span>${u.age ? u.age + ' ปี • ' : ''}${u.major || 'ไม่ระบุคณะ'}</span>
-            </div>
-            <button class="button primary" data-like-skipped-index="${index}" type="button" style="font-size:0.82rem; padding:6px 14px;">
-              💕 สนใจ
-            </button>
-          </div>
-        `).join('');
-
-        listEl.querySelectorAll('[data-like-skipped-index]').forEach(btn => {
-          btn.addEventListener('click', async () => {
-            const idx = Number(btn.dataset.likeSkippedIndex);
-            const targetUser = skippedHistory[idx];
-            if (!targetUser) return;
-
-            try {
-              const res = await apiRequest('/api/matches', {
-                method: 'POST',
-                body: JSON.stringify({ matched_user_id: targetUser.id, note: 'Interested', status: 'liked' })
-              });
-              if (res.mutual) showMatchToast(res.message);
-              skippedHistory.splice(idx, 1);
-              updateSkippedCounter();
-              openSkippedModal();
-              await loadDiscoverUsers();
-            } catch(e) { alert(e.message); }
-          });
-        });
-      }
-
-      modal.classList.remove('hidden');
-    }
-
-    document.getElementById('viewSkippedBtn')?.addEventListener('click', openSkippedModal);
-    document.getElementById('closeSkippedModal')?.addEventListener('click', () => {
-      document.getElementById('skippedModal')?.classList.add('hidden');
-    });
+    document.getElementById('viewSkippedBtn')?.addEventListener('click', () => switchTab('skipped'));
 
     function showMatchToast(message) {
       const toast = document.createElement('div');
@@ -2215,6 +2356,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     await loadProfile();
     await loadDiscoverUsers();
+    await loadSkippedUsers();
     await loadChats();
     await loadActivities();
     startGlobalPolling();

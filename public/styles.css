@@ -1791,3 +1791,193 @@ th {
   color: var(--text);
 }
 
+/* ===================================================
+   Skipped / Passed Profiles Page Styles
+   =================================================== */
+
+.tab-count-badge {
+  display: inline-block;
+  background: #f1eeff;
+  color: var(--purple);
+  font-size: 0.72rem;
+  padding: 1px 7px;
+  border-radius: 999px;
+  font-weight: 700;
+  margin-left: 4px;
+}
+
+.tab-button.active .tab-count-badge {
+  background: rgba(255, 255, 255, 0.28);
+  color: white;
+}
+
+.skipped-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 18px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--line);
+}
+
+.skipped-filter-bar {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.skipped-filter-bar input {
+  width: 100%;
+  padding: 10px 16px;
+  border-radius: 12px;
+  border: 1.5px solid var(--line);
+  font-size: 0.9rem;
+  box-sizing: border-box;
+}
+
+.skipped-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 16px;
+}
+
+.skipped-profile-card {
+  background: white;
+  border: 1.5px solid var(--line);
+  border-radius: 18px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  position: relative;
+}
+
+.skipped-profile-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(74, 68, 150, 0.1);
+  border-color: var(--purple-soft);
+}
+
+.skipped-card-header {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+}
+
+.skipped-card-avatar {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2.5px solid var(--purple-soft);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: transform 0.2s ease;
+}
+
+.skipped-card-avatar:hover {
+  transform: scale(1.08);
+}
+
+.skipped-card-user-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.skipped-card-name {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--purple);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 3px 0;
+  cursor: pointer;
+}
+
+.skipped-card-nickname {
+  font-size: 0.76rem;
+  background: #fff0f5;
+  color: #db2777;
+  padding: 1px 7px;
+  border-radius: 999px;
+  font-weight: 600;
+}
+
+.skipped-card-sub {
+  font-size: 0.82rem;
+  color: var(--muted);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.skipped-card-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.skipped-card-bio {
+  font-size: 0.84rem;
+  color: var(--text);
+  line-height: 1.45;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  background: #faf8ff;
+  padding: 8px 12px;
+  border-radius: 10px;
+}
+
+.skipped-card-time {
+  font-size: 0.74rem;
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.skipped-card-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: auto;
+  padding-top: 8px;
+  border-top: 1px dashed var(--line);
+}
+
+.skipped-empty-state {
+  text-align: center;
+  padding: 48px 20px;
+  background: #fbf9ff;
+  border: 1.5px dashed var(--line);
+  border-radius: 20px;
+  grid-column: 1 / -1;
+}
+
+.skipped-empty-icon {
+  font-size: 3.5rem;
+  margin-bottom: 12px;
+}
+
+.skipped-empty-title {
+  font-weight: 700;
+  color: var(--purple-dark);
+  font-size: 1.2rem;
+  margin-bottom: 6px;
+}
+
+.skipped-empty-desc {
+  font-size: 0.9rem;
+  color: var(--muted);
+  max-width: 400px;
+  margin: 0 auto 18px;
+}
+
