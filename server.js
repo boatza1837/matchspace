@@ -948,8 +948,13 @@ app.delete('/api/matches/:id', requireAuth, async (req, res) => {
     const userId = req.session.user.id;
     const match = await db.get('SELECT * FROM matches WHERE id = ? AND user_id = ?', [matchId, userId]);
     if (!match) {
-      return res.status(404).json({ message: 'ไม่พบรายการแมตช์นี้' });
+      return res.status(404).json({ message: 'ไม่พบรายการนี้' });
     }
+
+    if (match.status === 'matched') {
+      await db.run("UPDATE matches SET status = 'liked' WHERE user_id = ? AND matched_user_id = ?", [match.matched_user_id, userId]);
+    }
+
     await db.run('DELETE FROM matches WHERE id = ?', [matchId]);
     res.json({ message: 'นำผู้ใช้นี้กลับไปที่หน้าค้นหาแล้ว' });
   } catch (err) {
@@ -966,6 +971,32 @@ app.post('/api/skipped/restore-all', requireAuth, async (req, res) => {
   } catch (err) {
     console.error('[Restore All Skipped Error]', err);
     res.status(500).json({ message: err.message || 'เกิดข้อผิดพลาด' });
+  }
+});
+
+// --- Liked / Interested Profiles API ---
+app.get('/api/liked', requireAuth, async (req, res) => {
+  try {
+    const userId = req.session.user.id;
+    const rows = await db.all(`
+      SELECT m.id AS match_id, m.created_at AS liked_at, m.status, m.note,
+             u.id, u.name, u.nickname, u.email, u.gender, u.age, u.major, u.year, 
+             u.interests, u.bio, u.profile_image,
+             (
+               SELECT c.id FROM chats c 
+               WHERE (c.user_a = ? AND c.user_b = u.id) 
+                  OR (c.user_a = u.id AND c.user_b = ?)
+               LIMIT 1
+             ) AS chat_id
+      FROM matches m
+      JOIN users u ON u.id = m.matched_user_id
+      WHERE m.user_id = ? AND (m.status = 'liked' OR m.status = 'matched')
+      ORDER BY m.created_at DESC
+    `, [userId, userId, userId]);
+    res.json(rows);
+  } catch (err) {
+    console.error('[Liked Error]', err);
+    res.status(500).json({ message: err.message || 'เกิดข้อผิดพลาดในการดึงข้อมูลคนที่กดสนใจ' });
   }
 });
 

@@ -1981,3 +1981,285 @@ th {
   margin: 0 auto 18px;
 }
 
+/* ===================================================
+   Minimal Floating Bottom Navigation Bar (Image Style)
+   =================================================== */
+
+body {
+  padding-bottom: 96px !important;
+}
+
+.bottom-nav-bar {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 9999;
+  background: #ffffff;
+  border-radius: 26px;
+  box-shadow: 0 10px 32px rgba(45, 35, 80, 0.12), 0 2px 8px rgba(0, 0, 0, 0.04);
+  border: 1px solid rgba(230, 225, 245, 0.9);
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  padding: 6px 10px;
+  max-width: 540px;
+  width: calc(100% - 28px);
+  box-sizing: border-box;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.bottom-tab-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  padding: 8px 12px;
+  border-radius: 18px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  color: #8b8899;
+  text-decoration: none;
+  transition: all 0.22s cubic-bezier(0.2, 0.8, 0.2, 1);
+  min-width: 50px;
+  position: relative;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.bottom-tab-item:hover {
+  color: #ff6550;
+  background: rgba(255, 240, 235, 0.5);
+}
+
+.bottom-tab-item.active {
+  background: #fff0eb !important;
+  color: #ff6550 !important;
+}
+
+.bottom-tab-icon {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+}
+
+.bottom-tab-icon svg {
+  width: 20px;
+  height: 20px;
+  stroke: currentColor;
+  transition: transform 0.2s ease, stroke 0.2s ease;
+}
+
+.bottom-tab-item.active .bottom-tab-icon svg {
+  transform: scale(1.08);
+}
+
+.bottom-tab-label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: -0.01em;
+  transition: font-weight 0.2s ease;
+}
+
+.bottom-tab-item.active .bottom-tab-label {
+  font-weight: 700;
+}
+
+.bottom-tab-badge {
+  position: absolute;
+  top: -4px;
+  right: -8px;
+  background: #ff4757;
+  color: white;
+  font-size: 0.62rem;
+  font-weight: 800;
+  padding: 1px 5px;
+  border-radius: 999px;
+  min-width: 14px;
+  text-align: center;
+  border: 1.5px solid white;
+  box-shadow: 0 2px 4px rgba(255, 71, 87, 0.3);
+}
+
+@media (max-width: 480px) {
+  body {
+    padding-bottom: 84px !important;
+  }
+  .bottom-nav-bar {
+    bottom: 12px;
+    padding: 5px 6px;
+    width: calc(100% - 16px);
+    border-radius: 22px;
+  }
+  .bottom-tab-item {
+    padding: 6px 6px;
+    min-width: 42px;
+    border-radius: 14px;
+  }
+  .bottom-tab-icon svg {
+    width: 18px;
+    height: 18px;
+  }
+  .bottom-tab-label {
+    font-size: 0.62rem;
+  }
+}
+
+/* ===================================================
+   Liked / Interested Profiles Page Styles
+   =================================================== */
+
+.liked-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 18px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--line);
+}
+
+.liked-filter-bar {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.liked-filter-bar input {
+  width: 100%;
+  padding: 10px 16px;
+  border-radius: 12px;
+  border: 1.5px solid var(--line);
+  font-size: 0.9rem;
+  box-sizing: border-box;
+}
+
+.liked-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 16px;
+}
+
+.liked-profile-card {
+  background: white;
+  border: 1.5px solid var(--line);
+  border-radius: 18px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  position: relative;
+}
+
+.liked-profile-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(225, 29, 72, 0.08);
+  border-color: rgba(225, 29, 72, 0.2);
+}
+
+.liked-card-header {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+}
+
+.liked-card-avatar {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2.5px solid #ffe4e6;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: transform 0.2s ease;
+}
+
+.liked-card-avatar:hover {
+  transform: scale(1.08);
+}
+
+.liked-card-user-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.liked-card-name {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 3px 0;
+  cursor: pointer;
+}
+
+.match-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-size: 0.74rem;
+  font-weight: 700;
+}
+
+.match-status-pill.matched {
+  background: #ecfdf5;
+  color: #059669;
+  border: 1px solid rgba(5, 150, 105, 0.2);
+}
+
+.match-status-pill.pending {
+  background: #fff1f2;
+  color: #e11d48;
+  border: 1px solid rgba(225, 29, 72, 0.2);
+}
+
+.liked-card-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.liked-card-bio {
+  font-size: 0.84rem;
+  color: var(--text);
+  line-height: 1.45;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  background: #fff5f5;
+  padding: 8px 12px;
+  border-radius: 10px;
+}
+
+.liked-card-time {
+  font-size: 0.74rem;
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.liked-card-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: auto;
+  padding-top: 8px;
+  border-top: 1px dashed var(--line);
+}
+

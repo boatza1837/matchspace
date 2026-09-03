@@ -1339,9 +1339,12 @@ document.addEventListener('DOMContentLoaded', async () => {
       button.addEventListener('click', () => {
         tabButtons.forEach((tab) => tab.classList.toggle('active', tab === button));
         tabPanels.forEach((panel) => panel.classList.toggle('active', panel.id === `tab-${button.dataset.tab}`));
-        // Reload activities fresh whenever user opens that tab
+        // Reload tabs fresh whenever user opens that tab
         if (button.dataset.tab === 'activities' || button.dataset.tab === 'activity') {
           loadActivities();
+        }
+        if (button.dataset.tab === 'liked') {
+          loadLikedUsers();
         }
         if (button.dataset.tab === 'skipped') {
           loadSkippedUsers();
@@ -1506,6 +1509,8 @@ document.addEventListener('DOMContentLoaded', async () => {
               if (res.mutual) showMatchToast(res.message);
               modal.classList.add('hidden');
               await loadDiscoverUsers();
+              await loadLikedUsers();
+              await loadSkippedUsers();
             } catch(e) { alert(e.message); }
           };
         }
@@ -1519,6 +1524,165 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('closeProfileModal')?.addEventListener('click', () => {
       document.getElementById('profileModal').classList.add('hidden');
     });
+
+    let likedUsersList = [];
+
+    function updateLikedCounters() {
+      const count = likedUsersList.length;
+      const countTabBadge = document.getElementById('likedTabBadge');
+      if (countTabBadge) {
+        countTabBadge.textContent = count;
+        countTabBadge.classList.toggle('hidden', count === 0);
+      }
+      const countHeader = document.getElementById('likedHeaderCountBadge');
+      if (countHeader) countHeader.textContent = `${count} คน`;
+    }
+
+    async function loadLikedUsers() {
+      try {
+        const data = await apiRequest('/api/liked');
+        likedUsersList = Array.isArray(data) ? data : [];
+        updateLikedCounters();
+        renderLikedGrid();
+      } catch (err) {
+        console.error('Failed to load liked users:', err);
+      }
+    }
+
+    function renderLikedGrid() {
+      const grid = document.getElementById('likedCardsGrid');
+      if (!grid) return;
+
+      const q = (document.getElementById('likedSearchInput')?.value || '').toLowerCase().trim();
+      const statusFilter = document.getElementById('likedStatusFilter')?.value || '';
+      const genderFilter = document.getElementById('likedGenderFilter')?.value || '';
+
+      const filtered = likedUsersList.filter(u => {
+        if (genderFilter && u.gender !== genderFilter) return false;
+        if (statusFilter && u.status !== statusFilter) return false;
+        if (q) {
+          const matchName = (u.name || '').toLowerCase().includes(q);
+          const matchNick = (u.nickname || '').toLowerCase().includes(q);
+          const matchMajor = (u.major || '').toLowerCase().includes(q);
+          const matchInterests = (u.interests || '').toLowerCase().includes(q);
+          if (!matchName && !matchNick && !matchMajor && !matchInterests) return false;
+        }
+        return true;
+      });
+
+      if (!filtered.length) {
+        grid.innerHTML = `
+          <div class="skipped-empty-state">
+            <div class="skipped-empty-icon">💖</div>
+            <div class="skipped-empty-title">${q || statusFilter || genderFilter ? 'ไม่พบคนที่ตรงกับเงื่อนไขการค้นหา' : 'ยังไม่มีคนที่คุณกดสนใจ'}</div>
+            <div class="skipped-empty-desc">${q || statusFilter || genderFilter ? 'ลองเปลี่ยนคำค้นหาหรือตัวกรอง' : 'เมื่อคุณกด "💕 สนใจ" ใครสักคนในหน้าค้นหา (Discover) รายชื่อจะมาแสดงที่นี่'}</div>
+            ${!q && !statusFilter && !genderFilter ? `<button class="button primary" id="btnGoDiscoverFromLikedEmpty" type="button">👉 ไปค้นหาคนที่ใช่ (Discover)</button>` : ''}
+          </div>
+        `;
+        document.getElementById('btnGoDiscoverFromLikedEmpty')?.addEventListener('click', () => switchTab('discover'));
+        return;
+      }
+
+      grid.innerHTML = filtered.map((u) => {
+        const avatarSrc = u.profile_image || DEFAULT_AVATAR;
+        const tags = (u.interests || '').split(',').map(t => t.trim()).filter(Boolean);
+        const isMatched = u.status === 'matched';
+
+        return `
+          <div class="liked-profile-card">
+            <div class="liked-card-header">
+              <img src="${avatarSrc}" class="liked-card-avatar" alt="${escapeHtml(u.name)}" data-open-profile-id="${u.id}" title="คลิกเพื่อดูโปรไฟล์เต็ม" />
+              <div class="liked-card-user-info">
+                <div class="liked-card-name" data-open-profile-id="${u.id}">
+                  <span>${escapeHtml(u.nickname || u.name)}</span>
+                  ${u.nickname ? `<span class="skipped-card-nickname">${escapeHtml(u.name)}</span>` : ''}
+                </div>
+                <div class="skipped-card-sub">
+                  <span>${u.gender ? (u.gender === 'ชาย' ? '👨 ชาย' : (u.gender === 'หญิง' ? '👩 หญิง' : '🌈 LGBTQ+')) : 'ไม่ระบุเพศ'}</span>
+                  <span>•</span>
+                  <span>${u.age ? u.age + ' ปี' : 'ไม่ระบุอายุ'}</span>
+                  <span>•</span>
+                  <span>${escapeHtml(u.year || '-')}</span>
+                </div>
+                <div style="margin-top:4px;">
+                  <span class="match-status-pill ${isMatched ? 'matched' : 'pending'}">
+                    ${isMatched ? '🎉 แมตช์สำเร็จแล้ว!' : '⏳ รออีกฝ่ายกดสนใจกลับ'}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div style="font-size:0.84rem; color:var(--purple-dark); font-weight:600;">
+              🎓 ${escapeHtml(u.major || 'ไม่ระบุคณะ')}
+            </div>
+
+            ${tags.length ? `
+              <div class="liked-card-tags">
+                ${tags.map(t => `<span class="tag selected" style="font-size:0.75rem; padding:3px 8px;">${escapeHtml(t)}</span>`).join('')}
+              </div>
+            ` : ''}
+
+            ${u.bio ? `<div class="liked-card-bio">💬 "${escapeHtml(u.bio)}"</div>` : ''}
+
+            <div class="liked-card-time">
+              <span>🕒 ส่งความสนใจเมื่อ: ${escapeHtml(u.liked_at || 'ไม่ระบุ')}</span>
+            </div>
+
+            <div class="liked-card-actions">
+              ${isMatched && u.chat_id ? `
+                <button class="button primary" data-action-chat-liked="${u.chat_id}" type="button" style="flex:2; font-size:0.84rem; padding:8px 12px; background:linear-gradient(135deg, #10b981, #059669);">
+                  💬 ทักแชทเลย
+                </button>
+              ` : `
+                <button class="button secondary-action" data-action-cancel-liked="${u.match_id}" type="button" style="flex:2; font-size:0.82rem; padding:8px 10px; color:#e11d48;" title="ยกเลิกความสนใจ">
+                  ❌ ยกเลิกสนใจ
+                </button>
+              `}
+              <button class="button secondary-action" data-open-profile-id="${u.id}" type="button" style="padding:8px 10px; font-size:0.82rem;" title="ดูอัลบั้มและโปรไฟล์เต็ม">
+                🔍
+              </button>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      // Attach event listeners
+      grid.querySelectorAll('[data-action-chat-liked]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const chatId = btn.dataset.actionChatLiked;
+          if (chatId) openChatTabAndLoad(Number(chatId));
+        });
+      });
+
+      grid.querySelectorAll('[data-action-cancel-liked]').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const matchId = btn.dataset.actionCancelLiked;
+          if (confirm('คุณต้องการยกเลิกการส่งความสนใจให้ผู้ใช้นี้ใช่หรือไม่?')) {
+            try {
+              await apiRequest(`/api/matches/${matchId}`, { method: 'DELETE' });
+              showMatchToast('ยกเลิกความสนใจเรียบร้อยแล้ว');
+              await loadLikedUsers();
+              await loadDiscoverUsers();
+            } catch (err) {
+              alert(err.message || 'เกิดข้อผิดพลาด');
+            }
+          }
+        });
+      });
+
+      grid.querySelectorAll('[data-open-profile-id]').forEach(el => {
+        el.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const userId = el.dataset.openProfileId;
+          if (userId) openProfileModal(Number(userId));
+        });
+      });
+    }
+
+    document.getElementById('likedSearchInput')?.addEventListener('input', renderLikedGrid);
+    document.getElementById('likedStatusFilter')?.addEventListener('change', renderLikedGrid);
+    document.getElementById('likedGenderFilter')?.addEventListener('change', renderLikedGrid);
+    document.getElementById('btnRefreshLiked')?.addEventListener('click', loadLikedUsers);
 
     let skippedUsersList = [];
 
@@ -1651,6 +1815,7 @@ document.addEventListener('DOMContentLoaded', async () => {
               showMatchToast('บันทึกความสนใจเรียบร้อยแล้ว 💕');
             }
             await loadSkippedUsers();
+            await loadLikedUsers();
             await loadDiscoverUsers();
           } catch (err) {
             btn.disabled = false;
@@ -1784,6 +1949,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 showMatchToast(matchResult.message);
                 await loadChats();
               }
+              await loadLikedUsers();
             } catch(e) { /* ignore */ }
           } else if (action === 'skip') {
             skippedHistory.push(user);
@@ -2356,6 +2522,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     await loadProfile();
     await loadDiscoverUsers();
+    await loadLikedUsers();
     await loadSkippedUsers();
     await loadChats();
     await loadActivities();
