@@ -373,6 +373,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         formData.append('email', document.getElementById('email').value);
         formData.append('password', document.getElementById('password').value);
         formData.append('gender', document.getElementById('gender')?.value || 'ชาย');
+        formData.append('interested_gender', document.getElementById('interestedGender')?.value || 'ทุกเพศ');
+        formData.append('university', document.getElementById('university')?.value || 'มหาวิทยาลัยขอนแก่น');
         formData.append('phone', document.getElementById('phone')?.value || '');
         formData.append('nickname', document.getElementById('nickname')?.value || '');
         formData.append('age', document.getElementById('age')?.value || '');
@@ -1397,6 +1399,10 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (yearEl) yearEl.value = user.year || '';
       const genderEl = document.getElementById('profileGender');
       if (genderEl) genderEl.value = user.gender || 'ชาย';
+      const interestedGenderEl = document.getElementById('profileInterestedGender');
+      if (interestedGenderEl) interestedGenderEl.value = user.interested_gender || 'ทุกเพศ';
+      const universityEl = document.getElementById('profileUniversity');
+      if (universityEl) universityEl.value = user.university || 'มหาวิทยาลัยขอนแก่น';
       const phoneEl = document.getElementById('profilePhone');
       if (phoneEl) phoneEl.value = user.phone || '';
       if (bioEl) bioEl.value = user.bio || '';
@@ -1501,9 +1507,15 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         const genderIcon = user.gender === 'ชาย' ? '👨 ชาย' : (user.gender === 'หญิง' ? '👩 หญิง' : (user.gender ? '🌈 ' + user.gender : '👤 ไม่ระบุเพศ'));
         modalGender.innerHTML = genderIcon;
+
+        const modalInterestedGender = document.getElementById('modalProfileInterestedGender');
+        if (modalInterestedGender) {
+          modalInterestedGender.textContent = `🎯 สนใจ: ${user.interested_gender || 'ทุกเพศ'}`;
+        }
         
         const detailsArr = [];
         if (user.age) detailsArr.push(`🎂 ${user.age} ปี`);
+        if (user.university) detailsArr.push(`🏫 ${escapeHtml(user.university)}`);
         if (user.major) detailsArr.push(`🎓 ${escapeHtml(user.major)}`);
         if (user.year) detailsArr.push(escapeHtml(user.year));
         modalAgeMajor.innerHTML = detailsArr.length ? detailsArr.join(' • ') : 'ข้อมูลทั่วไป';
@@ -1662,7 +1674,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                   <span>•</span>
                   <span>${u.age ? u.age + ' ปี' : 'ไม่ระบุอายุ'}</span>
                   <span>•</span>
-                  <span>${escapeHtml(u.year || '-')}</span>
+                  <span>🎯 ${escapeHtml(u.interested_gender || 'ทุกเพศ')}</span>
                 </div>
                 <div style="margin-top:4px;">
                   <span class="match-status-pill ${isMatched ? 'matched' : 'pending'}">
@@ -1821,7 +1833,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                   <span>•</span>
                   <span>${u.age ? u.age + ' ปี' : 'ไม่ระบุอายุ'}</span>
                   <span>•</span>
-                  <span>${escapeHtml(u.year || '-')}</span>
+                  <span>🎯 ${escapeHtml(u.interested_gender || 'ทุกเพศ')}</span>
                 </div>
                 <div style="font-size:0.82rem; color:var(--purple-dark); font-weight:600; margin-top:2px;">
                   ${escapeHtml(u.major || 'ไม่ระบุคณะ')}
@@ -1959,6 +1971,12 @@ document.addEventListener('DOMContentLoaded', async () => {
               <span>${user.age ? user.age + ' ปี' : 'ไม่ระบุ'}</span>
               <span>${escapeHtml(user.major || 'ไม่ระบุคณะ')}</span>
               <span>${escapeHtml(user.year || '-')}</span>
+            </div>
+            <div class="discover-preference-row" style="display:flex; flex-wrap:wrap; gap:6px; margin:6px 0 2px 0;">
+              <span class="preference-badge" style="background:#fff1f2; color:#e11d48; font-weight:700; font-size:0.76rem; padding:3px 10px; border-radius:999px; border:1px solid rgba(225,29,72,0.2); display:inline-flex; align-items:center; gap:4px;">
+                🎯 สนใจ: ${escapeHtml(user.interested_gender || 'ทุกเพศ')}
+              </span>
+              ${user.university ? `<span class="preference-badge" style="background:#f3f4f6; color:#4b5563; font-weight:600; font-size:0.75rem; padding:3px 9px; border-radius:999px; display:inline-flex; align-items:center; gap:4px;">🏫 ${escapeHtml(user.university)}</span>` : ''}
             </div>
             <div class="discover-album-pill">
               <span class="pill-camera">📸</span>
@@ -2461,6 +2479,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         formData.append('name', document.getElementById('profileName').value);
         formData.append('nickname', document.getElementById('profileNickname').value);
         formData.append('gender', document.getElementById('profileGender')?.value || 'ชาย');
+        formData.append('interested_gender', document.getElementById('profileInterestedGender')?.value || 'ทุกเพศ');
+        formData.append('university', document.getElementById('profileUniversity')?.value || 'มหาวิทยาลัยขอนแก่น');
         formData.append('major', document.getElementById('profileMajor').value);
         formData.append('year', document.getElementById('profileYear').value);
         formData.append('age', document.getElementById('profileAge').value);

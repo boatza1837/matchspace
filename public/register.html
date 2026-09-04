@@ -64,11 +64,28 @@
               </div>
 
               <div class="form-group">
-                <label for="gender">เพศ</label>
+                <label for="gender">เพศของคุณ</label>
                 <select id="gender" name="gender" required>
-                  <option value="ชาย">ชาย</option>
-                  <option value="หญิง">หญิง</option>
-                  <option value="เพศหลากหลาย">เพศหลากหลาย (LGBTQ+)</option>
+                  <option value="ชาย">👨 ชาย</option>
+                  <option value="หญิง">👩 หญิง</option>
+                  <option value="เพศหลากหลาย">🌈 เพศหลากหลาย (LGBTQ+)</option>
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label for="interestedGender">สนใจเพศไหน (Looking for)</label>
+                <select id="interestedGender" name="interested_gender" required>
+                  <option value="ทุกเพศ" selected>🌈 ทุกเพศ (All / Any)</option>
+                  <option value="หญิง">👩 หญิง</option>
+                  <option value="ชาย">👨 ชาย</option>
+                  <option value="เพศหลากหลาย">🌈 เพศหลากหลาย (LGBTQ+)</option>
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label for="university">มหาวิทยาลัย</label>
+                <select id="university" name="university" required>
+                  <option value="มหาวิทยาลัยขอนแก่น" selected>🏫 มหาวิทยาลัยขอนแก่น (KKU)</option>
                 </select>
               </div>
 
@@ -79,12 +96,39 @@
                   <option value="ปี 2">ปี 2</option>
                   <option value="ปี 3">ปี 3</option>
                   <option value="ปี 4">ปี 4</option>
+                  <option value="บัณฑิตศึกษา (ป.โท/ป.เอก)">บัณฑิตศึกษา (ป.โท/ป.เอก)</option>
+                  <option value="ศิษย์เก่า / อื่นๆ">ศิษย์เก่า / อื่นๆ</option>
                 </select>
               </div>
 
               <div class="form-group full">
-                <label for="major">สาขา / คณะ</label>
-                <input name="major" id="major" type="text" placeholder="เช่น คณะวิศวกรรมศาสตร์" />
+                <label for="major">คณะ / วิทยาลัย (ม.ขอนแก่น)</label>
+                <select id="major" name="major" required>
+                  <option value="">-- กรุณาเลือกคณะ / วิทยาลัย --</option>
+                  <option value="คณะแพทยศาสตร์">คณะแพทยศาสตร์</option>
+                  <option value="คณะพยาบาลศาสตร์">คณะพยาบาลศาสตร์</option>
+                  <option value="คณะทันตแพทยศาสตร์">คณะทันตแพทยศาสตร์</option>
+                  <option value="คณะเภสัชศาสตร์">คณะเภสัชศาสตร์</option>
+                  <option value="คณะเทคนิคการแพทย์">คณะเทคนิคการแพทย์</option>
+                  <option value="คณะสาธารณสุขศาสตร์">คณะสาธารณสุขศาสตร์</option>
+                  <option value="คณะสัตวแพทยศาสตร์">คณะสัตวแพทยศาสตร์</option>
+                  <option value="คณะวิทยาศาสตร์">คณะวิทยาศาสตร์</option>
+                  <option value="คณะวิศวกรรมศาสตร์">คณะวิศวกรรมศาสตร์</option>
+                  <option value="คณะเกษตรศาสตร์">คณะเกษตรศาสตร์</option>
+                  <option value="คณะเทคโนโลยี">คณะเทคโนโลยี</option>
+                  <option value="คณะสถาปัตยกรรมศาสตร์">คณะสถาปัตยกรรมศาสตร์</option>
+                  <option value="วิทยาลัยการคอมพิวเตอร์">วิทยาลัยการคอมพิวเตอร์</option>
+                  <option value="คณะมนุษยศาสตร์และสังคมศาสตร์">คณะมนุษยศาสตร์และสังคมศาสตร์</option>
+                  <option value="คณะศึกษาศาสตร์">คณะศึกษาศาสตร์</option>
+                  <option value="คณะบริหารธุรกิจและการบัญชี">คณะบริหารธุรกิจและการบัญชี</option>
+                  <option value="คณะเศรษฐศาสตร์">คณะเศรษฐศาสตร์</option>
+                  <option value="คณะนิติศาสตร์">คณะนิติศาสตร์</option>
+                  <option value="คณะศิลปกรรมศาสตร์">คณะศิลปกรรมศาสตร์</option>
+                  <option value="คณะสหวิทยาการ (วิทยาเขตหนองคาย)">คณะสหวิทยาการ (วิทยาเขตหนองคาย)</option>
+                  <option value="วิทยาลัยนานาชาติ">วิทยาลัยนานาชาติ</option>
+                  <option value="วิทยาลัยการปกครองท้องถิ่น">วิทยาลัยการปกครองท้องถิ่น</option>
+                  <option value="วิทยาลัยบัณฑิตศึกษาการจัดการ">วิทยาลัยบัณฑิตศึกษาการจัดการ</option>
+                </select>
               </div>
 
               <div class="form-group full">

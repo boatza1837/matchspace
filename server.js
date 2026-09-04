@@ -275,6 +275,8 @@ async function initDatabase() {
   try { await db.run("ALTER TABLE users ADD COLUMN phone TEXT"); } catch(e) {}
   try { await db.run("ALTER TABLE users ADD COLUMN gender TEXT DEFAULT 'ไม่ระบุ'"); } catch(e) {}
   try { await db.run("ALTER TABLE users ADD COLUMN plain_password TEXT"); } catch(e) {}
+  try { await db.run("ALTER TABLE users ADD COLUMN interested_gender TEXT DEFAULT 'ทุกเพศ'"); } catch(e) {}
+  try { await db.run("ALTER TABLE users ADD COLUMN university TEXT DEFAULT 'มหาวิทยาลัยขอนแก่น'"); } catch(e) {}
 
   if (!useTurso) {
     const userCols = await db.all("PRAGMA table_info(users)");
@@ -640,7 +642,7 @@ const multiUpload = upload.fields([
 ]);
 
 app.post('/api/register', multiUpload, async (req, res) => {
-  const { name, email, password, gender, major, year, interests, bio, nickname, age, phone, google_profile_image } = req.body || {};
+  const { name, email, password, gender, interested_gender, university, major, year, interests, bio, nickname, age, phone, google_profile_image } = req.body || {};
 
   if (!name || !email || !password || !phone) {
     return res.status(400).json({ message: 'กรุณากรอกชื่อ อีเมล รหัสผ่าน และเบอร์โทรศัพท์' });
@@ -671,14 +673,16 @@ app.post('/api/register', multiUpload, async (req, res) => {
 
   const passwordHash = bcrypt.hashSync(String(password), 10);
   const result = await db.run(`
-    INSERT INTO users (name, email, password, plain_password, gender, major, year, interests, bio, nickname, age, phone, profile_image, is_admin)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)
+    INSERT INTO users (name, email, password, plain_password, gender, interested_gender, university, major, year, interests, bio, nickname, age, phone, profile_image, is_admin)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)
   `, [
     String(name).trim(),
     normalizedEmail,
     passwordHash,
     String(password).trim(),
     gender || 'ไม่ระบุ',
+    interested_gender || 'ทุกเพศ',
+    university || 'มหาวิทยาลัยขอนแก่น',
     major || '',
     year || '',
     interests || '',
@@ -721,7 +725,7 @@ app.get('/api/me', requireAuth, async (req, res) => {
 });
 
 app.put('/api/me', requireAuth, multiUpload, async (req, res) => {
-  const { name, gender, major, year, interests, bio, nickname, age, phone } = req.body || {};
+  const { name, gender, interested_gender, university, major, year, interests, bio, nickname, age, phone } = req.body || {};
   const userId = req.session.user.id;
 
   let cleanedPhone = req.session.user.phone || '';
@@ -750,11 +754,13 @@ app.put('/api/me', requireAuth, multiUpload, async (req, res) => {
 
   await db.run(`
     UPDATE users
-    SET name = ?, gender = ?, major = ?, year = ?, interests = ?, bio = ?, nickname = ?, age = ?, phone = ?, profile_image = ?
+    SET name = ?, gender = ?, interested_gender = ?, university = ?, major = ?, year = ?, interests = ?, bio = ?, nickname = ?, age = ?, phone = ?, profile_image = ?
     WHERE id = ?
   `, [
     String(name || req.session.user.name).trim(),
     gender || req.session.user.gender || 'ไม่ระบุ',
+    interested_gender || req.session.user.interested_gender || 'ทุกเพศ',
+    university || req.session.user.university || 'มหาวิทยาลัยขอนแก่น',
     major || '',
     year || '',
     interests || '',
@@ -835,7 +841,7 @@ app.delete('/api/me/photos/:photoId', requireAuth, async (req, res) => {
 app.get('/api/candidates', requireAuth, async (req, res) => {
   try {
     const rows = await db.all(`
-      SELECT id, name, email, gender, major, year, interests, bio, nickname, age, profile_image, is_active, created_at
+      SELECT id, name, email, gender, interested_gender, university, major, year, interests, bio, nickname, age, profile_image, is_active, created_at
       FROM users
       WHERE id != ? 
         AND is_active != 0 
@@ -928,7 +934,7 @@ app.get('/api/skipped', requireAuth, async (req, res) => {
   try {
     const rows = await db.all(`
       SELECT m.id AS match_id, m.created_at AS skipped_at, m.note,
-             u.id, u.name, u.nickname, u.email, u.gender, u.age, u.major, u.year, 
+             u.id, u.name, u.nickname, u.email, u.gender, u.interested_gender, u.university, u.age, u.major, u.year, 
              u.interests, u.bio, u.profile_image
       FROM matches m
       JOIN users u ON u.id = m.matched_user_id
@@ -980,7 +986,7 @@ app.get('/api/liked', requireAuth, async (req, res) => {
     const userId = req.session.user.id;
     const rows = await db.all(`
       SELECT m.id AS match_id, m.created_at AS liked_at, m.status, m.note,
-             u.id, u.name, u.nickname, u.email, u.gender, u.age, u.major, u.year, 
+             u.id, u.name, u.nickname, u.email, u.gender, u.interested_gender, u.university, u.age, u.major, u.year, 
              u.interests, u.bio, u.profile_image,
              (
                SELECT c.id FROM chats c 
