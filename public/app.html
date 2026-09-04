@@ -353,28 +353,49 @@
       </nav>
     </div>
 
-    <!-- Profile Detail Modal with Multi-Photo Gallery Carousel -->
+    <!-- Profile Detail Modal with Multi-Photo Gallery Carousel (Minimal Modern Style) -->
     <div id="profileModal" class="modal hidden">
       <div class="modal-content profile-modal-content">
-        <button id="closeProfileModal" class="modal-close-btn" type="button">✕</button>
         <div class="profile-gallery-container">
           <img id="modalProfileImg" src="" alt="Profile Photo" class="modal-profile-img" />
+          <div class="gallery-scrim-top"></div>
+          <div class="gallery-scrim-bottom"></div>
+          
+          <div class="gallery-top-bar">
+            <div id="galleryIndicators" class="story-indicators"></div>
+          </div>
+          
+          <div class="gallery-overlay-badges">
+            <span id="modalPhotoCounter" class="photo-counter-pill">📸 1/1</span>
+            <button id="closeProfileModal" class="modal-close-btn" type="button" title="ปิดหน้าต่าง">✕</button>
+          </div>
+
           <div id="modalGalleryNav" class="gallery-nav hidden">
-            <button id="prevPhotoBtn" class="gallery-arrow" type="button">‹</button>
-            <div id="galleryIndicators" class="gallery-indicators"></div>
-            <button id="nextPhotoBtn" class="gallery-arrow" type="button">›</button>
+            <button id="prevPhotoBtn" class="gallery-arrow left" type="button" aria-label="รูปก่อนหน้า">‹</button>
+            <button id="nextPhotoBtn" class="gallery-arrow right" type="button" aria-label="รูปถัดไป">›</button>
           </div>
         </div>
+
         <div class="profile-info-box">
-          <h2 id="modalProfileName"></h2>
-          <div class="profile-badges">
-            <span id="modalProfileGender" class="badge"></span>
-            <span id="modalProfileAgeMajor" class="badge alt"></span>
+          <div class="profile-header-area">
+            <h2 id="modalProfileName" class="modal-user-name"></h2>
+            <div id="modalProfileBadges" class="profile-badges-row">
+              <span id="modalProfileGender" class="info-pill gender"></span>
+              <span id="modalProfileAgeMajor" class="info-pill major"></span>
+            </div>
           </div>
-          <p id="modalProfileBio" class="profile-bio-text"></p>
-          <div id="modalProfileInterests" class="chips"></div>
+
+          <div class="modal-bio-card">
+            <p id="modalProfileBio" class="profile-bio-text"></p>
+          </div>
+
+          <div class="modal-interests-section">
+            <div class="modal-section-label">💡 สิ่งที่สนใจ</div>
+            <div id="modalProfileInterests" class="modal-chips-container"></div>
+          </div>
+
           <div class="profile-modal-actions">
-            <button id="modalActionBtn" class="button primary full" type="button">ทักแชท / สนใจ</button>
+            <button id="modalActionBtn" class="modal-action-submit" type="button">💕 ส่งความสนใจ</button>
           </div>
         </div>
       </div>

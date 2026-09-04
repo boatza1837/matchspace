@@ -1492,25 +1492,50 @@ document.addEventListener('DOMContentLoaded', async () => {
         const galleryNav = document.getElementById('modalGalleryNav');
         const indicators = document.getElementById('galleryIndicators');
 
-        modalName.textContent = user.nickname ? `${user.nickname} (${user.name})` : user.name;
-        modalGender.textContent = user.gender || 'ไม่ระบุ';
-        modalAgeMajor.textContent = `${user.age ? user.age + ' ปี • ' : ''}${user.major || 'ไม่ระบุคณะ'} ${user.year || ''}`;
-        modalBio.textContent = user.bio || 'ยังไม่มีรายละเอียดประวัติส่วนตัว';
+        const photoCounter = document.getElementById('modalPhotoCounter');
+
+        modalName.innerHTML = `
+          <span class="modal-nickname">${escapeHtml(user.nickname || user.name)}</span>
+          ${user.nickname ? `<span class="modal-fullname">(${escapeHtml(user.name)})</span>` : ''}
+        `;
+
+        const genderIcon = user.gender === 'ชาย' ? '👨 ชาย' : (user.gender === 'หญิง' ? '👩 หญิง' : (user.gender ? '🌈 ' + user.gender : '👤 ไม่ระบุเพศ'));
+        modalGender.innerHTML = genderIcon;
+        
+        const detailsArr = [];
+        if (user.age) detailsArr.push(`🎂 ${user.age} ปี`);
+        if (user.major) detailsArr.push(`🎓 ${escapeHtml(user.major)}`);
+        if (user.year) detailsArr.push(escapeHtml(user.year));
+        modalAgeMajor.innerHTML = detailsArr.length ? detailsArr.join(' • ') : 'ข้อมูลทั่วไป';
+
+        if (user.bio && user.bio.trim()) {
+          modalBio.textContent = `"${user.bio.trim()}"`;
+          modalBio.classList.remove('bio-empty-hint');
+        } else {
+          modalBio.textContent = 'ยังไม่มีข้อความแนะนำตัว';
+          modalBio.classList.add('bio-empty-hint');
+        }
 
         const tags = (user.interests || '').split(',').map(t => t.trim()).filter(Boolean);
         modalInterests.innerHTML = tags.length
-          ? tags.map(t => `<span class="tag selected">${t}</span>`).join('')
-          : '<span class="tag selected">ทั่วไป</span>';
+          ? tags.map(t => `<span class="modal-interest-chip">${escapeHtml(t)}</span>`).join('')
+          : '<span class="modal-interest-chip">ทั่วไป</span>';
 
         function updateModalPhoto() {
           modalImg.src = modalPhotosList[modalCurrentPhotoIndex];
           if (modalPhotosList.length > 1) {
             galleryNav.classList.remove('hidden');
+            if (photoCounter) {
+              photoCounter.style.display = 'inline-flex';
+              photoCounter.textContent = `📸 ${modalCurrentPhotoIndex + 1}/${modalPhotosList.length}`;
+            }
             indicators.innerHTML = modalPhotosList.map((_, i) => 
-              `<div class="indicator-dot ${i === modalCurrentPhotoIndex ? 'active' : ''}"></div>`
+              `<div class="story-indicator-bar ${i === modalCurrentPhotoIndex ? 'active' : ''}"></div>`
             ).join('');
           } else {
             galleryNav.classList.add('hidden');
+            indicators.innerHTML = '';
+            if (photoCounter) photoCounter.style.display = 'none';
           }
         }
 
@@ -1552,6 +1577,12 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     document.getElementById('closeProfileModal')?.addEventListener('click', () => {
       document.getElementById('profileModal').classList.add('hidden');
+    });
+
+    document.getElementById('profileModal')?.addEventListener('click', (e) => {
+      if (e.target.id === 'profileModal') {
+        document.getElementById('profileModal').classList.add('hidden');
+      }
     });
 
     let likedUsersList = [];
@@ -1926,10 +1957,14 @@ document.addEventListener('DOMContentLoaded', async () => {
             <h3>${user.nickname || user.name} 🔍</h3>
             <div class="meta-row">
               <span>${user.age ? user.age + ' ปี' : 'ไม่ระบุ'}</span>
-              <span>${user.major || 'ไม่ระบุคณะ'}</span>
-              <span>${user.year || '-'}</span>
+              <span>${escapeHtml(user.major || 'ไม่ระบุคณะ')}</span>
+              <span>${escapeHtml(user.year || '-')}</span>
             </div>
-            <div style="font-size:0.8rem; color:var(--purple); font-weight:700; margin-top:4px;">📸 กดที่นี่เพื่อดูอัลบั้มรูปภาพ (${user.gender || 'ไม่ระบุ'})</div>
+            <div class="discover-album-pill">
+              <span class="pill-camera">📸</span>
+              <span>ดูรูปภาพ & โปรไฟล์</span>
+              <span class="pill-gender-tag">${escapeHtml(user.gender || 'ไม่ระบุ')}</span>
+            </div>
           </div>
         </div>
         <div>
