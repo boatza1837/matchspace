@@ -86,7 +86,9 @@
                 <label for="university">มหาวิทยาลัย</label>
                 <select id="university" name="university" required>
                   <option value="มหาวิทยาลัยขอนแก่น" selected>🏫 มหาวิทยาลัยขอนแก่น (KKU)</option>
+                  <option value="other">🏛️ อื่นๆ (ระบุชื่อมหาวิทยาลัยเอง)</option>
                 </select>
+                <input type="text" id="customUniversity" class="hidden" placeholder="พิมพ์ชื่อมหาวิทยาลัยของคุณ..." style="margin-top: 8px;" />
               </div>
 
               <div class="form-group">
@@ -102,8 +104,8 @@
               </div>
 
               <div class="form-group full">
-                <label for="major">คณะ / วิทยาลัย (ม.ขอนแก่น)</label>
-                <select id="major" name="major" required>
+                <label id="majorLabel" for="major">คณะ / วิทยาลัย (ม.ขอนแก่น)</label>
+                <select id="major" name="major">
                   <option value="">-- กรุณาเลือกคณะ / วิทยาลัย --</option>
                   <option value="คณะแพทยศาสตร์">คณะแพทยศาสตร์</option>
                   <option value="คณะพยาบาลศาสตร์">คณะพยาบาลศาสตร์</option>
@@ -128,7 +130,9 @@
                   <option value="วิทยาลัยนานาชาติ">วิทยาลัยนานาชาติ</option>
                   <option value="วิทยาลัยการปกครองท้องถิ่น">วิทยาลัยการปกครองท้องถิ่น</option>
                   <option value="วิทยาลัยบัณฑิตศึกษาการจัดการ">วิทยาลัยบัณฑิตศึกษาการจัดการ</option>
+                  <option value="other">คณะ / สาขาวิชาอื่นๆ (ระบุเอง)</option>
                 </select>
+                <input type="text" id="customMajor" class="hidden" placeholder="พิมพ์ชื่อคณะ / สาขาวิชาของคุณ..." style="margin-top: 8px;" />
               </div>
 
               <div class="form-group full">

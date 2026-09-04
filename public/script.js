@@ -357,6 +357,50 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     updateRegisterSubmitState();
 
+    const regUniversityEl = document.getElementById('university');
+    const regCustomUniversityEl = document.getElementById('customUniversity');
+    const regMajorEl = document.getElementById('major');
+    const regCustomMajorEl = document.getElementById('customMajor');
+    const regMajorLabelEl = document.getElementById('majorLabel');
+
+    if (regUniversityEl) {
+      regUniversityEl.addEventListener('change', () => {
+        if (regUniversityEl.value === 'other') {
+          if (regCustomUniversityEl) {
+            regCustomUniversityEl.classList.remove('hidden');
+            regCustomUniversityEl.focus();
+          }
+          if (regMajorEl) regMajorEl.classList.add('hidden');
+          if (regCustomMajorEl) regCustomMajorEl.classList.remove('hidden');
+          if (regMajorLabelEl) regMajorLabelEl.textContent = 'คณะ / สาขาวิชา (ระบุเอง)';
+        } else {
+          if (regCustomUniversityEl) regCustomUniversityEl.classList.add('hidden');
+          if (regMajorEl) regMajorEl.classList.remove('hidden');
+          if (regMajorLabelEl) regMajorLabelEl.textContent = 'คณะ / วิทยาลัย (ม.ขอนแก่น)';
+          if (regMajorEl && regMajorEl.value === 'other') {
+            if (regCustomMajorEl) regCustomMajorEl.classList.remove('hidden');
+          } else {
+            if (regCustomMajorEl) regCustomMajorEl.classList.add('hidden');
+          }
+        }
+      });
+    }
+
+    if (regMajorEl) {
+      regMajorEl.addEventListener('change', () => {
+        if (regMajorEl.value === 'other') {
+          if (regCustomMajorEl) {
+            regCustomMajorEl.classList.remove('hidden');
+            regCustomMajorEl.focus();
+          }
+        } else {
+          if (regUniversityEl && regUniversityEl.value !== 'other') {
+            if (regCustomMajorEl) regCustomMajorEl.classList.add('hidden');
+          }
+        }
+      });
+    }
+
     registerForm.addEventListener('submit', async (event) => {
       event.preventDefault();
       const messageEl = document.getElementById('registerMessage');
@@ -368,17 +412,30 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
 
       try {
+        const regUniValue = (regUniversityEl?.value === 'other')
+          ? (regCustomUniversityEl?.value.trim() || 'อื่นๆ')
+          : (regUniversityEl?.value || 'มหาวิทยาลัยขอนแก่น');
+
+        let regMajorValue = '';
+        if (regUniversityEl?.value === 'other') {
+          regMajorValue = regCustomMajorEl?.value.trim() || 'ไม่ระบุ';
+        } else if (regMajorEl?.value === 'other') {
+          regMajorValue = regCustomMajorEl?.value.trim() || 'อื่นๆ';
+        } else {
+          regMajorValue = regMajorEl?.value || '';
+        }
+
         const formData = new FormData();
         formData.append('name', document.getElementById('name').value);
         formData.append('email', document.getElementById('email').value);
         formData.append('password', document.getElementById('password').value);
         formData.append('gender', document.getElementById('gender')?.value || 'ชาย');
         formData.append('interested_gender', document.getElementById('interestedGender')?.value || 'ทุกเพศ');
-        formData.append('university', document.getElementById('university')?.value || 'มหาวิทยาลัยขอนแก่น');
+        formData.append('university', regUniValue);
         formData.append('phone', document.getElementById('phone')?.value || '');
         formData.append('nickname', document.getElementById('nickname')?.value || '');
         formData.append('age', document.getElementById('age')?.value || '');
-        formData.append('major', document.getElementById('major')?.value || '');
+        formData.append('major', regMajorValue);
         formData.append('year', document.getElementById('year')?.value || '');
         formData.append('interests', document.getElementById('interests')?.value || '');
         formData.append('bio', document.getElementById('bio')?.value || '');
@@ -1096,6 +1153,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             </td>
             <td>
               <div style="font-weight:600; color:var(--purple-dark); font-size:0.86rem;">${escapeHtml(user.major || '-')}</div>
+              ${user.university ? `<div style="font-size:0.78rem; color:var(--muted); margin-top:2px;">🏫 ${escapeHtml(user.university)}</div>` : ''}
             </td>
             <td>
               <div>${interestsHtml}</div>
@@ -1271,9 +1329,13 @@ document.addEventListener('DOMContentLoaded', async () => {
             <div class="info-field-label">🎂 อายุ & ชั้นปี</div>
             <div class="info-field-value">${user.age ? user.age + ' ปี' : 'ไม่ระบุ'} • ${escapeHtml(user.year || 'ไม่ระบุชั้นปี')}</div>
           </div>
-          <div class="info-field-card" style="grid-column: 1 / -1;">
-            <div class="info-field-label">🎓 คณะ / สาขา</div>
-            <div class="info-field-value">${escapeHtml(user.major || 'ไม่ระบุ')}</div>
+          <div class="info-field-card">
+            <div class="info-field-label">🏫 มหาวิทยาลัย (University)</div>
+            <div class="info-field-value" style="color:var(--purple); font-weight:600;">${escapeHtml(user.university || 'มหาวิทยาลัยขอนแก่น')}</div>
+          </div>
+          <div class="info-field-card">
+            <div class="info-field-label">🎓 คณะ / สาขา (Faculty / Major)</div>
+            <div class="info-field-value" style="font-weight:600;">${escapeHtml(user.major || 'ไม่ระบุ')}</div>
           </div>
           <div class="info-field-card" style="grid-column: 1 / -1;">
             <div class="info-field-label">💡 ความสนใจ (Interests)</div>
@@ -1386,7 +1448,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     function renderProfile(user) {
       if (!user) return;
       const nameEl = document.getElementById('profileName');
-      const majorEl = document.getElementById('profileMajor');
       const yearEl = document.getElementById('profileYear');
       const bioEl = document.getElementById('profileBio');
       const emailEl = document.getElementById('profileEmail');
@@ -1395,14 +1456,60 @@ document.addEventListener('DOMContentLoaded', async () => {
       const preview = document.getElementById('profileImagePreview');
 
       if (nameEl) nameEl.value = user.name || '';
-      if (majorEl) majorEl.value = user.major || '';
       if (yearEl) yearEl.value = user.year || '';
       const genderEl = document.getElementById('profileGender');
       if (genderEl) genderEl.value = user.gender || 'ชาย';
       const interestedGenderEl = document.getElementById('profileInterestedGender');
       if (interestedGenderEl) interestedGenderEl.value = user.interested_gender || 'ทุกเพศ';
       const universityEl = document.getElementById('profileUniversity');
-      if (universityEl) universityEl.value = user.university || 'มหาวิทยาลัยขอนแก่น';
+      const customUniversityEl = document.getElementById('profileCustomUniversity');
+      const majorEl = document.getElementById('profileMajor');
+      const customMajorEl = document.getElementById('profileCustomMajor');
+      const majorLabelEl = document.getElementById('profileMajorLabel');
+
+      if (user.university && user.university !== 'มหาวิทยาลัยขอนแก่น') {
+        if (universityEl) universityEl.value = 'other';
+        if (customUniversityEl) {
+          customUniversityEl.value = user.university;
+          customUniversityEl.classList.remove('hidden');
+        }
+        if (majorEl) majorEl.classList.add('hidden');
+        if (customMajorEl) {
+          customMajorEl.value = user.major || '';
+          customMajorEl.classList.remove('hidden');
+        }
+        if (majorLabelEl) majorLabelEl.textContent = 'คณะ / สาขาวิชา (ระบุเอง)';
+      } else {
+        if (universityEl) universityEl.value = 'มหาวิทยาลัยขอนแก่น';
+        if (customUniversityEl) {
+          customUniversityEl.value = '';
+          customUniversityEl.classList.add('hidden');
+        }
+        if (majorEl) {
+          majorEl.classList.remove('hidden');
+          const options = Array.from(majorEl.options).map(o => o.value);
+          if (options.includes(user.major) && user.major !== 'other' && user.major !== '') {
+            majorEl.value = user.major;
+            if (customMajorEl) {
+              customMajorEl.value = '';
+              customMajorEl.classList.add('hidden');
+            }
+          } else if (user.major) {
+            majorEl.value = 'other';
+            if (customMajorEl) {
+              customMajorEl.value = user.major;
+              customMajorEl.classList.remove('hidden');
+            }
+          } else {
+            majorEl.value = '';
+            if (customMajorEl) {
+              customMajorEl.value = '';
+              customMajorEl.classList.add('hidden');
+            }
+          }
+        }
+        if (majorLabelEl) majorLabelEl.textContent = 'คณะ / วิทยาลัย (ม.ขอนแก่น)';
+      }
       const phoneEl = document.getElementById('profilePhone');
       if (phoneEl) phoneEl.value = user.phone || '';
       if (bioEl) bioEl.value = user.bio || '';
@@ -2473,15 +2580,73 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     if (profileForm) {
+      const profileUniEl = document.getElementById('profileUniversity');
+      const profileCustomUniEl = document.getElementById('profileCustomUniversity');
+      const profileMajorEl = document.getElementById('profileMajor');
+      const profileCustomMajorEl = document.getElementById('profileCustomMajor');
+      const profileMajorLabelEl = document.getElementById('profileMajorLabel');
+
+      if (profileUniEl) {
+        profileUniEl.addEventListener('change', () => {
+          if (profileUniEl.value === 'other') {
+            if (profileCustomUniEl) {
+              profileCustomUniEl.classList.remove('hidden');
+              profileCustomUniEl.focus();
+            }
+            if (profileMajorEl) profileMajorEl.classList.add('hidden');
+            if (profileCustomMajorEl) profileCustomMajorEl.classList.remove('hidden');
+            if (profileMajorLabelEl) profileMajorLabelEl.textContent = 'คณะ / สาขาวิชา (ระบุเอง)';
+          } else {
+            if (profileCustomUniEl) profileCustomUniEl.classList.add('hidden');
+            if (profileMajorEl) profileMajorEl.classList.remove('hidden');
+            if (profileMajorLabelEl) profileMajorLabelEl.textContent = 'คณะ / วิทยาลัย (ม.ขอนแก่น)';
+            if (profileMajorEl && profileMajorEl.value === 'other') {
+              if (profileCustomMajorEl) profileCustomMajorEl.classList.remove('hidden');
+            } else {
+              if (profileCustomMajorEl) profileCustomMajorEl.classList.add('hidden');
+            }
+          }
+        });
+      }
+
+      if (profileMajorEl) {
+        profileMajorEl.addEventListener('change', () => {
+          if (profileMajorEl.value === 'other') {
+            if (profileCustomMajorEl) {
+              profileCustomMajorEl.classList.remove('hidden');
+              profileCustomMajorEl.focus();
+            }
+          } else {
+            if (profileUniEl && profileUniEl.value !== 'other') {
+              if (profileCustomMajorEl) profileCustomMajorEl.classList.add('hidden');
+            }
+          }
+        });
+      }
+
       profileForm.addEventListener('submit', async (event) => {
         event.preventDefault();
+
+        const uniValue = (profileUniEl?.value === 'other')
+          ? (profileCustomUniEl?.value.trim() || 'อื่นๆ')
+          : (profileUniEl?.value || 'มหาวิทยาลัยขอนแก่น');
+
+        let majorValue = '';
+        if (profileUniEl?.value === 'other') {
+          majorValue = profileCustomMajorEl?.value.trim() || 'ไม่ระบุ';
+        } else if (profileMajorEl?.value === 'other') {
+          majorValue = profileCustomMajorEl?.value.trim() || 'อื่นๆ';
+        } else {
+          majorValue = profileMajorEl?.value || '';
+        }
+
         const formData = new FormData();
         formData.append('name', document.getElementById('profileName').value);
         formData.append('nickname', document.getElementById('profileNickname').value);
         formData.append('gender', document.getElementById('profileGender')?.value || 'ชาย');
         formData.append('interested_gender', document.getElementById('profileInterestedGender')?.value || 'ทุกเพศ');
-        formData.append('university', document.getElementById('profileUniversity')?.value || 'มหาวิทยาลัยขอนแก่น');
-        formData.append('major', document.getElementById('profileMajor').value);
+        formData.append('university', uniValue);
+        formData.append('major', majorValue);
         formData.append('year', document.getElementById('profileYear').value);
         formData.append('age', document.getElementById('profileAge').value);
         formData.append('phone', document.getElementById('profilePhone')?.value || '');

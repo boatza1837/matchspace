@@ -781,7 +781,7 @@ app.put('/api/me', requireAuth, multiUpload, async (req, res) => {
 app.get('/api/users/:id/profile', requireAuth, async (req, res) => {
   const targetId = Number(req.params.id);
   const user = await db.get(`
-    SELECT id, name, nickname, gender, age, major, year, interests, bio, profile_image, created_at
+    SELECT id, name, nickname, gender, interested_gender, university, age, major, year, interests, bio, profile_image, created_at
     FROM users WHERE id = ? AND is_active != 0
   `, [targetId]);
 
@@ -1262,7 +1262,7 @@ app.delete('/api/chats/:chatId/messages/:messageId', requireAuth, async (req, re
 app.get('/api/users', requireAdmin, async (req, res) => {
   try {
     const rows = await db.all(`
-      SELECT id, name, email, phone, nickname, gender, age, major, year, interests, bio, profile_image, is_admin, role, is_active, plain_password, created_at
+      SELECT id, name, email, phone, nickname, gender, interested_gender, university, age, major, year, interests, bio, profile_image, is_admin, role, is_active, plain_password, created_at
       FROM users
       ORDER BY id DESC
     `);
