@@ -395,6 +395,45 @@ window.matchSpaceApp = (function () {
       }
     }
 
+    // Update Student Verification Banner in Home Tab
+    const homeBanner = document.getElementById('studentVerificationHomeBanner');
+    const homeTitle = document.getElementById('studentVerifyHomeTitle');
+    const homeDesc = document.getElementById('studentVerifyHomeDesc');
+    const homeBtn = document.getElementById('btnOpenStudentVerifyHome');
+    const homePill = document.getElementById('studentVerifyHomePill');
+
+    if (homeBanner) {
+      if (Number(user.is_student_verified) === 1) {
+        homeBanner.classList.add('verified');
+        if (homeTitle) homeTitle.innerHTML = '🎓 ยืนยันตัวตนแล้ว (Verified Student)';
+        if (homeDesc) homeDesc.textContent = `ยืนยันสถานะนักศึกษาผ่าน ${user.student_email || user.email} เรียบร้อยแล้ว (มีติ๊กถูกสีฟ้า ✔️)`;
+        if (homePill) {
+          homePill.className = 'badge-verified-preview verified';
+          homePill.innerHTML = '✓ รับรองแล้ว';
+        }
+        if (homeBtn) {
+          homeBtn.textContent = '✓ ยืนยันแล้ว';
+          homeBtn.disabled = true;
+          homeBtn.style.opacity = '0.7';
+          homeBtn.style.cursor = 'default';
+        }
+      } else {
+        homeBanner.classList.remove('verified');
+        if (homeTitle) homeTitle.innerHTML = '🎓 ยืนยันตัวตนนักศึกษา (Verified Student)';
+        if (homeDesc) homeDesc.textContent = 'รับเครื่องหมายติ๊กถูกสีฟ้า ยืนยันผ่านอีเมลมหาวิทยาลัย (@kkumail.com หรือสถาบัน) เพื่อเพิ่มความน่าเชื่อถือ';
+        if (homePill) {
+          homePill.className = 'badge-verified-preview';
+          homePill.innerHTML = '✔️ มีติ๊กถูกสีฟ้า';
+        }
+        if (homeBtn) {
+          homeBtn.textContent = 'ยืนยันทันที';
+          homeBtn.disabled = false;
+          homeBtn.style.opacity = '1';
+          homeBtn.style.cursor = 'pointer';
+        }
+      }
+    }
+
     const nameEl = document.getElementById('profileName');
     const yearEl = document.getElementById('profileYear');
     const bioEl = document.getElementById('profileBio');
@@ -1379,6 +1418,7 @@ window.matchSpaceApp = (function () {
   function setupStudentVerification() {
     const btnOpen = document.getElementById('btnOpenStudentVerify');
     const btnOpenDiscover = document.getElementById('btnOpenStudentVerifyDiscover');
+    const btnOpenHome = document.getElementById('btnOpenStudentVerifyHome');
     const modal = document.getElementById('studentVerificationModal');
     const btnClose = document.getElementById('closeStudentVerifyModal');
     const btnSend = document.getElementById('btnSendStudentOtp');
@@ -1411,6 +1451,7 @@ window.matchSpaceApp = (function () {
 
     btnOpen?.addEventListener('click', openVerifyModal);
     btnOpenDiscover?.addEventListener('click', openVerifyModal);
+    btnOpenHome?.addEventListener('click', openVerifyModal);
 
     btnClose?.addEventListener('click', () => modal?.classList.add('hidden'));
     modal?.addEventListener('click', (e) => {

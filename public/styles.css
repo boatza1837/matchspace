@@ -4164,22 +4164,83 @@ body {
   box-shadow: 0 6px 16px rgba(37, 99, 235, 0.35);
 }
 
-/* Discover Tab Student Verification Banner */
-.student-verification-card.discover-variant {
+/* Discover & Home Tab Student Verification Banner */
+.student-verification-card.discover-variant,
+.student-verification-card.home-variant {
   background: linear-gradient(135deg, rgba(238, 242, 255, 0.95) 0%, rgba(224, 231, 255, 0.85) 100%);
   border: 1.5px solid #c7d2fe;
   border-radius: 20px;
   padding: 16px 22px;
-  margin: 12px 0 16px 0;
+  margin: 14px 0 16px 0;
   box-shadow: 0 4px 18px rgba(99, 102, 241, 0.08);
   backdrop-filter: blur(10px);
 }
 
-.student-verification-card.discover-variant.verified {
+.student-verification-card.discover-variant.verified,
+.student-verification-card.home-variant.verified {
   background: linear-gradient(135deg, rgba(236, 253, 245, 0.95) 0%, rgba(209, 250, 229, 0.85) 100%);
   border-color: #a7f3d0;
   box-shadow: 0 4px 18px rgba(16, 185, 129, 0.08);
 }
+
+/* Benefits Grid in Login Page (ข้อดีของ MatchSpace) */
+.auth-benefits-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 18px 0;
+}
+
+.auth-benefit-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba(226, 232, 240, 0.95);
+  border-radius: 18px;
+  padding: 13px 18px;
+  box-shadow: 0 4px 14px rgba(30, 27, 75, 0.03);
+  transition: all 0.22s ease;
+}
+
+.auth-benefit-item:hover {
+  transform: translateX(4px);
+  border-color: #c7d2fe;
+  box-shadow: 0 8px 22px rgba(99, 102, 241, 0.09);
+  background: #ffffff;
+}
+
+.benefit-icon-bubble {
+  width: 40px;
+  height: 40px;
+  min-width: 40px;
+  border-radius: 12px;
+  background: #f5f3ff;
+  border: 1px solid #ede9fe;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.3rem;
+}
+
+.benefit-text {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.benefit-text strong {
+  font-size: 0.94rem;
+  color: #1e1b4b;
+  font-weight: 800;
+}
+
+.benefit-text span {
+  font-size: 0.82rem;
+  color: #64748b;
+  line-height: 1.45;
+}
+
 
 .student-verify-badge-row {
   display: flex;
