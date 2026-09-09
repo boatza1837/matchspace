@@ -128,6 +128,25 @@ function handleWsMessage(ws, msg) {
       break;
     }
 
+    case 'mark_read': {
+      const chatId = Number(msg.chatId);
+      if (chatId && ws.userId) {
+        const { db } = require('../config/db');
+        const now = new Date().toISOString();
+        db.run('UPDATE chat_messages SET is_read = 1, read_at = ? WHERE chat_id = ? AND sender_id != ? AND (is_read = 0 OR is_read IS NULL)', [now, chatId, ws.userId])
+          .then(() => {
+            broadcastToChat(chatId, {
+              type: 'messages_read',
+              chatId,
+              readerId: ws.userId,
+              readAt: now
+            });
+          })
+          .catch(err => console.error('[Mark Read WS Error]', err.message));
+      }
+      break;
+    }
+
     default:
       break;
   }

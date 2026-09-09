@@ -400,6 +400,28 @@
               <div id="profileStatus" class="message success" style="display:block; background:rgba(27,157,105,0.08); color:var(--success);"></div>
             </form>
 
+            <!-- Student Verification Badge Card -->
+            <div id="studentVerificationCard" class="student-verification-card">
+              <div class="student-verify-info">
+                <h4 id="studentVerifyTitle">🎓 ยืนยันตัวตนนักศึกษา (Verified Student)</h4>
+                <p id="studentVerifyDesc">รับเครื่องหมายติ๊กถูกสีฟ้า ยืนยันผ่านอีเมลมหาวิทยาลัย (@kkumail.com หรือสถาบัน)</p>
+              </div>
+              <button id="btnOpenStudentVerify" type="button" class="btn-verify-student-cta">ยืนยันอีเมล</button>
+            </div>
+
+            <!-- Account Privacy & Notifications Card -->
+            <div style="margin-top:14px; background:#ffffff; border:1.5px solid var(--line); border-radius:18px; padding:18px; display:flex; flex-direction:column; gap:12px;">
+              <h4 style="margin:0; font-size:0.95rem; color:var(--text); font-weight:700;">🔒 ความเป็นส่วนตัว & การแจ้งเตือน</h4>
+              <div style="display:flex; gap:10px; flex-wrap:wrap;">
+                <button id="btnOpenBlockedUsers" type="button" class="button secondary-action" style="flex:1; min-width:160px; font-size:0.85rem; padding:10px 14px; border-radius:12px; display:inline-flex; align-items:center; justify-content:center; gap:6px;">
+                  🚫 รายชื่อที่บล็อก
+                </button>
+                <button id="btnSubscribePush" type="button" class="button secondary-action" style="flex:1; min-width:160px; font-size:0.85rem; padding:10px 14px; border-radius:12px; display:inline-flex; align-items:center; justify-content:center; gap:6px;">
+                  🔔 เปิด Web Push Notification
+                </button>
+              </div>
+            </div>
+
             <div class="survey-banner-card" style="margin-top:20px; background:linear-gradient(135deg, #fff5f2, #fdf2f8); border:1.5px solid #fecdd3; border-radius:18px; padding:20px; text-align:center;">
               <div style="font-size:1.8rem; margin-bottom:8px;">📋</div>
               <h3 style="margin:0 0 6px 0; color:#e11d48; font-size:1.05rem;">แบบประเมินความพึงพอใจการใช้งาน MatchSpace</h3>
@@ -658,8 +680,11 @@
             <div id="modalProfileInterests" class="modal-chips-container"></div>
           </div>
 
-          <div class="profile-modal-actions">
-            <button id="modalActionBtn" class="modal-action-submit" type="button">💕 ส่งความสนใจ</button>
+          <div class="profile-modal-actions" style="display:flex; gap:10px;">
+            <button id="modalActionBtn" class="modal-action-submit" type="button" style="flex:1;">💕 ส่งความสนใจ</button>
+            <button id="modalBlockBtn" type="button" class="button" style="background:#fff1f2; color:#e11d48; border:1.5px solid #fecdd3; border-radius:14px; font-weight:700; padding:12px 18px; display:inline-flex; align-items:center; gap:6px;">
+              🚫 บล็อก
+            </button>
           </div>
         </div>
       </div>
@@ -674,6 +699,63 @@
         </div>
         <div id="skippedList" style="flex:1; overflow-y:auto; display:flex; flex-direction:column; gap:10px; padding-right:4px;">
           <!-- Dynamically populated skipped candidates -->
+        </div>
+      </div>
+    </div>
+
+    <!-- Student Verification Modal (OTP via Email) -->
+    <div id="studentVerificationModal" class="modal hidden">
+      <div class="verify-modal-box">
+        <button id="closeStudentVerifyModal" class="modal-close-btn" type="button" style="position:absolute; top:16px; right:16px;">✕</button>
+        <div class="verify-modal-icon">🎓</div>
+        <h3 class="verify-modal-title">ยืนยันตัวตนนักศึกษา</h3>
+        <p class="verify-modal-desc" id="studentVerifyStepDesc">
+          กรอกอีเมลมหาวิทยาลัยของคุณ (เช่น @kkumail.com หรือโดเมน .ac.th) เพื่อรับรหัส OTP 6 หลัก
+        </p>
+
+        <!-- Step 1: Input Email -->
+        <div id="verifyStep1">
+          <div class="form-group" style="text-align:left; margin-bottom:16px;">
+            <label for="studentEmailInput">อีเมลสถาบัน / มหาวิทยาลัย</label>
+            <input type="email" id="studentEmailInput" placeholder="yourname@kkumail.com" style="width:100%; box-sizing:border-box; padding:12px 16px; border-radius:12px; border:1.5px solid var(--line); font-size:0.95rem;" />
+          </div>
+          <button id="btnSendStudentOtp" type="button" class="button primary" style="width:100%; border-radius:999px; padding:12px; font-weight:700; font-size:0.95rem;">
+            ขอรับรหัส OTP ✉️
+          </button>
+          <div id="studentOtpNotice" style="margin-top:10px; font-size:0.8rem; color:var(--muted);"></div>
+        </div>
+
+        <!-- Step 2: Confirm OTP -->
+        <div id="verifyStep2" class="hidden">
+          <div style="font-size:0.88rem; color:#475569; margin-bottom:12px;">
+            รหัส OTP ถูกส่งไปยัง: <strong id="displayTargetEmail" style="color:#2563eb;"></strong>
+          </div>
+          <div class="form-group" style="margin-bottom:16px;">
+            <input type="text" id="studentOtpInput" maxlength="6" placeholder="123456" style="width:200px; letter-spacing:6px; font-size:1.6rem; font-weight:800; text-align:center; padding:10px; border-radius:14px; border:2px solid #2563eb; outline:none;" />
+          </div>
+          <div style="display:flex; gap:10px;">
+            <button id="btnBackToStep1" type="button" class="button secondary-action" style="flex:1; border-radius:999px; padding:10px;">
+              เปลี่ยนอีเมล
+            </button>
+            <button id="btnConfirmStudentOtp" type="button" class="button primary" style="flex:1.5; border-radius:999px; padding:10px; font-weight:700;">
+              ยืนยันรหัส ✓
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Blocked Users List Modal -->
+    <div id="blockedUsersModal" class="modal hidden">
+      <div class="modal-content" style="max-width:440px; border-radius:24px; padding:24px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--line); padding-bottom:12px; margin-bottom:14px;">
+          <h3 style="margin:0; font-size:1.15rem; color:var(--purple); display:flex; align-items:center; gap:8px;">
+            🚫 รายชื่อที่บล็อก
+          </h3>
+          <button id="closeBlockedUsersModal" class="modal-close-btn" type="button" style="position:static;">✕</button>
+        </div>
+        <div id="blockedUsersList" class="blocked-users-list">
+          <div style="text-align:center; padding:20px; color:var(--muted);">กำลังโหลดรายชื่อ...</div>
         </div>
       </div>
     </div>

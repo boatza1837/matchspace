@@ -3773,5 +3773,299 @@ body {
   border: 1px solid #f5d0fe;
 }
 
+/* ===================================================
+   Real-Time Chat: Typing Indicator & Read Receipts
+   =================================================== */
 
+.header-status-typing {
+  color: #8b5cf6;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+  animation: pulse-soft 1.5s infinite;
+}
 
+@keyframes pulse-soft {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.55; }
+}
+
+.status-pulse-dot {
+  width: 7px;
+  height: 7px;
+  background: #10b981;
+  border-radius: 50%;
+  display: inline-block;
+  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.2);
+}
+
+.header-status-typing .status-pulse-dot {
+  background: #8b5cf6;
+  box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.3);
+}
+
+.msg-read-status {
+  margin-left: 5px;
+  font-size: 0.72rem;
+  display: inline-flex;
+  align-items: center;
+}
+
+.read-check {
+  color: rgba(255, 255, 255, 0.75);
+  font-size: 0.7rem;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.read-check.is-read {
+  color: #6ee7b7;
+  font-weight: 700;
+}
+
+/* Chat Blocked Banner & Controls */
+.chat-blocked-banner {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 14px;
+  padding: 12px 16px;
+  margin: 12px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: #991b1b;
+  font-size: 0.88rem;
+  font-weight: 600;
+  animation: fadeIn 0.3s ease;
+}
+
+.btn-unblock-inline {
+  background: #dc2626;
+  color: #ffffff;
+  border: none;
+  border-radius: 999px;
+  padding: 5px 14px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s ease;
+}
+
+.btn-unblock-inline:hover {
+  background: #b91c1c;
+  transform: scale(1.03);
+}
+
+.btn-chat-block {
+  background: #fff1f2;
+  color: #e11d48;
+  border: 1px solid #fecdd3;
+  border-radius: 999px;
+  padding: 6px 14px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.2s ease;
+}
+
+.btn-chat-block:hover {
+  background: #ffe4e6;
+  transform: translateY(-1px);
+}
+
+/* ===================================================
+   Student Verified Badge 🎓
+   =================================================== */
+
+.student-verified-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  background: linear-gradient(135deg, #0284c7, #2563eb);
+  color: #ffffff;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 999px;
+  vertical-align: middle;
+  box-shadow: 0 2px 6px rgba(37, 99, 235, 0.25);
+  margin-left: 4px;
+}
+
+.student-verified-badge svg {
+  width: 12px;
+  height: 12px;
+}
+
+.verified-icon-inline {
+  display: inline-flex;
+  color: #0284c7;
+  vertical-align: middle;
+  margin-left: 3px;
+}
+
+/* Verification Banner in Profile Tab */
+.student-verification-card {
+  background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+  border: 1.5px solid #bae6fd;
+  border-radius: 18px;
+  padding: 16px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 14px;
+}
+
+.student-verification-card.verified {
+  background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
+  border-color: #a7f3d0;
+}
+
+.student-verify-info h4 {
+  margin: 0 0 4px 0;
+  font-size: 0.98rem;
+  font-weight: 800;
+  color: #0369a1;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.student-verification-card.verified .student-verify-info h4 {
+  color: #047857;
+}
+
+.student-verify-info p {
+  margin: 0;
+  font-size: 0.82rem;
+  color: #475569;
+}
+
+.btn-verify-student-cta {
+  background: linear-gradient(135deg, #0284c7, #2563eb);
+  color: #ffffff;
+  border: none;
+  border-radius: 999px;
+  padding: 8px 18px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);
+  transition: all 0.2s ease;
+}
+
+.btn-verify-student-cta:hover {
+  transform: translateY(-1px) scale(1.02);
+  box-shadow: 0 6px 16px rgba(37, 99, 235, 0.35);
+}
+
+/* Modal for Student Verification & Blocked Users */
+.verify-modal-box {
+  background: #ffffff;
+  border-radius: 24px;
+  padding: 28px;
+  max-width: 440px;
+  width: 90%;
+  box-shadow: 0 20px 45px rgba(0, 0, 0, 0.16);
+  position: relative;
+  text-align: center;
+}
+
+.verify-modal-icon {
+  font-size: 2.5rem;
+  margin-bottom: 12px;
+}
+
+.verify-modal-title {
+  font-size: 1.3rem;
+  font-weight: 800;
+  color: #1e1b4b;
+  margin: 0 0 8px 0;
+}
+
+.verify-modal-desc {
+  font-size: 0.88rem;
+  color: #64748b;
+  margin: 0 0 20px 0;
+  line-height: 1.5;
+}
+
+.otp-digit-inputs {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  margin: 18px 0;
+}
+
+.otp-digit-input {
+  width: 46px;
+  height: 54px;
+  border-radius: 12px;
+  border: 2px solid #e2e8f0;
+  font-size: 1.5rem;
+  font-weight: 800;
+  text-align: center;
+  color: #1e1b4b;
+  transition: all 0.2s ease;
+}
+
+.otp-digit-input:focus {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.18);
+  outline: none;
+}
+
+/* Blocked Users List Modal */
+.blocked-users-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 320px;
+  overflow-y: auto;
+  margin: 16px 0;
+}
+
+.blocked-user-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  background: #f8fafc;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+}
+
+.blocked-user-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-align: left;
+}
+
+.blocked-user-avatar {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.blocked-user-name {
+  font-weight: 700;
+  font-size: 0.92rem;
+  color: #1e293b;
+}
+
+.blocked-user-time {
+  font-size: 0.74rem;
+  color: #94a3b8;
+}

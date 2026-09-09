@@ -318,10 +318,44 @@ window.matchSpaceApp = (function () {
         document.getElementById('profileModal')?.classList.add('hidden');
       }
     });
+
+    setupStudentVerification();
+    setupBlockedUsersModal();
+    setupWebPushNotifications();
   }
 
   function renderProfile(user) {
     if (!user) return;
+
+    // Update Student Verification UI Card
+    const verifyCard = document.getElementById('studentVerificationCard');
+    const verifyTitle = document.getElementById('studentVerifyTitle');
+    const verifyDesc = document.getElementById('studentVerifyDesc');
+    const verifyBtn = document.getElementById('btnOpenStudentVerify');
+    if (verifyCard) {
+      if (Number(user.is_student_verified) === 1) {
+        verifyCard.classList.add('verified');
+        if (verifyTitle) verifyTitle.innerHTML = '🎓 ยืนยันตัวตนแล้ว (Verified Student)';
+        if (verifyDesc) verifyDesc.textContent = `ยืนยันสถานะนักศึกษาผ่าน ${user.student_email || user.email}`;
+        if (verifyBtn) {
+          verifyBtn.textContent = '✓ ยืนยันแล้ว';
+          verifyBtn.disabled = true;
+          verifyBtn.style.opacity = '0.7';
+          verifyBtn.style.cursor = 'default';
+        }
+      } else {
+        verifyCard.classList.remove('verified');
+        if (verifyTitle) verifyTitle.innerHTML = '🎓 ยืนยันตัวตนนักศึกษา (Verified Student)';
+        if (verifyDesc) verifyDesc.textContent = 'รับเครื่องหมายติ๊กถูกสีฟ้า ยืนยันผ่านอีเมลมหาวิทยาลัย (@kkumail.com หรือสถาบัน)';
+        if (verifyBtn) {
+          verifyBtn.textContent = 'ยืนยันอีเมล';
+          verifyBtn.disabled = false;
+          verifyBtn.style.opacity = '1';
+          verifyBtn.style.cursor = 'pointer';
+        }
+      }
+    }
+
     const nameEl = document.getElementById('profileName');
     const yearEl = document.getElementById('profileYear');
     const bioEl = document.getElementById('profileBio');
@@ -451,9 +485,13 @@ window.matchSpaceApp = (function () {
       const indicators = document.getElementById('galleryIndicators');
       const photoCounter = document.getElementById('modalPhotoCounter');
 
+      const isVerified = Number(user.is_student_verified) === 1;
+      const verifiedBadgeHtml = isVerified ? `<span class="student-verified-badge" title="นักศึกษาที่ผ่านการยืนยันตัวตน (Verified Student)"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg> นักศึกษา มข.</span>` : '';
+
       modalName.innerHTML = `
         <span class="modal-nickname">${escapeHtml(user.name)}</span>
         ${user.nickname && user.nickname !== user.name ? `<span class="modal-fullname">(${escapeHtml(user.nickname)})</span>` : ''}
+        ${verifiedBadgeHtml}
       `;
 
       const genderIcon = user.gender === 'ชาย' ? '👨 ชาย' : (user.gender === 'หญิง' ? '👩 หญิง' : (user.gender ? '🌈 ' + user.gender : '👤 ไม่ระบุเพศ'));
@@ -529,6 +567,25 @@ window.matchSpaceApp = (function () {
             await loadLikedUsers();
             await loadSkippedUsers();
           } catch(e) { alert(e.message); }
+        };
+      }
+
+      const blockBtn = document.getElementById('modalBlockBtn');
+      if (blockBtn) {
+        blockBtn.onclick = async () => {
+          if (confirm(`คุณต้องการบล็อก ${user.name} ใช่หรือไม่?\nหลังจากบล็อกแล้วจะไม่สามารถมองเห็นโปรไฟล์และส่งข้อความหากันได้`)) {
+            try {
+              await apiRequest(`/api/users/${user.id}/block`, { method: 'POST' });
+              alert('บล็อกผู้ใช้เรียบร้อยแล้ว');
+              modal.classList.add('hidden');
+              await loadDiscoverUsers();
+              await loadLikedUsers();
+              await loadSkippedUsers();
+              if (window.matchSpaceChat) await window.matchSpaceChat.loadChats();
+            } catch(err) {
+              alert(err.message || 'เกิดข้อผิดพลาดในการบล็อก');
+            }
+          }
         };
       }
 
@@ -654,9 +711,7 @@ window.matchSpaceApp = (function () {
             <h3 class="discover-match-name">
               ${escapeHtml(user.name)}
               ${user.nickname && user.nickname !== user.name ? `<span class="skipped-card-nickname" style="font-size:0.75rem; vertical-align:middle; margin-left:4px;">${escapeHtml(user.nickname)}</span>` : ''}
-              <svg class="discover-verified-badge" width="19" height="19" viewBox="0 0 24 24" fill="#7c3aed" title="ยืนยันตัวตนแล้ว">
-                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
-              </svg>
+              ${Number(user.is_student_verified) === 1 ? `<span class="student-verified-badge" title="นักศึกษาที่ผ่านการยืนยันตัวตน (Verified Student)"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg> นักศึกษา มข.</span>` : ''}
             </h3>
             <div class="discover-match-sub">
               ${user.year ? escapeHtml(user.year) + ' · ' : ''}${escapeHtml(user.major || 'มหาวิทยาลัยขอนแก่น')}
@@ -851,6 +906,7 @@ window.matchSpaceApp = (function () {
               <div class="liked-card-name" data-open-profile-id="${u.id}">
                 <span>${escapeHtml(u.name)}</span>
                 ${u.nickname && u.nickname !== u.name ? `<span class="skipped-card-nickname">${escapeHtml(u.nickname)}</span>` : ''}
+                ${Number(u.is_student_verified) === 1 ? `<span class="student-verified-badge" title="นักศึกษาที่ผ่านการยืนยันตัวตน"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg> นศ. มข.</span>` : ''}
               </div>
               <div class="skipped-card-sub">
                 <span>${u.gender ? (u.gender === 'ชาย' ? '👨 ชาย' : (u.gender === 'หญิง' ? '👩 หญิง' : '🌈 LGBTQ+')) : 'ไม่ระบุเพศ'}</span>
@@ -1010,6 +1066,7 @@ window.matchSpaceApp = (function () {
               <div class="skipped-card-name" data-open-profile-id="${u.id}">
                 <span>${escapeHtml(u.name)}</span>
                 ${u.nickname && u.nickname !== u.name ? `<span class="skipped-card-nickname">${escapeHtml(u.nickname)}</span>` : ''}
+                ${Number(u.is_student_verified) === 1 ? `<span class="student-verified-badge" title="นักศึกษาที่ผ่านการยืนยันตัวตน"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg> นศ. มข.</span>` : ''}
               </div>
               <div class="skipped-card-sub">
                 <span>${u.gender ? (u.gender === 'ชาย' ? '👨 ชาย' : (u.gender === 'หญิง' ? '👩 หญิง' : '🌈 LGBTQ+')) : 'ไม่ระบุเพศ'}</span>
@@ -1275,6 +1332,254 @@ window.matchSpaceApp = (function () {
           submitBtn.disabled = false;
           submitBtn.textContent = 'สร้างกิจกรรม';
         }
+      }
+    });
+  }
+
+  // ===================== STUDENT VERIFICATION =====================
+  function setupStudentVerification() {
+    const btnOpen = document.getElementById('btnOpenStudentVerify');
+    const modal = document.getElementById('studentVerificationModal');
+    const btnClose = document.getElementById('closeStudentVerifyModal');
+    const btnSend = document.getElementById('btnSendStudentOtp');
+    const btnConfirm = document.getElementById('btnConfirmStudentOtp');
+    const btnBack = document.getElementById('btnBackToStep1');
+    const emailInput = document.getElementById('studentEmailInput');
+    const otpInput = document.getElementById('studentOtpInput');
+    const step1 = document.getElementById('verifyStep1');
+    const step2 = document.getElementById('verifyStep2');
+    const notice = document.getElementById('studentOtpNotice');
+    const targetDisplay = document.getElementById('displayTargetEmail');
+
+    let pendingEmail = '';
+
+    btnOpen?.addEventListener('click', () => {
+      if (sessionUser && Number(sessionUser.is_student_verified) === 1) {
+        alert('บัญชีนี้ได้รับการยืนยันตัวตนนักศึกษาเรียบร้อยแล้ว');
+        return;
+      }
+      if (emailInput && !emailInput.value && sessionUser?.email) {
+        if (sessionUser.email.includes('@')) {
+          emailInput.value = sessionUser.email;
+        }
+      }
+      step1?.classList.remove('hidden');
+      step2?.classList.add('hidden');
+      if (notice) notice.textContent = '';
+      modal?.classList.remove('hidden');
+    });
+
+    btnClose?.addEventListener('click', () => modal?.classList.add('hidden'));
+    modal?.addEventListener('click', (e) => {
+      if (e.target.id === 'studentVerificationModal') modal?.classList.add('hidden');
+    });
+
+    btnBack?.addEventListener('click', () => {
+      step2?.classList.add('hidden');
+      step1?.classList.remove('hidden');
+    });
+
+    btnSend?.addEventListener('click', async () => {
+      const email = emailInput?.value.trim();
+      if (!email) {
+        alert('กรุณากรอกอีเมลมหาวิทยาลัยของคุณ');
+        return;
+      }
+
+      try {
+        btnSend.disabled = true;
+        btnSend.textContent = '⏳ กำลังส่งรหัส OTP...';
+        const res = await apiRequest('/api/verify/student/send-otp', {
+          method: 'POST',
+          body: JSON.stringify({ email })
+        });
+
+        pendingEmail = email;
+        if (targetDisplay) targetDisplay.textContent = email;
+
+        step1?.classList.add('hidden');
+        step2?.classList.remove('hidden');
+        if (otpInput) {
+          otpInput.value = '';
+          otpInput.focus();
+        }
+
+        if (res.dev_otp) {
+          alert(`[ระบบทดสอบ] รหัส OTP ของคุณคือ: ${res.dev_otp}`);
+        } else {
+          alert(res.message || 'ส่งรหัส OTP ไปยังอีเมลเรียบร้อยแล้ว');
+        }
+      } catch (err) {
+        alert(err.message || 'เกิดข้อผิดพลาดในการส่ง OTP');
+      } finally {
+        btnSend.disabled = false;
+        btnSend.textContent = 'ขอรับรหัส OTP ✉️';
+      }
+    });
+
+    btnConfirm?.addEventListener('click', async () => {
+      const otp = otpInput?.value.trim();
+      if (!otp || otp.length < 6) {
+        alert('กรุณากรอกรหัส OTP 6 หลัก');
+        return;
+      }
+
+      try {
+        btnConfirm.disabled = true;
+        btnConfirm.textContent = '⏳ กำลังตรวจสอบ...';
+        const res = await apiRequest('/api/verify/student/confirm-otp', {
+          method: 'POST',
+          body: JSON.stringify({ email: pendingEmail, otp })
+        });
+
+        alert(res.message || '🎉 ยืนยันตัวตนนักศึกษาสำเร็จ! คุณได้รับตรา Verified Student เรียบร้อยแล้ว');
+        modal?.classList.add('hidden');
+        await loadProfile();
+        await loadDiscoverUsers();
+      } catch (err) {
+        alert(err.message || 'รหัส OTP ไม่ถูกต้องหรือหมดอายุ');
+      } finally {
+        btnConfirm.disabled = false;
+        btnConfirm.textContent = 'ยืนยันรหัส ✓';
+      }
+    });
+  }
+
+  // ===================== BLOCKED USERS MANAGEMENT =====================
+  function setupBlockedUsersModal() {
+    const btnOpen = document.getElementById('btnOpenBlockedUsers');
+    const modal = document.getElementById('blockedUsersModal');
+    const btnClose = document.getElementById('closeBlockedUsersModal');
+    const listEl = document.getElementById('blockedUsersList');
+
+    btnOpen?.addEventListener('click', async () => {
+      modal?.classList.remove('hidden');
+      await loadBlockedList();
+    });
+
+    btnClose?.addEventListener('click', () => modal?.classList.add('hidden'));
+    modal?.addEventListener('click', (e) => {
+      if (e.target.id === 'blockedUsersModal') modal?.classList.add('hidden');
+    });
+
+    async function loadBlockedList() {
+      if (!listEl) return;
+      listEl.innerHTML = '<div style="text-align:center; padding:16px; color:var(--muted);">กำลังโหลดรายชื่อ...</div>';
+      try {
+        const users = await apiRequest('/api/me/blocked');
+        if (!users.length) {
+          listEl.innerHTML = `
+            <div style="text-align:center; padding:24px; color:var(--muted);">
+              <div style="font-size:2rem; margin-bottom:8px;">🕊️</div>
+              <div>ไม่มีผู้ใช้ที่คุณบล็อกไว้</div>
+            </div>
+          `;
+          return;
+        }
+
+        listEl.innerHTML = users.map(u => `
+          <div class="blocked-user-row">
+            <div class="blocked-user-left">
+              <img src="${u.profile_image || DEFAULT_AVATAR}" class="blocked-user-avatar" alt="${escapeHtml(u.name)}" />
+              <div>
+                <div class="blocked-user-name">${escapeHtml(u.name)}</div>
+                <div class="blocked-user-time">บล็อกเมื่อ: ${new Date(u.blocked_at).toLocaleDateString('th-TH')}</div>
+              </div>
+            </div>
+            <button type="button" class="btn-unblock-inline" data-unblock-user-id="${u.id}">
+              ปลดบล็อก
+            </button>
+          </div>
+        `).join('');
+
+        listEl.querySelectorAll('[data-unblock-user-id]').forEach(btn => {
+          btn.addEventListener('click', async () => {
+            const targetId = btn.dataset.unblockUserId;
+            if (confirm('คุณต้องการปลดบล็อกผู้ใช้นี้ใช่หรือไม่?')) {
+              try {
+                await apiRequest(`/api/users/${targetId}/unblock`, { method: 'DELETE' });
+                alert('ปลดบล็อกเรียบร้อยแล้ว');
+                await loadBlockedList();
+                await loadDiscoverUsers();
+                await loadLikedUsers();
+                await loadSkippedUsers();
+                if (window.matchSpaceChat) await window.matchSpaceChat.loadChats();
+              } catch(e) {
+                alert(e.message || 'เกิดข้อผิดพลาดในการปลดบล็อก');
+              }
+            }
+          });
+        });
+      } catch(err) {
+        listEl.innerHTML = `<div style="text-align:center; padding:16px; color:#e11d48;">⚠️ ${err.message}</div>`;
+      }
+    }
+  }
+
+  // ===================== WEB PUSH NOTIFICATIONS =====================
+  function urlBase64ToUint8Array(base64String) {
+    const padding = '='.repeat((4 - base64String.length % 4) % 4);
+    const base64 = (base64String + padding).replace(/\-/g, '+').replace(/_/g, '/');
+    const rawData = window.atob(base64);
+    const outputArray = new Uint8Array(rawData.length);
+    for (let i = 0; i < rawData.length; ++i) {
+      outputArray[i] = rawData.charCodeAt(i);
+    }
+    return outputArray;
+  }
+
+  function setupWebPushNotifications() {
+    const btnSubscribePush = document.getElementById('btnSubscribePush');
+    if (!btnSubscribePush) return;
+
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+      btnSubscribePush.disabled = true;
+      btnSubscribePush.textContent = '🔔 ไม่รองรับ Push';
+      return;
+    }
+
+    // Register service worker if not already registered
+    navigator.serviceWorker.register('/sw.js').catch(err => console.log('SW reg error:', err));
+
+    btnSubscribePush.addEventListener('click', async () => {
+      try {
+        const permission = await Notification.requestPermission();
+        if (permission !== 'granted') {
+          alert('กรุณาอนุญาตการแจ้งเตือน (Notifications) ในเบราว์เซอร์ของคุณ');
+          return;
+        }
+
+        btnSubscribePush.disabled = true;
+        btnSubscribePush.textContent = '⏳ กำลังเปิดรับแจ้งเตือน...';
+
+        const keyRes = await apiRequest('/api/notifications/vapid-public-key');
+        const registration = await navigator.serviceWorker.ready;
+        let subscription = await registration.pushManager.getSubscription();
+
+        if (!subscription) {
+          subscription = await registration.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: urlBase64ToUint8Array(keyRes.publicKey)
+          });
+        }
+
+        await apiRequest('/api/notifications/subscribe', {
+          method: 'POST',
+          body: JSON.stringify({ subscription })
+        });
+
+        btnSubscribePush.textContent = '✓ แจ้งเตือนเปิดอยู่ (ทดสอบ)';
+        btnSubscribePush.disabled = false;
+        btnSubscribePush.onclick = async () => {
+          try {
+            await apiRequest('/api/notifications/test', { method: 'POST' });
+          } catch(e) { alert(e.message); }
+        };
+        alert('เปิดรับการแจ้งเตือน Web Push สำเร็จแล้ว! คุณจะได้รับการแจ้งเตือนข้อความใหม่และคนถูกใจทันที');
+      } catch(err) {
+        btnSubscribePush.disabled = false;
+        btnSubscribePush.textContent = '🔔 เปิด Web Push Notification';
+        alert('เกิดข้อผิดพลาดในการเปิดการแจ้งเตือน: ' + err.message);
       }
     });
   }

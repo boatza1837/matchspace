@@ -178,8 +178,12 @@ router.get('/api/chats/:id/messages', requireAuth, async (req, res) => {
     const chatId = Number(req.params.id);
 
     const chat = await db.get(`
-      SELECT c.*, a.name AS activity_name, a.created_by AS creator_id, u_creator.name AS creator_name
+      SELECT c.*, a.name AS activity_name, a.created_by AS creator_id, u_creator.name AS creator_name,
+             u1.name AS u1_name, u1.profile_image AS u1_profile_image,
+             u2.name AS u2_name, u2.profile_image AS u2_profile_image
       FROM chats c
+      LEFT JOIN users u1 ON u1.id = c.user_a
+      LEFT JOIN users u2 ON u2.id = c.user_b
       LEFT JOIN activities a ON a.id = c.activity_id
       LEFT JOIN users u_creator ON u_creator.id = a.created_by
       WHERE c.id = ?
@@ -202,9 +206,40 @@ router.get('/api/chats/:id/messages', requireAuth, async (req, res) => {
       }
     }
 
-    if (!hasAccess) {
-      return res.status(403).json({ message: 'คุณไม่มีสิทธิ์เข้าถึงแชทนี้' });
+    let partnerId = null;
+    if (chat.type !== 'group' && !chat.activity_id) {
+      const isA = Number(chat.user_a) === Number(userId);
+      partnerId = isA ? chat.user_b : chat.user_a;
+      chat.partner_id = partnerId;
+      chat.partner_name = isA ? chat.u2_name : chat.u1_name;
+      chat.partner_profile_image = isA ? chat.u2_profile_image : chat.u1_profile_image;
+
+      const block = await db.get(`
+        SELECT * FROM user_blocks 
+        WHERE (blocker_id = ? AND blocked_id = ?) OR (blocker_id = ? AND blocked_id = ?)
+      `, [userId, partnerId, partnerId, userId]);
+
+      if (block) {
+        chat.is_blocked = true;
+        chat.blocked_by_me = Number(block.blocker_id) === Number(userId);
+      }
     }
+
+    // Auto mark incoming unread messages as read
+    const now = new Date().toISOString();
+    await db.run(`
+      UPDATE chat_messages 
+      SET is_read = 1, read_at = ? 
+      WHERE chat_id = ? AND sender_id != ? AND (is_read = 0 OR is_read IS NULL)
+    `, [now, chatId, userId]);
+
+    // Broadcast messages_read event over WebSocket
+    broadcastToChat(chatId, {
+      type: 'messages_read',
+      chatId,
+      readerId: userId,
+      readAt: now
+    });
 
     const messages = await db.all(`
       SELECT m.*, u.name AS sender_name, u.profile_image AS sender_profile_image, u.role AS sender_role
@@ -218,6 +253,31 @@ router.get('/api/chats/:id/messages', requireAuth, async (req, res) => {
   } catch (err) {
     console.error('[Get Messages Error]', err);
     res.status(500).json({ message: err.message || 'เกิดข้อผิดพลาดในการดึงข้อความแชท' });
+  }
+});
+
+router.post('/api/chats/:id/read', requireAuth, async (req, res) => {
+  try {
+    const userId = req.session.user.id;
+    const chatId = Number(req.params.id);
+    const now = new Date().toISOString();
+
+    await db.run(`
+      UPDATE chat_messages 
+      SET is_read = 1, read_at = ? 
+      WHERE chat_id = ? AND sender_id != ? AND (is_read = 0 OR is_read IS NULL)
+    `, [now, chatId, userId]);
+
+    broadcastToChat(chatId, {
+      type: 'messages_read',
+      chatId,
+      readerId: userId,
+      readAt: now
+    });
+
+    res.json({ success: true, read_at: now });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
   }
 });
 
@@ -255,6 +315,19 @@ router.post('/api/chats/:id/messages', requireAuth, async (req, res) => {
       return res.status(403).json({ message: 'คุณไม่มีสิทธิ์ส่งข้อความในแชทนี้' });
     }
 
+    // Check if blocked in direct chat
+    if (chat.type !== 'group' && !chat.activity_id) {
+      const recipientId = Number(chat.user_a) === Number(userId) ? chat.user_b : chat.user_a;
+      const block = await db.get(`
+        SELECT * FROM user_blocks 
+        WHERE (blocker_id = ? AND blocked_id = ?) OR (blocker_id = ? AND blocked_id = ?)
+      `, [userId, recipientId, recipientId, userId]);
+
+      if (block) {
+        return res.status(403).json({ message: 'ไม่สามารถส่งข้อความได้เนื่องจากมีการบล็อกผู้ใช้งาน' });
+      }
+    }
+
     const { content } = req.body || {};
     if (!content || !String(content).trim()) {
       return res.status(400).json({ message: 'กรุณาพิมพ์ข้อความก่อนส่ง' });
@@ -287,6 +360,16 @@ router.post('/api/chats/:id/messages', requireAuth, async (req, res) => {
         senderName: req.session.user.name,
         messageSnippet: String(content).trim().slice(0, 50)
       });
+
+      // Web Push Notification to recipient
+      try {
+        const { sendPushNotification } = require('../services/notification');
+        sendPushNotification(recipientId, {
+          title: `💬 ข้อความใหม่จาก ${req.session.user.name}`,
+          body: String(content).trim().slice(0, 80),
+          url: '/app'
+        });
+      } catch (e) {}
     }
 
     res.status(201).json({ message: 'ส่งข้อความสำเร็จ', message });

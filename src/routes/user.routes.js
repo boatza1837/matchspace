@@ -65,14 +65,18 @@ router.put('/api/me', requireAuth, multiUpload, async (req, res) => {
 
 router.get('/api/users/:id/profile', requireAuth, async (req, res) => {
   const targetId = Number(req.params.id);
+  const myId = req.session.user.id;
   const user = await db.get(`
-    SELECT id, name, nickname, gender, interested_gender, university, age, major, year, interests, bio, profile_image, created_at
+    SELECT id, name, nickname, gender, interested_gender, university, age, major, year, interests, bio, profile_image, is_student_verified, created_at
     FROM users WHERE id = ? AND is_active != 0
   `, [targetId]);
 
   if (!user) {
     return res.status(404).json({ message: 'ไม่พบโปรไฟล์นี้' });
   }
+
+  const blockRecord = await db.get('SELECT id FROM user_blocks WHERE blocker_id = ? AND blocked_id = ?', [myId, targetId]);
+  user.is_blocked_by_me = Boolean(blockRecord);
 
   const photos = await db.all('SELECT * FROM user_photos WHERE user_id = ? ORDER BY id ASC', [targetId]);
   let photoUrls = photos.map(p => p.photo_url);
@@ -119,17 +123,20 @@ router.delete('/api/me/photos/:photoId', requireAuth, async (req, res) => {
 
 router.get('/api/candidates', requireAuth, async (req, res) => {
   try {
+    const myId = req.session.user.id;
     const rows = await db.all(`
-      SELECT id, name, email, gender, interested_gender, university, major, year, interests, bio, nickname, age, profile_image, is_active, created_at
+      SELECT id, name, email, gender, interested_gender, university, major, year, interests, bio, nickname, age, profile_image, is_student_verified, is_active, created_at
       FROM users
       WHERE id != ? 
         AND is_active != 0 
         AND (is_admin IS NULL OR is_admin = 0)
         AND (role IS NULL OR role = 'user' OR role = '')
         AND id NOT IN (SELECT matched_user_id FROM matches WHERE user_id = ?)
+        AND id NOT IN (SELECT blocked_id FROM user_blocks WHERE blocker_id = ?)
+        AND id NOT IN (SELECT blocker_id FROM user_blocks WHERE blocked_id = ?)
       ORDER BY created_at DESC
       LIMIT 30
-    `, [req.session.user.id, req.session.user.id]);
+    `, [myId, myId, myId, myId]);
     res.json(rows);
   } catch (err) {
     console.error('[Candidates Error]', err);
@@ -210,6 +217,21 @@ router.post('/api/matches', requireAuth, async (req, res) => {
         };
         sendToUser(Number(matched_user_id), matchPayload);
         sendToUser(userId, { ...matchPayload, partner: { id: target.id, name: target.name, profile_image: target.profile_image } });
+
+        // Web Push notification on mutual match
+        try {
+          const { sendPushNotification } = require('../services/notification');
+          sendPushNotification(Number(matched_user_id), {
+            title: '🎉 แมตช์ใหม่สำเร็จ!',
+            body: `คุณและ ${req.session.user.name} ส่งความสนใจให้กันและกัน`,
+            url: '/app'
+          });
+          sendPushNotification(userId, {
+            title: '🎉 แมตช์ใหม่สำเร็จ!',
+            body: `คุณและ ${target.name} ส่งความสนใจให้กันและกัน`,
+            url: '/app'
+          });
+        } catch (e) {}
       }
     }
 
@@ -230,12 +252,14 @@ router.get('/api/skipped', requireAuth, async (req, res) => {
     const rows = await db.all(`
       SELECT m.id AS match_id, m.created_at AS skipped_at, m.note,
              u.id, u.name, u.nickname, u.email, u.gender, u.interested_gender, u.university, u.age, u.major, u.year, 
-             u.interests, u.bio, u.profile_image
+             u.interests, u.bio, u.profile_image, u.is_student_verified
       FROM matches m
       JOIN users u ON u.id = m.matched_user_id
       WHERE m.user_id = ? AND m.status = 'skipped'
+        AND u.id NOT IN (SELECT blocked_id FROM user_blocks WHERE blocker_id = ?)
+        AND u.id NOT IN (SELECT blocker_id FROM user_blocks WHERE blocked_id = ?)
       ORDER BY m.created_at DESC
-    `, [req.session.user.id]);
+    `, [req.session.user.id, req.session.user.id, req.session.user.id]);
     res.json(rows);
   } catch (err) {
     console.error('[Skipped Error]', err);
@@ -281,7 +305,7 @@ router.get('/api/liked', requireAuth, async (req, res) => {
     const rows = await db.all(`
       SELECT m.id AS match_id, m.created_at AS liked_at, m.status, m.note,
              u.id, u.name, u.nickname, u.email, u.gender, u.interested_gender, u.university, u.age, u.major, u.year, 
-             u.interests, u.bio, u.profile_image,
+             u.interests, u.bio, u.profile_image, u.is_student_verified,
              (
                SELECT c.id FROM chats c 
                WHERE (c.user_a = ? AND c.user_b = u.id) 
@@ -291,8 +315,10 @@ router.get('/api/liked', requireAuth, async (req, res) => {
       FROM matches m
       JOIN users u ON u.id = m.matched_user_id
       WHERE m.user_id = ? AND (m.status = 'liked' OR m.status = 'matched')
+        AND u.id NOT IN (SELECT blocked_id FROM user_blocks WHERE blocker_id = ?)
+        AND u.id NOT IN (SELECT blocker_id FROM user_blocks WHERE blocked_id = ?)
       ORDER BY m.created_at DESC
-    `, [userId, userId, userId]);
+    `, [userId, userId, userId, userId, userId]);
     res.json(rows);
   } catch (err) {
     console.error('[Liked Error]', err);

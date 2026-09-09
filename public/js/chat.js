@@ -76,6 +76,17 @@ window.matchSpaceChat = (function () {
     ws.on('mutual_match', () => {
       loadChats();
     });
+
+    // Real-time messages read receipts
+    ws.on('messages_read', (data) => {
+      if (Number(data.chatId) === Number(currentChatId)) {
+        document.querySelectorAll('.msg-wrapper.me .read-check').forEach(el => {
+          el.className = 'read-check is-read';
+          el.title = 'อ่านแล้ว';
+          el.textContent = '✓✓ อ่านแล้ว';
+        });
+      }
+    });
   }
 
   function showTypingIndicator(userName) {
@@ -104,6 +115,7 @@ window.matchSpaceChat = (function () {
     const isOwner = currentUser && currentUser.role === 'owner';
     const canDelete = isMe || isOwner;
     const timeStr = formatChatTime(msg.created_at);
+    const isRead = Number(msg.is_read) === 1;
 
     const deleteBtnHtml = canDelete ? `<button type="button" class="btn-delete-msg" data-msg-id="${msg.id}" title="ลบข้อความ"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>` : '';
 
@@ -112,12 +124,14 @@ window.matchSpaceChat = (function () {
 
     if (isMe) {
       wrapper.className = 'msg-wrapper me fade-in';
+      const readStatusHtml = `<span class="msg-read-status"><span class="read-check ${isRead ? 'is-read' : ''}">${isRead ? '✓✓ อ่านแล้ว' : '✓ ส่งแล้ว'}</span></span>`;
       wrapper.innerHTML = `
         <div class="msg-content-col">
           <div class="bubble me">
             <div class="bubble-text">${escapeHtml(msg.content)}</div>
             <div class="bubble-meta">
               <span class="msg-time me-time">${timeStr}</span>
+              ${readStatusHtml}
               ${deleteBtnHtml}
             </div>
           </div>
@@ -285,14 +299,49 @@ window.matchSpaceChat = (function () {
 
     if (headerActions) {
       if (!isGroup && data.chat.partner_id) {
+        const isBlocked = !!data.chat.is_blocked;
+        const blockedByMe = !!data.chat.blocked_by_me;
+        const blockBtnText = blockedByMe ? '🔓 ปลดบล็อก' : '🚫 บล็อก';
+        const blockBtnAction = blockedByMe ? 'unblock' : 'block';
+
         headerActions.innerHTML = `
           <button type="button" class="btn-chat-view-profile" data-open-profile-id="${data.chat.partner_id}">
             🔍 ดูโปรไฟล์
           </button>
+          <button type="button" class="btn-chat-block" data-chat-block-action="${blockBtnAction}" data-partner-id="${data.chat.partner_id}">
+            ${blockBtnText}
+          </button>
         `;
+
         headerActions.querySelector('[data-open-profile-id]')?.addEventListener('click', () => {
           if (window.matchSpaceApp?.openProfileModal) {
             window.matchSpaceApp.openProfileModal(Number(data.chat.partner_id));
+          }
+        });
+
+        headerActions.querySelector('[data-chat-block-action]')?.addEventListener('click', async () => {
+          if (blockBtnAction === 'block') {
+            if (confirm(`คุณต้องการบล็อก ${data.chat.partner_name || 'ผู้ใช้นี้'} ใช่หรือไม่?\nหลังจากบล็อกแล้วจะไม่สามารถมองเห็นโปรไฟล์และส่งข้อความหากันได้`)) {
+              try {
+                await apiRequest(`/api/users/${data.chat.partner_id}/block`, { method: 'POST' });
+                alert('บล็อกผู้ใช้เรียบร้อยแล้ว');
+                await loadChats();
+                await loadMessages(currentChatId);
+              } catch(e) {
+                alert(e.message || 'เกิดข้อผิดพลาดในการบล็อก');
+              }
+            }
+          } else {
+            if (confirm(`คุณต้องการปลดบล็อก ${data.chat.partner_name || 'ผู้ใช้นี้'} ใช่หรือไม่?`)) {
+              try {
+                await apiRequest(`/api/users/${data.chat.partner_id}/unblock`, { method: 'DELETE' });
+                alert('ปลดบล็อกผู้ใช้เรียบร้อยแล้ว');
+                await loadChats();
+                await loadMessages(currentChatId);
+              } catch(e) {
+                alert(e.message || 'เกิดข้อผิดพลาดในการปลดบล็อก');
+              }
+            }
           }
         });
       } else {
@@ -300,25 +349,54 @@ window.matchSpaceChat = (function () {
       }
     }
 
+    // Handle blocked chat state for inputs
+    const isBlocked = !!data.chat.is_blocked;
+    const blockedByMe = !!data.chat.blocked_by_me;
+    if (messageInput) {
+      if (isBlocked) {
+        messageInput.disabled = true;
+        messageInput.placeholder = blockedByMe ? 'คุณได้บล็อกผู้ใช้นี้ ไม่สามารถส่งข้อความได้' : 'การสนทนานี้ถูกระงับเนื่องจากการบล็อก';
+      } else {
+        messageInput.disabled = false;
+        messageInput.placeholder = 'พิมพ์ข้อความ...';
+      }
+    }
+    if (sendMessageBtn) {
+      sendMessageBtn.disabled = isBlocked;
+    }
+
+    let blockBannerHtml = '';
+    if (isBlocked) {
+      blockBannerHtml = `
+        <div class="chat-blocked-banner">
+          <span>🚫 ${blockedByMe ? 'คุณได้บล็อกผู้ใช้นี้ คุณจะไม่ได้รับข้อความจากกัน' : 'การสนทนานี้ถูกระงับเนื่องจากมีการบล็อกผู้ใช้งาน'}</span>
+          ${blockedByMe && data.chat.partner_id ? `<button type="button" class="btn-unblock-inline" data-inline-unblock-id="${data.chat.partner_id}">ปลดบล็อก</button>` : ''}
+        </div>
+      `;
+    }
+
     const isHost = data.chat.activity_id && Number(data.chat.creator_id) === Number(currentUser?.id);
     const isOwner = currentUser && currentUser.role === 'owner';
 
     if (!data.messages || data.messages.length === 0) {
       messageThread.innerHTML = `
+        ${blockBannerHtml}
         <div class="chat-empty-placeholder">
           <div class="chat-empty-icon">✨</div>
           <div class="chat-empty-title">เริ่มต้นการสนทนา</div>
           <div class="chat-empty-desc">ส่งข้อความทักทายแรกเพื่อเริ่มต้นมิตรภาพดีๆ ได้เลย!</div>
         </div>
       `;
+      setupBlockInlineHandler(data.chat.partner_id);
       return;
     }
 
-    messageThread.innerHTML = data.messages.map((msg) => {
+    const messagesHtml = data.messages.map((msg) => {
       const isMe = Number(msg.sender_id) === Number(currentUser?.id);
       const isMsgHost = data.chat.activity_id && Number(msg.sender_id) === Number(data.chat.creator_id);
       const canDelete = isMe || isHost || isOwner;
       const timeStr = formatChatTime(msg.created_at);
+      const isRead = Number(msg.is_read) === 1;
 
       const hostBadgeHtml = isMsgHost ? '<span class="host-badge">👑 หัวหน้า</span>' : '';
       const deleteBtnHtml = canDelete ? `<button type="button" class="btn-delete-msg" data-msg-id="${msg.id}" title="ลบข้อความ"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>` : '';
@@ -328,6 +406,7 @@ window.matchSpaceChat = (function () {
         : `<div class="chat-msg-avatar-initial">${escapeHtml((msg.sender_name || 'U').charAt(0).toUpperCase())}</div>`;
 
       if (isMe) {
+        const readStatusHtml = `<span class="msg-read-status"><span class="read-check ${isRead ? 'is-read' : ''}" title="${isRead ? 'อ่านแล้ว' : 'ส่งแล้ว'}">${isRead ? '✓✓ อ่านแล้ว' : '✓ ส่งแล้ว'}</span></span>`;
         return `
           <div class="msg-wrapper me" data-msg-item-id="${msg.id}">
             <div class="msg-content-col">
@@ -335,6 +414,7 @@ window.matchSpaceChat = (function () {
                 <div class="bubble-text">${escapeHtml(msg.content)}</div>
                 <div class="bubble-meta">
                   <span class="msg-time me-time">${timeStr}</span>
+                  ${readStatusHtml}
                   ${deleteBtnHtml}
                 </div>
               </div>
@@ -363,7 +443,10 @@ window.matchSpaceChat = (function () {
       `;
     }).join('');
 
+    messageThread.innerHTML = blockBannerHtml + messagesHtml;
     messageThread.scrollTop = messageThread.scrollHeight;
+
+    setupBlockInlineHandler(data.chat.partner_id);
 
     // Attach delete handlers
     messageThread.querySelectorAll('.btn-delete-msg').forEach(btn => {
@@ -382,6 +465,25 @@ window.matchSpaceChat = (function () {
     });
   }
 
+  function setupBlockInlineHandler(partnerId) {
+    const inlineBtn = messageThread?.querySelector('[data-inline-unblock-id]');
+    if (inlineBtn) {
+      inlineBtn.addEventListener('click', async () => {
+        const targetId = inlineBtn.dataset.inlineUnblockId || partnerId;
+        if (confirm('คุณต้องการปลดบล็อกผู้ใช้นี้ใช่หรือไม่?')) {
+          try {
+            await apiRequest(`/api/users/${targetId}/unblock`, { method: 'DELETE' });
+            alert('ปลดบล็อกสำเร็จ');
+            await loadChats();
+            await loadMessages(currentChatId);
+          } catch(e) {
+            alert(e.message || 'เกิดข้อผิดพลาดในการปลดบล็อก');
+          }
+        }
+      });
+    }
+  }
+
   async function loadMessages(chatId) {
     try {
       currentChatId = Number(chatId);
@@ -389,12 +491,16 @@ window.matchSpaceChat = (function () {
       // Join real-time WebSocket room
       if (window.matchSpaceWS) {
         window.matchSpaceWS.joinChat(currentChatId);
+        window.matchSpaceWS.markRead(currentChatId);
       }
+
+      // Mark read via API
+      apiRequest(`/api/chats/${currentChatId}/read`, { method: 'POST' }).catch(() => {});
 
       const data = await apiRequest(`/api/chats/${currentChatId}/messages`);
       renderMessageList(data);
 
-      if (!data.chat.activity_id && data.chat.type !== 'group') {
+      if (!data.chat.activity_id && data.chat.type !== 'group' && !data.chat.is_blocked) {
         await loadGreetingSuggestions(data.messages.length === 0);
       } else {
         const container = document.getElementById('greetingSuggestions');

@@ -108,6 +108,10 @@ class MatchSpaceWebSocketClient {
     this.send({ type: 'stop_typing', chatId: Number(chatId) });
   }
 
+  markRead(chatId) {
+    this.send({ type: 'mark_read', chatId: Number(chatId) });
+  }
+
   handleIncomingEvent(data) {
     if (!data || !data.type) return;
 

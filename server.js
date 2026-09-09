@@ -22,6 +22,9 @@ const { router: chatRoutes } = require('./src/routes/chat.routes');
 const activityRoutes = require('./src/routes/activity.routes');
 const reportRoutes = require('./src/routes/report.routes');
 const adminRoutes = require('./src/routes/admin.routes');
+const blockRoutes = require('./src/routes/block.routes');
+const verifyRoutes = require('./src/routes/verify.routes');
+const notificationRoutes = require('./src/routes/notification.routes');
 
 const app = express();
 const httpServer = http.createServer(app);
@@ -65,6 +68,9 @@ app.use(chatRoutes);
 app.use(activityRoutes);
 app.use(reportRoutes);
 app.use(adminRoutes);
+app.use(blockRoutes);
+app.use(verifyRoutes);
+app.use(notificationRoutes);
 
 // Multer error handling middleware
 app.use(handleMulterError);

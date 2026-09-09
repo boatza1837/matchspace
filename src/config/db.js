@@ -147,6 +147,34 @@ async function initDatabase() {
       chat_id INTEGER NOT NULL,
       sender_id INTEGER NOT NULL,
       content TEXT NOT NULL,
+      is_read INTEGER DEFAULT 0,
+      read_at TEXT,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS user_blocks (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      blocker_id INTEGER NOT NULL,
+      blocked_id INTEGER NOT NULL,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(blocker_id, blocked_id)
+    );
+
+    CREATE TABLE IF NOT EXISTS student_otp_verifications (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      student_email TEXT NOT NULL,
+      otp_code TEXT NOT NULL,
+      expires_at TEXT NOT NULL,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS push_subscriptions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      endpoint TEXT NOT NULL UNIQUE,
+      p256dh TEXT NOT NULL,
+      auth TEXT NOT NULL,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP
     );
 
@@ -204,6 +232,11 @@ async function initDatabase() {
   try { await db.run("ALTER TABLE users ADD COLUMN interested_gender TEXT DEFAULT 'ทุกเพศ'"); } catch(e) {}
   try { await db.run("ALTER TABLE users ADD COLUMN university TEXT DEFAULT 'มหาวิทยาลัยขอนแก่น'"); } catch(e) {}
   try { await db.run("ALTER TABLE users ADD COLUMN phone TEXT"); } catch(e) {}
+  try { await db.run("ALTER TABLE users ADD COLUMN is_student_verified INTEGER DEFAULT 0"); } catch(e) {}
+  try { await db.run("ALTER TABLE users ADD COLUMN student_email TEXT"); } catch(e) {}
+  try { await db.run("ALTER TABLE users ADD COLUMN student_verified_at TEXT"); } catch(e) {}
+  try { await db.run("ALTER TABLE chat_messages ADD COLUMN is_read INTEGER DEFAULT 0"); } catch(e) {}
+  try { await db.run("ALTER TABLE chat_messages ADD COLUMN read_at TEXT"); } catch(e) {}
 
   // Automatic Migration: Encrypt any legacy plain_password with AES-256-GCM and clear plain_password
   try {
