@@ -204,24 +204,64 @@
         </section>
 
         <section id="tab-chat" class="tab-panel">
-          <div class="chat-layout">
-            <div class="panel">
-              <h2>แชท</h2>
-              <div id="chatList" class="list-card"></div>
-            </div>
-            <div class="panel">
-              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; flex-wrap:wrap; gap:8px;">
-                <h2 id="chatTitleHeader" style="margin:0;">ข้อความ</h2>
-                <div id="chatSubHeader" style="font-size:0.85rem; color:var(--purple); font-weight:600;"></div>
+          <div class="chat-layout" id="chatLayoutContainer">
+            <!-- Left Panel: Chat List Sidebar -->
+            <div class="panel chat-sidebar-panel">
+              <div class="chat-sidebar-header">
+                <div class="chat-sidebar-title-row">
+                  <h2 style="margin:0; display:flex; align-items:center; gap:8px;">
+                    💬 แชท
+                    <span id="chatTotalCountBadge" class="badge alt">0</span>
+                  </h2>
+                </div>
+                <div class="chat-search-wrap">
+                  <input type="text" id="chatSearchInput" class="chat-search-input" placeholder="🔍 ค้นหาแชท..." />
+                </div>
               </div>
+              <div id="chatList" class="chat-list-card"></div>
+            </div>
+
+            <!-- Right Panel: Active Conversation -->
+            <div class="panel chat-room-panel" id="chatRoomPanel">
+              <div class="chat-room-header">
+                <div class="chat-room-header-left">
+                  <button id="chatMobileBackBtn" class="chat-mobile-back-btn" type="button" title="กลับไปหน้ารายชื่อแชท">
+                    ‹
+                  </button>
+                  <div id="chatActiveAvatarWrap" class="chat-active-avatar-wrap">
+                    <div class="chat-list-avatar group" id="chatActiveAvatar">💬</div>
+                  </div>
+                  <div class="chat-header-text-col">
+                    <h2 id="chatTitleHeader" class="chat-room-title">เลือกแชทเพื่อเริ่มสนทนา</h2>
+                    <div id="chatSubHeader" class="chat-room-subtitle"></div>
+                  </div>
+                </div>
+                <div class="chat-room-header-right" id="chatHeaderActions">
+                  <!-- Dynamically populated: View profile button -->
+                </div>
+              </div>
+
               <div id="messageThread" class="chat-box"></div>
+
               <div id="greetingSuggestions" class="greeting-suggestions hidden">
-                <div class="greeting-label">💡 แนะนำข้อทักทาย:</div>
+                <div class="greeting-header">
+                  <span class="greeting-label">💡 ไอเดียเปิดบทสนทนา:</span>
+                  <button type="button" class="btn-hide-greetings" id="btnCloseGreetings" title="ปิด">✕</button>
+                </div>
                 <div id="greetingChips" class="greeting-chips"></div>
               </div>
-              <div class="composer">
-                <input id="messageInput" type="text" placeholder="พิมพ์ข้อความ..." />
-                <button id="sendMessageBtn" class="button primary" type="button">ส่ง</button>
+
+              <div class="chat-composer-card">
+                <div class="composer">
+                  <input id="messageInput" type="text" placeholder="พิมพ์ข้อความคุยกันที่นี่..." autocomplete="off" />
+                  <button id="sendMessageBtn" class="button primary btn-chat-send" type="button">
+                    <span>ส่ง</span>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                      <line x1="22" y1="2" x2="11" y2="13"></line>
+                      <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                    </svg>
+                  </button>
+                </div>
               </div>
             </div>
           </div>

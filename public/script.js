@@ -2417,6 +2417,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     async function openChatTabAndLoad(chatId) {
       triggerTabSwitch('chat', 'slide-right');
       currentChatId = chatId;
+      document.getElementById('chatLayoutContainer')?.classList.add('chat-open');
       await loadChats();
       await loadMessages(chatId);
     }
@@ -2447,45 +2448,78 @@ document.addEventListener('DOMContentLoaded', async () => {
       return '';
     }
 
+    let allLoadedChats = [];
+
     function renderChatsList(chats) {
       chatList.innerHTML = chats.length
         ? chats.map((chat) => {
             const isGroup = chat.type === 'group' || chat.activity_id;
-            const icon = isGroup ? '👥' : '💬';
             const badge = isGroup ? '<span class="chat-badge-group">กลุ่ม</span>' : '';
             const timeStr = formatChatTime(chat.last_message_time);
+            const isActive = chat.id === currentChatId;
+
+            const avatarHtml = isGroup
+              ? `<div class="chat-list-avatar group">👥</div>`
+              : (chat.partner_profile_image
+                  ? `<img src="${escapeHtml(chat.partner_profile_image)}" class="chat-list-avatar" alt="${escapeHtml(chat.partner_name || '')}" />`
+                  : `<div class="chat-list-avatar initial">${escapeHtml((chat.partner_name || 'U').charAt(0).toUpperCase())}</div>`);
+
             return `
-              <div class="list-item ${chat.id === currentChatId ? 'active' : ''}" data-chat-id="${chat.id}">
-                <div class="chat-item-header">
-                  <div class="chat-title">
-                    <span class="chat-title-text">${icon} ${escapeHtml(chat.partner_name || 'แชท')}</span>
-                    ${badge}
-                  </div>
-                  ${timeStr ? `<span class="chat-item-time">${timeStr}</span>` : ''}
+              <div class="chat-list-item ${isActive ? 'active' : ''}" data-chat-id="${chat.id}">
+                <div class="chat-list-avatar-wrap">
+                  ${avatarHtml}
+                  ${!isGroup ? '<span class="chat-online-dot" title="พร้อมคุย"></span>' : ''}
                 </div>
-                <div class="chat-preview">
-                  ${escapeHtml(chat.last_message || 'เริ่มต้นบทสนทนาใหม่')}
+                <div class="chat-list-info">
+                  <div class="chat-list-top">
+                    <div class="chat-list-title">
+                      <span class="chat-list-title-text">${escapeHtml(chat.partner_name || (isGroup ? 'แชทกลุ่ม' : 'แชท'))}</span>
+                      ${badge}
+                    </div>
+                    ${timeStr ? `<span class="chat-list-time">${timeStr}</span>` : ''}
+                  </div>
+                  <div class="chat-list-preview">
+                    ${escapeHtml(chat.last_message || 'ยังไม่มีข้อความ เริ่มต้นคุยกันได้เลย')}
+                  </div>
                 </div>
               </div>
             `;
           }).join('')
-        : '<div class="list-item" style="color:var(--muted); text-align:center;">ยังไม่มีแชท</div>';
+        : '<div class="chat-empty-list"><div style="font-size:1.6rem; margin-bottom:6px;">💬</div>ยังไม่มีการสนทนาในขณะนี้</div>';
 
       chatList.querySelectorAll('[data-chat-id]').forEach((item) => {
         item.addEventListener('click', async () => {
           const chatId = Number(item.dataset.chatId);
           currentChatId = chatId;
+          document.getElementById('chatLayoutContainer')?.classList.add('chat-open');
+          filterAndRenderChats();
           await loadMessages(chatId);
         });
       });
+    }
+
+    function filterAndRenderChats() {
+      const query = (document.getElementById('chatSearchInput')?.value || '').toLowerCase().trim();
+      let list = allLoadedChats;
+      if (query) {
+        list = allLoadedChats.filter(c => {
+          const name = (c.partner_name || c.title || c.activity_name || '').toLowerCase();
+          const lastMsg = (c.last_message || '').toLowerCase();
+          return name.includes(query) || lastMsg.includes(query);
+        });
+      }
+      renderChatsList(list);
     }
 
     async function loadChats() {
       const chats = await apiRequest('/api/chats');
       lastChatsCount = chats.length;
       latestChatsList = chats;
+      allLoadedChats = chats;
+      const countEl = document.getElementById('chatTotalCountBadge');
+      if (countEl) countEl.textContent = chats.length;
       updateHomeStats();
-      renderChatsList(chats);
+      filterAndRenderChats();
     }
 
     function startGlobalPolling() {
@@ -2536,16 +2570,44 @@ document.addEventListener('DOMContentLoaded', async () => {
     function renderMessageList(data) {
       const titleHeader = document.getElementById('chatTitleHeader');
       const subHeader = document.getElementById('chatSubHeader');
+      const headerAvatarWrap = document.getElementById('chatActiveAvatarWrap');
+      const headerActions = document.getElementById('chatHeaderActions');
       const isGroup = data.chat.type === 'group' || data.chat.activity_id;
 
       if (titleHeader) {
         titleHeader.textContent = isGroup ? `👥 ${data.chat.title || data.chat.activity_name || 'แชทกลุ่ม'}` : (data.chat.partner_name || 'ข้อความ');
       }
+
+      if (headerAvatarWrap) {
+        if (isGroup) {
+          headerAvatarWrap.innerHTML = `<div class="chat-room-header-avatar group">👥</div>`;
+        } else if (data.chat.partner_profile_image) {
+          headerAvatarWrap.innerHTML = `<img src="${escapeHtml(data.chat.partner_profile_image)}" class="chat-room-header-avatar" alt="" />`;
+        } else {
+          headerAvatarWrap.innerHTML = `<div class="chat-room-header-avatar initial">${escapeHtml((data.chat.partner_name || 'U').charAt(0).toUpperCase())}</div>`;
+        }
+      }
+
       if (subHeader) {
         if (data.chat.activity_id) {
-          subHeader.innerHTML = `👑 หัวหน้ากิจกรรม: <strong>${escapeHtml(data.chat.creator_name || 'ผู้ขอสร้าง')}</strong>`;
+          subHeader.innerHTML = `<span class="header-status-host">👑 หัวหน้ากิจกรรม: <strong>${escapeHtml(data.chat.creator_name || 'ผู้ขอสร้าง')}</strong></span>`;
         } else {
-          subHeader.innerHTML = '';
+          subHeader.innerHTML = `<span class="header-status-online"><span class="status-pulse-dot"></span> พร้อมสนทนา</span>`;
+        }
+      }
+
+      if (headerActions) {
+        if (!isGroup && data.chat.partner_id) {
+          headerActions.innerHTML = `
+            <button type="button" class="btn-chat-view-profile" data-open-profile-id="${data.chat.partner_id}">
+              🔍 ดูโปรไฟล์
+            </button>
+          `;
+          headerActions.querySelector('[data-open-profile-id]')?.addEventListener('click', () => {
+            openProfileModal(Number(data.chat.partner_id));
+          });
+        } else {
+          headerActions.innerHTML = '';
         }
       }
 
@@ -2555,9 +2617,9 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (!data.messages || data.messages.length === 0) {
         messageThread.innerHTML = `
           <div class="chat-empty-placeholder">
-            <div class="chat-empty-icon">💬</div>
-            <div class="chat-empty-title">ยังไม่มีข้อความ</div>
-            <div class="chat-empty-desc">ส่งข้อความแรกเพื่อเริ่มการสนทนาได้เลย!</div>
+            <div class="chat-empty-icon">✨</div>
+            <div class="chat-empty-title">เริ่มต้นการสนทนา</div>
+            <div class="chat-empty-desc">ส่งข้อความทักทายแรกเพื่อเริ่มต้นมิตรภาพดีๆ ได้เลย!</div>
           </div>
         `;
         return;
@@ -2569,12 +2631,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         const canDelete = isMe || isHost || isOwner;
         const timeStr = formatChatTime(msg.created_at);
 
-        const hostBadgeHtml = isMsgHost ? '<span class="host-badge">👑 หัวหน้ากิจกรรม</span>' : '';
-        const deleteBtnHtml = canDelete ? `<button type="button" class="btn-delete-msg" data-msg-id="${msg.id}" title="ลบข้อความ">✕</button>` : '';
+        const hostBadgeHtml = isMsgHost ? '<span class="host-badge">👑 หัวหน้า</span>' : '';
+        const deleteBtnHtml = canDelete ? `<button type="button" class="btn-delete-msg" data-msg-id="${msg.id}" title="ลบข้อความ"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>` : '';
 
         const senderAvatar = msg.sender_profile_image
           ? `<img src="${escapeHtml(msg.sender_profile_image)}" class="chat-msg-avatar" alt="${escapeHtml(msg.sender_name || '')}" />`
-          : `<div class="chat-msg-avatar-initial">${escapeHtml((msg.sender_name || 'U').charAt(0))}</div>`;
+          : `<div class="chat-msg-avatar-initial">${escapeHtml((msg.sender_name || 'U').charAt(0).toUpperCase())}</div>`;
 
         if (isMe) {
           return `
@@ -2991,6 +3053,15 @@ document.addEventListener('DOMContentLoaded', async () => {
         e.preventDefault();
         sendMessageBtn.click();
       }
+    });
+
+    // Chat search, mobile back, and close greetings listeners
+    document.getElementById('chatSearchInput')?.addEventListener('input', filterAndRenderChats);
+    document.getElementById('chatMobileBackBtn')?.addEventListener('click', () => {
+      document.getElementById('chatLayoutContainer')?.classList.remove('chat-open');
+    });
+    document.getElementById('btnCloseGreetings')?.addEventListener('click', () => {
+      document.getElementById('greetingSuggestions')?.classList.add('hidden');
     });
 
     // Start/stop chat polling based on active tab
