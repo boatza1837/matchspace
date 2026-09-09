@@ -4164,6 +4164,56 @@ body {
   box-shadow: 0 6px 16px rgba(37, 99, 235, 0.35);
 }
 
+/* Discover Tab Student Verification Banner */
+.student-verification-card.discover-variant {
+  background: linear-gradient(135deg, rgba(238, 242, 255, 0.95) 0%, rgba(224, 231, 255, 0.85) 100%);
+  border: 1.5px solid #c7d2fe;
+  border-radius: 20px;
+  padding: 16px 22px;
+  margin: 12px 0 16px 0;
+  box-shadow: 0 4px 18px rgba(99, 102, 241, 0.08);
+  backdrop-filter: blur(10px);
+}
+
+.student-verification-card.discover-variant.verified {
+  background: linear-gradient(135deg, rgba(236, 253, 245, 0.95) 0%, rgba(209, 250, 229, 0.85) 100%);
+  border-color: #a7f3d0;
+  box-shadow: 0 4px 18px rgba(16, 185, 129, 0.08);
+}
+
+.student-verify-badge-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.student-verify-icon-bubble {
+  font-size: 1.3rem;
+  line-height: 1;
+}
+
+.badge-verified-preview {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: #dbeafe;
+  color: #1d4ed8;
+  border: 1px solid #bfdbfe;
+  border-radius: 999px;
+  font-size: 0.74rem;
+  font-weight: 700;
+  padding: 2px 10px;
+}
+
+.badge-verified-preview.verified {
+  background: #d1fae5;
+  color: #047857;
+  border-color: #a7f3d0;
+}
+
+
 /* Modal for Student Verification & Blocked Users */
 .verify-modal-box {
   background: #ffffff;

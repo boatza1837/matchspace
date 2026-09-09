@@ -356,6 +356,45 @@ window.matchSpaceApp = (function () {
       }
     }
 
+    // Update Student Verification Banner in Discover Tab
+    const discoverBanner = document.getElementById('studentVerificationDiscoverBanner');
+    const discoverTitle = document.getElementById('studentVerifyDiscoverTitle');
+    const discoverDesc = document.getElementById('studentVerifyDiscoverDesc');
+    const discoverBtn = document.getElementById('btnOpenStudentVerifyDiscover');
+    const discoverPill = document.getElementById('studentVerifyDiscoverPill');
+
+    if (discoverBanner) {
+      if (Number(user.is_student_verified) === 1) {
+        discoverBanner.classList.add('verified');
+        if (discoverTitle) discoverTitle.innerHTML = '🎓 ยืนยันตัวตนแล้ว (Verified Student)';
+        if (discoverDesc) discoverDesc.textContent = `ยืนยันสถานะนักศึกษาผ่าน ${user.student_email || user.email} เรียบร้อยแล้ว (มีติ๊กถูกสีฟ้า ✔️)`;
+        if (discoverPill) {
+          discoverPill.className = 'badge-verified-preview verified';
+          discoverPill.innerHTML = '✓ รับรองแล้ว';
+        }
+        if (discoverBtn) {
+          discoverBtn.textContent = '✓ ยืนยันแล้ว';
+          discoverBtn.disabled = true;
+          discoverBtn.style.opacity = '0.7';
+          discoverBtn.style.cursor = 'default';
+        }
+      } else {
+        discoverBanner.classList.remove('verified');
+        if (discoverTitle) discoverTitle.innerHTML = '🎓 ยืนยันตัวตนนักศึกษา (Verified Student)';
+        if (discoverDesc) discoverDesc.textContent = 'รับเครื่องหมายติ๊กถูกสีฟ้า ยืนยันผ่านอีเมลมหาวิทยาลัย (@kkumail.com หรือสถาบัน) เพื่อเพิ่มความน่าเชื่อถือ';
+        if (discoverPill) {
+          discoverPill.className = 'badge-verified-preview';
+          discoverPill.innerHTML = '✔️ มีติ๊กถูกสีฟ้า';
+        }
+        if (discoverBtn) {
+          discoverBtn.textContent = 'ยืนยันทันที';
+          discoverBtn.disabled = false;
+          discoverBtn.style.opacity = '1';
+          discoverBtn.style.cursor = 'pointer';
+        }
+      }
+    }
+
     const nameEl = document.getElementById('profileName');
     const yearEl = document.getElementById('profileYear');
     const bioEl = document.getElementById('profileBio');
@@ -1339,6 +1378,7 @@ window.matchSpaceApp = (function () {
   // ===================== STUDENT VERIFICATION =====================
   function setupStudentVerification() {
     const btnOpen = document.getElementById('btnOpenStudentVerify');
+    const btnOpenDiscover = document.getElementById('btnOpenStudentVerifyDiscover');
     const modal = document.getElementById('studentVerificationModal');
     const btnClose = document.getElementById('closeStudentVerifyModal');
     const btnSend = document.getElementById('btnSendStudentOtp');
@@ -1353,9 +1393,9 @@ window.matchSpaceApp = (function () {
 
     let pendingEmail = '';
 
-    btnOpen?.addEventListener('click', () => {
+    function openVerifyModal() {
       if (sessionUser && Number(sessionUser.is_student_verified) === 1) {
-        alert('บัญชีนี้ได้รับการยืนยันตัวตนนักศึกษาเรียบร้อยแล้ว');
+        alert('🎉 บัญชีของคุณได้รับการยืนยันตัวตนนักศึกษาแล้ว (Verified Student มีติ๊กถูกสีฟ้า ✔️)');
         return;
       }
       if (emailInput && !emailInput.value && sessionUser?.email) {
@@ -1367,7 +1407,10 @@ window.matchSpaceApp = (function () {
       step2?.classList.add('hidden');
       if (notice) notice.textContent = '';
       modal?.classList.remove('hidden');
-    });
+    }
+
+    btnOpen?.addEventListener('click', openVerifyModal);
+    btnOpenDiscover?.addEventListener('click', openVerifyModal);
 
     btnClose?.addEventListener('click', () => modal?.classList.add('hidden'));
     modal?.addEventListener('click', (e) => {
@@ -1382,7 +1425,7 @@ window.matchSpaceApp = (function () {
     btnSend?.addEventListener('click', async () => {
       const email = emailInput?.value.trim();
       if (!email) {
-        alert('กรุณากรอกอีเมลมหาวิทยาลัยของคุณ');
+        alert('กรุณากรอกอีเมลมหาวิทยาลัยของคุณ เช่น yourname@kkumail.com');
         return;
       }
 
@@ -1404,10 +1447,12 @@ window.matchSpaceApp = (function () {
           otpInput.focus();
         }
 
-        if (res.dev_otp) {
-          alert(`[ระบบทดสอบ] รหัส OTP ของคุณคือ: ${res.dev_otp}`);
+        if (res.email_sent) {
+          alert(`✉️ ส่งรหัส OTP ไปยังอีเมล ${res.target_email || email} แล้ว\nกรุณาเปิดตรวจสอบในกล่องจดหมายของคุณ (หรือโฟลเดอร์ Junk/Spam)`);
+        } else if (res.dev_otp) {
+          alert(`[โหมดทดสอบ / ยังไม่ได้ตั้งค่า SMTP จริง]\nรหัส OTP สำหรับทดสอบคือ: ${res.dev_otp}`);
         } else {
-          alert(res.message || 'ส่งรหัส OTP ไปยังอีเมลเรียบร้อยแล้ว');
+          alert(res.message || 'ส่งรหัส OTP เรียบร้อยแล้ว');
         }
       } catch (err) {
         alert(err.message || 'เกิดข้อผิดพลาดในการส่ง OTP');
