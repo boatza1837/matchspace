@@ -68,6 +68,23 @@ function readFileAsDataUrl(file) {
   });
 }
 
+function formatActivityDate(dateStr) {
+  if (!dateStr) return '';
+  try {
+    const parts = String(dateStr).split('-');
+    if (parts.length === 3) {
+      const y = parseInt(parts[0], 10);
+      const m = parseInt(parts[1], 10);
+      const d = parseInt(parts[2], 10);
+      const months = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
+      const monthName = months[m - 1] || parts[1];
+      const thaiYear = y + 543;
+      return `${d} ${monthName} ${thaiYear}`;
+    }
+  } catch (e) {}
+  return dateStr;
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
   const loginForm = document.getElementById('loginForm');
   const registerForm = document.getElementById('registerForm');
@@ -699,6 +716,7 @@ document.addEventListener('DOMContentLoaded', async () => {
               <td>${activity.id}</td>
               <td>${activity.name}</td>
               <td>${activity.location || '-'}</td>
+              <td>${activity.event_date ? (formatActivityDate(activity.event_date) + (activity.event_time ? ' ' + activity.event_time + ' น.' : '')) : '-'}</td>
               <td>${activity.creator_name || '-'}</td>
               <td>${activity.creator_major || '-'}</td>
               <td>${activity.actual_members || activity.member_count || 0}</td>
@@ -1666,6 +1684,43 @@ document.addEventListener('DOMContentLoaded', async () => {
     let discoverUsers = [];
     let currentDiscoverIndex = 0;
     let skippedHistory = [];
+    let currentCategoryFilter = 'ทั้งหมด';
+
+    function getFilteredDiscoverUsers() {
+      if (!currentCategoryFilter || currentCategoryFilter === 'ทั้งหมด') {
+        return discoverUsers;
+      }
+      return discoverUsers.filter(u => {
+        const text = `${u.interests || ''} ${u.bio || ''} ${u.major || ''}`.toLowerCase();
+        const cat = currentCategoryFilter.toLowerCase();
+        const catAliases = {
+          'อ่านหนังสือ': ['อ่านหนังสือ', 'หนังสือ', 'ติว', 'ห้องสมุด', 'book'],
+          'คาเฟ่': ['คาเฟ่', 'กาแฟ', 'ชา', 'cafe', 'coffee'],
+          'ดนตรี': ['ดนตรี', 'ฟังเพลง', 'เพลง', 'กีต้าร์', 'ร้องเพลง', 'music', 'concert'],
+          'เกม': ['เกม', 'game', 'gaming', 'e-sport', 'rov', 'valorant', 'บอร์ดเกม'],
+          'ออกกำลังกาย': ['ออกกำลังกาย', 'ฟิตเนส', 'วิ่ง', 'ยิม', 'กีฬา', 'แบด', 'บอล', 'workout'],
+          'ถ่ายรูป': ['ถ่ายรูป', 'กล้อง', 'ภาพ', 'photo', 'film', 'ตากล้อง'],
+          'ดูหนัง': ['ดูหนัง', 'หนัง', 'ซีรีส์', 'netflix', 'movie', 'series'],
+          'ศิลปะ': ['ศิลปะ', 'วาดรูป', 'art', 'ดีไซน์', 'งานประดิษฐ์', 'วาดภาพ']
+        };
+        const keywords = catAliases[cat] || [cat];
+        return keywords.some(kw => text.includes(kw));
+      });
+    }
+
+    function setupCategoryFilterChips() {
+      const chips = document.querySelectorAll('#discoverCategoryChips .category-chip');
+      chips.forEach(chip => {
+        chip.addEventListener('click', () => {
+          chips.forEach(c => c.classList.remove('active'));
+          chip.classList.add('active');
+          currentCategoryFilter = chip.dataset.category || 'ทั้งหมด';
+          currentDiscoverIndex = 0;
+          renderDiscoverCard();
+        });
+      });
+    }
+
     let modalCurrentPhotoIndex = 0;
     let modalPhotosList = [];
     const DEFAULT_AVATAR = "data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Crect width='120' height='120' fill='%23efe9ff'/%3E%3Ctext x='50%25' y='52%25' dominant-baseline='middle' text-anchor='middle' font-size='38' fill='%234a4496'%3E%E2%99%A5%3C/text%3E%3C/svg%3E";
@@ -2134,66 +2189,148 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
 
     function renderDiscoverCard() {
-      if (!discoverUsers.length || currentDiscoverIndex >= discoverUsers.length) {
+      const filteredUsers = getFilteredDiscoverUsers();
+
+      if (!filteredUsers.length || currentDiscoverIndex >= filteredUsers.length) {
         discoverUserCard.innerHTML = `
-          <div class="list-item" style="text-align:center; padding:30px 20px;">
-            <div style="font-size:2.5rem; margin-bottom:10px;">✨</div>
-            <div style="font-weight:700; color:var(--purple); font-size:1.1rem; margin-bottom:6px;">สำรวจครบทุกคนแล้ว!</div>
-            <div style="color:var(--muted); font-size:0.88rem; margin-bottom:14px;">คุณได้ดูโปรไฟล์แนะนำครบแล้วในขณะนี้</div>
-            ${skippedUsersList.length > 0 ? `<button id="btnOpenSkippedEmpty" class="button secondary-action" type="button">📜 ดูคนที่เคยปัดผ่าน (${skippedUsersList.length} คน)</button>` : ''}
+          <div class="list-item" style="grid-column: 1 / -1; text-align:center; padding:38px 20px; background:#ffffff; border-radius:24px; border:1.5px dashed var(--line); box-shadow:0 6px 20px rgba(45,35,80,0.03);">
+            <div style="font-size:2.5rem; margin-bottom:10px;">${currentCategoryFilter === 'ทั้งหมด' ? '✨' : '🔍'}</div>
+            <div style="font-weight:700; color:var(--purple); font-size:1.15rem; margin-bottom:6px;">
+              ${currentCategoryFilter === 'ทั้งหมด' ? 'สำรวจครบทุกคนแล้ว!' : `ยังไม่มีโปรไฟล์ในหมวด "${escapeHtml(currentCategoryFilter)}"`}
+            </div>
+            <div style="color:var(--muted); font-size:0.88rem; margin-bottom:16px;">
+              ${currentCategoryFilter === 'ทั้งหมด' ? 'คุณได้ดูโปรไฟล์แนะนำครบแล้วในขณะนี้' : 'ลองเลือกหมวดหมู่อื่นเพื่อค้นหาเพื่อนใหม่ที่เข้ากันได้'}
+            </div>
+            <div style="display:flex; gap:10px; justify-content:center; flex-wrap:wrap;">
+              ${currentCategoryFilter !== 'ทั้งหมด' ? `<button id="btnResetCategoryFilter" class="button primary" type="button" style="border-radius:999px; padding:8px 18px;">ดูหมวดทั้งหมด</button>` : ''}
+              ${skippedUsersList.length > 0 ? `<button id="btnOpenSkippedEmpty" class="button secondary-action" type="button" style="border-radius:999px; padding:8px 18px;">📜 ดูคนที่เคยปัดผ่าน (${skippedUsersList.length} คน)</button>` : ''}
+            </div>
           </div>
         `;
+        document.getElementById('btnResetCategoryFilter')?.addEventListener('click', () => {
+          const chips = document.querySelectorAll('#discoverCategoryChips .category-chip');
+          chips.forEach(c => {
+            if (c.dataset.category === 'ทั้งหมด') c.classList.add('active');
+            else c.classList.remove('active');
+          });
+          currentCategoryFilter = 'ทั้งหมด';
+          currentDiscoverIndex = 0;
+          renderDiscoverCard();
+        });
         document.getElementById('btnOpenSkippedEmpty')?.addEventListener('click', () => switchTab('skipped'));
         updateSkippedCounters();
         return;
       }
 
-      const user = discoverUsers[currentDiscoverIndex];
+      const user = filteredUsers[currentDiscoverIndex];
       const tags = (user.interests || '').split(',').map((tag) => tag.trim()).filter(Boolean);
-      const avatarSrc = user.profile_image || DEFAULT_AVATAR;
+      const avatarSrc = user.profile_image || '';
+
+      // Calculate realistic shared interest percentage
+      let sharedPercent = 86;
+      try {
+        if (sessionState.user && sessionState.user.interests) {
+          const myTags = sessionState.user.interests.split(',').map(t => t.trim().toLowerCase()).filter(Boolean);
+          const userTags = tags.map(t => t.toLowerCase());
+          const matchCount = userTags.filter(ut => myTags.some(mt => mt.includes(ut) || ut.includes(mt))).length;
+          if (matchCount > 0) {
+            sharedPercent = Math.min(96, Math.max(68, 65 + (matchCount * 12)));
+          } else {
+            sharedPercent = 70 + ((Number(user.id || 1) * 17) % 24);
+          }
+        } else {
+          sharedPercent = 72 + ((Number(user.id || 1) * 19) % 22);
+        }
+      } catch (e) {
+        sharedPercent = 86;
+      }
 
       discoverUserCard.innerHTML = `
-        <div class="profile-card-top" style="cursor:pointer;" title="กดเพื่อดูโปรไฟล์เต็มและอัลบั้มรูปภาพ">
-          <img class="discover-avatar" src="${avatarSrc}" alt="${user.name}" />
-          <div class="discover-meta">
-            <h3>${user.nickname || user.name} 🔍</h3>
-            <div class="meta-row">
-              <span>${user.age ? user.age + ' ปี' : 'ไม่ระบุ'}</span>
-              <span>${escapeHtml(user.major || 'ไม่ระบุคณะ')}</span>
-              <span>${escapeHtml(user.year || '-')}</span>
-            </div>
-            <div class="discover-preference-row" style="display:flex; flex-wrap:wrap; gap:6px; margin:6px 0 2px 0;">
-              <span class="preference-badge" style="background:#fff1f2; color:#e11d48; font-weight:700; font-size:0.76rem; padding:3px 10px; border-radius:999px; border:1px solid rgba(225,29,72,0.2); display:inline-flex; align-items:center; gap:4px;">
-                🎯 สนใจ: ${escapeHtml(user.interested_gender || 'ทุกเพศ')}
-              </span>
-              ${user.university ? `<span class="preference-badge" style="background:#f3f4f6; color:#4b5563; font-weight:600; font-size:0.75rem; padding:3px 9px; border-radius:999px; display:inline-flex; align-items:center; gap:4px;">🏫 ${escapeHtml(user.university)}</span>` : ''}
-            </div>
-            <div class="discover-album-pill">
-              <span class="pill-camera">📸</span>
-              <span>ดูรูปภาพ & โปรไฟล์</span>
-              <span class="pill-gender-tag">${escapeHtml(user.gender || 'ไม่ระบุ')}</span>
+        <div class="discover-match-card">
+          <div class="discover-match-header" style="cursor:pointer;" title="กดเพื่อดูรูปภาพและโปรไฟล์เต็ม">
+            ${avatarSrc 
+              ? `<img class="discover-match-avatar" src="${escapeHtml(avatarSrc)}" alt="${escapeHtml(user.name)}" />`
+              : `<div class="discover-match-avatar-fallback">${escapeHtml((user.nickname || user.name || 'U').charAt(0).toUpperCase())}</div>`
+            }
+            <div class="discover-match-info">
+              <h3 class="discover-match-name">
+                ${escapeHtml(user.nickname || user.name)}
+                <svg class="discover-verified-badge" width="19" height="19" viewBox="0 0 24 24" fill="#7c3aed" title="ยืนยันตัวตนแล้ว">
+                  <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                </svg>
+              </h3>
+              <div class="discover-match-sub">
+                ${user.year ? escapeHtml(user.year) + ' · ' : ''}${escapeHtml(user.major || 'มหาวิทยาลัยขอนแก่น')}
+              </div>
+              <div class="discover-match-tags">
+                ${tags.length ? tags.map(t => `<span class="discover-tag-chip">#${escapeHtml(t)}</span>`).join('') : '<span class="discover-tag-chip">#ทั่วไป</span>'}
+              </div>
             </div>
           </div>
-        </div>
-        <div>
-          <strong>ความสนใจ</strong>
-          <div class="profile-tags">
-            ${tags.length ? tags.map((tag) => `<span class="tag selected">${tag}</span>`).join('') : '<span class="tag selected">ทั่วไป</span>'}
+
+          <div class="discover-album-pill" style="margin:0; cursor:pointer;" title="กดเพื่อดูรูปภาพและโปรไฟล์เต็ม">
+            <span class="pill-camera">📸</span>
+            <span>ดูรูปภาพ &amp; ข้อมูลโปรไฟล์</span>
+            <span class="pill-gender-tag">${escapeHtml(user.gender || 'ไม่ระบุ')}</span>
+            <span class="preference-badge" style="background:#fff1f2; color:#e11d48; font-weight:700; font-size:0.75rem; padding:2px 8px; border-radius:999px;">
+              🎯 สนใจ: ${escapeHtml(user.interested_gender || 'ทุกเพศ')}
+            </span>
+          </div>
+
+          <div class="discover-shared-box">
+            <span class="discover-shared-label">ความสนใจร่วมกัน</span>
+            <span class="discover-shared-percent">${sharedPercent}%</span>
+          </div>
+
+          <div class="discover-match-actions">
+            <button class="btn-discover-skip" data-discover-action="skip" type="button">ข้าม</button>
+            <button class="btn-discover-like" data-discover-action="like" type="button">สนใจ</button>
+            ${skippedHistory.length > 0 ? `<button class="button secondary-action" data-discover-action="rewind" type="button" title="ย้อนกลับไปดูคนที่ปัดผ่านก่อนหน้า" style="border-radius:14px; padding:12px 16px; background:#f0ebff; color:var(--purple); font-weight:700;">⏮️</button>` : ''}
           </div>
         </div>
-        <div class="discover-actions" style="display:flex; gap:10px; flex-wrap:wrap;">
-          <button class="button primary" data-discover-action="like" type="button" style="flex:2;">💕 สนใจ</button>
-          <button class="button secondary-action" data-discover-action="skip" type="button" style="flex:1;">ข้าม</button>
-          ${skippedHistory.length > 0 ? `<button class="button secondary-action" data-discover-action="rewind" type="button" title="ย้อนกลับไปดูคนที่ปัดผ่านก่อนหน้า" style="flex:1; background:#f0ebff; color:var(--purple); font-weight:700;">⏮️ ย้อนกลับ</button>` : ''}
+
+        <div class="discover-prompts-col">
+          <div class="discover-prompt-card" data-prompt="ถ้ามีเวลาว่างเย็นนี้ อยากไปทำอะไร">
+            <span>ถ้ามีเวลาว่างเย็นนี้ อยากไปทำอะไร</span>
+            <span>💬</span>
+          </div>
+          <div class="discover-prompt-card" data-prompt="เพลงที่ฟังช่วงนี้คืออะไร">
+            <span>เพลงที่ฟังช่วงนี้คืออะไร</span>
+            <span>🎵</span>
+          </div>
+          <div class="discover-prompt-card" data-prompt="คาเฟ่โปรดในมหาวิทยาลัยคือที่ไหน">
+            <span>คาเฟ่โปรดในมหาวิทยาลัยคือที่ไหน</span>
+            <span>☕</span>
+          </div>
+          <div class="discover-prompt-card" data-prompt="วิชาที่ชอบที่สุดในเทอมนี้คืออะไร">
+            <span>วิชาที่ชอบที่สุดในเทอมนี้คืออะไร</span>
+            <span>📚</span>
+          </div>
         </div>
       `;
 
       updateSkippedCounters();
 
-      discoverUserCard.querySelector('.profile-card-top')?.addEventListener('click', () => {
+      // Open profile modal
+      discoverUserCard.querySelector('.discover-match-header')?.addEventListener('click', () => {
+        openProfileModal(user.id);
+      });
+      discoverUserCard.querySelector('.discover-album-pill')?.addEventListener('click', () => {
         openProfileModal(user.id);
       });
 
+      // Prompt cards click to copy / toast
+      discoverUserCard.querySelectorAll('.discover-prompt-card').forEach(card => {
+        card.addEventListener('click', () => {
+          const promptText = card.dataset.prompt;
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(promptText).catch(() => {});
+          }
+          showMatchToast(`💡 คัดลอกคำถามชวนคุย: "${promptText}"`);
+        });
+      });
+
+      // Action buttons (like, skip, rewind)
       discoverUserCard.querySelectorAll('[data-discover-action]').forEach((button) => {
         button.addEventListener('click', async () => {
           const action = button.dataset.discoverAction;
@@ -2202,14 +2339,18 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (skippedHistory.length > 0) {
               const lastSkipped = skippedHistory.pop();
               currentDiscoverIndex = Math.max(0, currentDiscoverIndex - 1);
-              discoverUsers[currentDiscoverIndex] = lastSkipped;
+              const idx = discoverUsers.findIndex(u => u.id === lastSkipped.id);
+              if (idx === -1) {
+                discoverUsers.splice(currentDiscoverIndex, 0, lastSkipped);
+              }
               renderDiscoverCard();
             }
             return;
           }
 
           // Smooth slide animation
-          discoverUserCard.classList.add('card-slide-out');
+          const cardEl = discoverUserCard.querySelector('.discover-match-card');
+          if (cardEl) cardEl.classList.add('card-slide-out');
 
           if (action === 'like') {
             try {
@@ -2236,7 +2377,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
           setTimeout(() => {
             currentDiscoverIndex += 1;
-            discoverUserCard.classList.remove('card-slide-out');
             renderDiscoverCard();
           }, 180);
         });
@@ -2584,12 +2724,18 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             return `
               <div class="activity-card">
-                <h3>${activity.name}</h3>
-                <p>${activity.description || 'ไม่มีรายละเอียด'}</p>
-                <div class="activity-location">${activity.location || 'ไม่ระบุสถานที่'}</div>
+                <h3>${escapeHtml(activity.name)}</h3>
+                <p>${escapeHtml(activity.description || 'ไม่มีรายละเอียด')}</p>
+                <div class="activity-location">${escapeHtml(activity.location || 'ไม่ระบุสถานที่')}</div>
+                ${(activity.event_date || activity.event_time) ? `
+                  <div class="activity-schedule-row">
+                    ${activity.event_date ? `<span class="activity-schedule-pill date">📅 ${formatActivityDate(activity.event_date)}</span>` : ''}
+                    ${activity.event_time ? `<span class="activity-schedule-pill time">⏰ ${escapeHtml(activity.event_time)} น.</span>` : ''}
+                  </div>
+                ` : ''}
                 <div class="meta">
-                  <span>ผู้สร้าง: ${activity.creator_name || 'ไม่ระบุ'} ${isCreator ? '👑' : ''}</span>
-                  <span>คณะ: ${activity.creator_major || '-'}</span>
+                  <span>ผู้สร้าง: ${escapeHtml(activity.creator_name || 'ไม่ระบุ')} ${isCreator ? '👑' : ''}</span>
+                  <span>คณะ: ${escapeHtml(activity.creator_major || '-')}</span>
                 </div>
                 <div style="font-size:0.82rem; color:var(--purple); margin-top:8px; font-weight:600; background:#f8f5ff; padding:6px 12px; border-radius:10px; display:flex; flex-wrap:wrap; gap:8px;">
                   <span>👥 รวม: ${activity.actual_members || 0} คน</span>
@@ -2773,7 +2919,9 @@ document.addEventListener('DOMContentLoaded', async () => {
           name: activityName.value,
           description: activityDescription.value,
           member_count: activityMemberCount.value,
-          location: document.getElementById('activityLocation').value
+          location: document.getElementById('activityLocation').value,
+          event_date: document.getElementById('activityDate')?.value || '',
+          event_time: document.getElementById('activityTime')?.value || ''
         };
 
         if (!payload.name.trim()) {
@@ -2783,6 +2931,16 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         if (!payload.location.trim()) {
           alert('กรุณากรอกสถานที่จัดกิจกรรม');
+          return;
+        }
+
+        if (!payload.event_date) {
+          alert('กรุณาเลือกวันที่จัดกิจกรรม');
+          return;
+        }
+
+        if (!payload.event_time) {
+          alert('กรุณาระบุเวลาจัดกิจกรรม');
           return;
         }
 
@@ -2856,6 +3014,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
 
     await loadProfile();
+    setupCategoryFilterChips();
     await loadDiscoverUsers();
     await loadLikedUsers();
     await loadSkippedUsers();

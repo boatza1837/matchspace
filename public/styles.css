@@ -2903,4 +2903,316 @@ body {
   font-weight: 500;
 }
 
+/* ===================================================
+   Discover Categories & Modern Matching Layout
+   =================================================== */
+
+.discover-page-container {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 8px 4px 30px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.discover-title-area {
+  margin-top: 2px;
+}
+
+.discover-main-title {
+  font-size: 1.6rem;
+  font-weight: 800;
+  color: #1e1b4b;
+  margin: 0 0 6px 0;
+  letter-spacing: -0.02em;
+}
+
+.discover-subtitle {
+  font-size: 0.92rem;
+  color: #6b7280;
+  margin: 0;
+}
+
+/* Category Filter Chips */
+.category-chips-scroll {
+  display: flex;
+  gap: 9px;
+  overflow-x: auto;
+  padding: 6px 2px 8px;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.category-chips-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+.category-chip {
+  padding: 8px 18px;
+  background: #ffffff;
+  border: 1.5px solid rgba(228, 228, 231, 0.9);
+  border-radius: 999px;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: #4b5563;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
+  user-select: none;
+}
+
+.category-chip:hover {
+  background: #fbf9ff;
+  border-color: #8b5cf6;
+  color: #7c3aed;
+  transform: translateY(-1px);
+}
+
+.category-chip.active {
+  background: #ede9fe;
+  border-color: #7c3aed;
+  color: #7c3aed;
+  font-weight: 700;
+  box-shadow: 0 2px 8px rgba(124, 58, 237, 0.16);
+}
+
+/* Discover Layout (2 columns: Candidate Card + Conversation Starters) */
+.discover-content-row {
+  display: grid;
+  grid-template-columns: 1.15fr 0.85fr;
+  gap: 22px;
+  align-items: start;
+}
+
+@media (max-width: 768px) {
+  .discover-content-row {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+}
+
+/* Discover Candidate Card (New Mockup Style) */
+.discover-match-card {
+  background: #ffffff;
+  border-radius: 26px;
+  padding: 24px;
+  border: 1.5px solid rgba(230, 225, 245, 0.85);
+  box-shadow: 0 10px 30px rgba(45, 35, 80, 0.05);
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+
+.discover-match-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.discover-match-avatar {
+  width: 68px;
+  height: 68px;
+  min-width: 68px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2.5px solid #ede9fe;
+  cursor: pointer;
+  transition: transform 0.2s ease;
+}
+
+.discover-match-avatar:hover {
+  transform: scale(1.05);
+}
+
+.discover-match-avatar-fallback {
+  width: 68px;
+  height: 68px;
+  min-width: 68px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #c084fc, #f472b6);
+  color: #ffffff;
+  font-size: 1.6rem;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(192, 132, 252, 0.3);
+}
+
+.discover-match-info {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.discover-match-name {
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: #1e1b4b;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+}
+
+.discover-verified-badge {
+  color: #7c3aed;
+  display: inline-flex;
+}
+
+.discover-match-sub {
+  font-size: 0.88rem;
+  color: #6b7280;
+  font-weight: 500;
+}
+
+.discover-match-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.discover-tag-chip {
+  padding: 4px 12px;
+  background: #f5f3ff;
+  color: #7c3aed;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+/* Shared Interest Bar */
+.discover-shared-box {
+  background: #fdf5ea;
+  border-radius: 14px;
+  padding: 12px 18px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border: 1px solid rgba(245, 158, 11, 0.15);
+}
+
+.discover-shared-label {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #78350f;
+}
+
+.discover-shared-percent {
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: #ea580c;
+}
+
+/* Discover Match Actions */
+.discover-match-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.btn-discover-skip {
+  flex: 1;
+  padding: 12px 18px;
+  background: #ffffff;
+  border: 1.5px solid rgba(228, 228, 231, 0.9);
+  border-radius: 14px;
+  color: #4b5563;
+  font-weight: 700;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-discover-skip:hover {
+  background: #f4f4f5;
+  color: #18181b;
+}
+
+.btn-discover-like {
+  flex: 1.2;
+  padding: 12px 20px;
+  background: #6946ed;
+  border: none;
+  border-radius: 14px;
+  color: #ffffff;
+  font-weight: 700;
+  font-size: 0.95rem;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(105, 70, 237, 0.28);
+  transition: all 0.2s ease;
+}
+
+.btn-discover-like:hover {
+  background: #5b38db;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(105, 70, 237, 0.35);
+}
+
+/* Conversation Starters (Right Column) */
+.discover-prompts-col {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.discover-prompt-card {
+  background: #ffffff;
+  border-radius: 18px;
+  padding: 16px 20px;
+  border: 1.5px solid rgba(230, 225, 245, 0.85);
+  box-shadow: 0 4px 16px rgba(45, 35, 80, 0.03);
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: #1e1b4b;
+  cursor: pointer;
+  transition: all 0.22s cubic-bezier(0.2, 0.8, 0.2, 1);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.discover-prompt-card:hover {
+  transform: translateX(4px);
+  border-color: rgba(124, 92, 233, 0.4);
+  box-shadow: 0 6px 20px rgba(124, 92, 233, 0.1);
+  color: #6946ed;
+}
+
+/* Activity Schedule Badges (Date & Time) */
+.activity-schedule-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+  margin-bottom: 4px;
+}
+
+.activity-schedule-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.activity-schedule-pill.date {
+  background: #eff6ff;
+  color: #1d4ed8;
+  border: 1px solid #bfdbfe;
+}
+
+.activity-schedule-pill.time {
+  background: #fdf4ff;
+  color: #a21caf;
+  border: 1px solid #f5d0fe;
+}
+
+
 

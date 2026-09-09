@@ -234,6 +234,8 @@ async function initDatabase() {
       name TEXT NOT NULL,
       description TEXT,
       location TEXT,
+      event_date TEXT,
+      event_time TEXT,
       created_by INTEGER NOT NULL,
       creator_name TEXT,
       creator_major TEXT,
@@ -268,6 +270,8 @@ async function initDatabase() {
     );
   `);
 
+  try { await db.run("ALTER TABLE activities ADD COLUMN event_date TEXT"); } catch(e) {}
+  try { await db.run("ALTER TABLE activities ADD COLUMN event_time TEXT"); } catch(e) {}
   try { await db.run("ALTER TABLE chats ADD COLUMN type TEXT DEFAULT 'direct'"); } catch(e) {}
   try { await db.run("ALTER TABLE chats ADD COLUMN activity_id INTEGER DEFAULT NULL"); } catch(e) {}
   try { await db.run("ALTER TABLE login_logs ADD COLUMN action TEXT DEFAULT 'Login'"); } catch(e) {}
@@ -1394,7 +1398,7 @@ app.get('/api/activities', requireAuth, async (req, res) => {
 
 app.post('/api/activities', requireAuth, async (req, res) => {
   try {
-    const { name, description, member_count, location } = req.body || {};
+    const { name, description, member_count, location, event_date, event_time } = req.body || {};
     const userId = req.session.user.id;
     const user = await db.get('SELECT * FROM users WHERE id = ?', [userId]);
 
@@ -1411,12 +1415,14 @@ app.post('/api/activities', requireAuth, async (req, res) => {
     }
 
     const result = await db.run(`
-      INSERT INTO activities (name, description, location, created_by, creator_name, creator_major, member_count, status)
-      VALUES (?, ?, ?, ?, ?, ?, ?, 'pending')
+      INSERT INTO activities (name, description, location, event_date, event_time, created_by, creator_name, creator_major, member_count, status)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')
     `, [
       String(name).trim(),
       description || '',
       String(location).trim(),
+      event_date ? String(event_date).trim() : null,
+      event_time ? String(event_time).trim() : null,
       user.id,
       user.name || 'ไม่ระบุ',
       user.major || '-',

@@ -120,19 +120,40 @@
         </section>
 
         <section id="tab-discover" class="tab-panel">
-          <div class="panel discover-panel">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; flex-wrap:wrap; gap:8px;">
-              <h2 style="margin:0; font-size:1.1rem; color:var(--purple);">✨ ค้นหาคนที่ใช่</h2>
-              <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
-                <button id="viewLikedBtn" class="button secondary-action" type="button" style="font-size:0.82rem; padding:6px 14px; border-radius:999px;">
-                  💖 คนที่สนใจ (<span id="likedCount">0</span>)
-                </button>
-                <button id="viewSkippedBtn" class="button secondary-action" type="button" style="font-size:0.82rem; padding:6px 14px; border-radius:999px;">
-                  📜 ดูคนที่เคยปัดผ่าน (<span id="skippedCount">0</span>)
-                </button>
+          <div class="discover-page-container">
+            <!-- Header Area matching Mockup -->
+            <div class="discover-title-area">
+              <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:10px;">
+                <div>
+                  <h1 class="discover-main-title">คนที่น่าจะเข้ากันได้</h1>
+                  <p class="discover-subtitle">จับคู่จากแท็กและความสนใจร่วมกัน ไม่ตัดสินจากรูปอย่างเดียว</p>
+                </div>
+                <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+                  <button id="viewLikedBtn" class="button secondary-action" type="button" style="font-size:0.82rem; padding:6px 14px; border-radius:999px;">
+                    💖 สนใจ (<span id="likedCount">0</span>)
+                  </button>
+                  <button id="viewSkippedBtn" class="button secondary-action" type="button" style="font-size:0.82rem; padding:6px 14px; border-radius:999px;">
+                    📜 ผ่านแล้ว (<span id="skippedCount">0</span>)
+                  </button>
+                </div>
               </div>
             </div>
-            <div id="discoverUserCard" class="discover-card"></div>
+
+            <!-- Category Filter Chips Row -->
+            <div id="discoverCategoryChips" class="category-chips-scroll">
+              <button class="category-chip active" data-category="ทั้งหมด" type="button">ทั้งหมด</button>
+              <button class="category-chip" data-category="อ่านหนังสือ" type="button">อ่านหนังสือ</button>
+              <button class="category-chip" data-category="คาเฟ่" type="button">คาเฟ่</button>
+              <button class="category-chip" data-category="ดนตรี" type="button">ดนตรี</button>
+              <button class="category-chip" data-category="เกม" type="button">เกม</button>
+              <button class="category-chip" data-category="ออกกำลังกาย" type="button">ออกกำลังกาย</button>
+              <button class="category-chip" data-category="ถ่ายรูป" type="button">ถ่ายรูป</button>
+              <button class="category-chip" data-category="ดูหนัง" type="button">ดูหนัง</button>
+              <button class="category-chip" data-category="ศิลปะ" type="button">ศิลปะ</button>
+            </div>
+
+            <!-- Discover Content Grid (Card + Conversation Starters) -->
+            <div id="discoverUserCard" class="discover-content-row"></div>
           </div>
         </section>
 
@@ -377,7 +398,17 @@
                 </div>
 
                 <div class="form-group">
-                  <label for="activityMemberCount">จำนวนคนเข้าร่วม</label>
+                  <label for="activityDate">📅 วันที่จัดกิจกรรม</label>
+                  <input id="activityDate" type="date" required />
+                </div>
+
+                <div class="form-group">
+                  <label for="activityTime">⏰ เวลาจัดกิจกรรม</label>
+                  <input id="activityTime" type="time" required />
+                </div>
+
+                <div class="form-group full">
+                  <label for="activityMemberCount">จำนวนคนเข้าร่วมที่เปิดรับ (คน)</label>
                   <input id="activityMemberCount" type="number" min="0" value="0" />
                 </div>
               </div>
