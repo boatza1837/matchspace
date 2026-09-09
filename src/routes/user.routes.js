@@ -232,6 +232,15 @@ router.post('/api/matches', requireAuth, async (req, res) => {
             url: '/app'
           });
         } catch (e) {}
+
+        // Email notifications on mutual match
+        try {
+          const { sendMatchEmailNotification } = require('../services/email');
+          sendMatchEmailNotification(target, req.session.user);
+          sendMatchEmailNotification(req.session.user, target);
+        } catch (e) {
+          console.warn('[Match Email Error]', e.message);
+        }
       }
     }
 

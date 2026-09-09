@@ -7,50 +7,7 @@ const { requireAuth, formatUser } = require('../middlewares/auth');
 // University Email Pattern (KKU Mail e.g. @kkumail.com, @kku.ac.th, or Thai university .ac.th)
 const UNIVERSITY_EMAIL_REGEX = /^[a-zA-Z0-9._%+-]+@([a-zA-Z0-9.-]+\.)?(kkumail\.com|kku\.ac\.th|[a-zA-Z0-9.-]+\.ac\.th)$/i;
 
-// Initialize mailer transporter (Gmail App Password or Custom SMTP)
-function getTransporter() {
-  const service = process.env.SMTP_SERVICE?.toLowerCase();
-  const host = process.env.SMTP_HOST;
-  const port = Number(process.env.SMTP_PORT) || 587;
-  const user = process.env.SMTP_USER;
-  // Strip spaces if user pasted 16-char Gmail app password formatted like 'abcd efgh ijkl mnop'
-  const pass = process.env.SMTP_PASS ? process.env.SMTP_PASS.replace(/\s+/g, '') : '';
-
-  if (!user || !pass) {
-    return null;
-  }
-
-  // If service is gmail or host is smtp.gmail.com
-  if (service === 'gmail' || (host && host.toLowerCase().includes('gmail'))) {
-    return nodemailer.createTransport({
-      host: 'smtp.gmail.com',
-      port: 465,
-      secure: true,
-      auth: { user, pass },
-      connectionTimeout: 8000,
-      greetingTimeout: 8000,
-      socketTimeout: 12000
-    });
-  }
-
-  // Standard or Cloud SMTP (Resend, Brevo, AWS SES, University SMTP)
-  if (host) {
-    return nodemailer.createTransport({
-      host,
-      port,
-      secure: port === 465,
-      auth: { user, pass },
-      tls: {
-        rejectUnauthorized: false
-      },
-      connectionTimeout: 6000,
-      greetingTimeout: 6000,
-      socketTimeout: 10000
-    });
-  }
-
-  return null;
-}
+const { getTransporter } = require('../services/email');
 
 // Get SMTP status check
 router.get('/api/verify/smtp-status', async (req, res) => {

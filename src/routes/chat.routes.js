@@ -370,6 +370,18 @@ router.post('/api/chats/:id/messages', requireAuth, async (req, res) => {
           url: '/app'
         });
       } catch (e) {}
+
+      // Email Notification to recipient (anti-spam throttled to 1 email per 5 mins per chat)
+      try {
+        const { sendChatMessageEmailNotification } = require('../services/email');
+        db.get('SELECT id, name, email, student_email FROM users WHERE id = ?', [Number(recipientId)])
+          .then((recipientUser) => {
+            if (recipientUser) {
+              sendChatMessageEmailNotification(recipientUser, req.session.user, String(content).trim(), chatId);
+            }
+          })
+          .catch((err) => console.warn('[Chat Email Error]', err.message));
+      } catch (e) {}
     }
 
     res.status(201).json({ message: 'ส่งข้อความสำเร็จ', message });
