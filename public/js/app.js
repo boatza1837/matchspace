@@ -7,7 +7,7 @@ window.matchSpaceApp = (function () {
   let sessionUser = null;
   const DEFAULT_AVATAR = 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="120" height="120"><rect width="120" height="120" fill="#efe9ff"/><text x="50%" y="52%" dominant-baseline="middle" text-anchor="middle" font-size="38" fill="#4a4496">♥</text></svg>');
 
-  const tabOrder = ['home', 'discover', 'liked', 'skipped', 'activity', 'chat', 'profile'];
+  const tabOrder = ['home', 'discover', 'chat', 'activity', 'profile', 'liked', 'skipped'];
   let currentActiveTab = 'home';
   let latestActivitiesList = [];
   let discoverUsers = [];

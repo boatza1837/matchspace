@@ -3,213 +3,316 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>MatchSpace | Register</title>
+    <title>MatchSpace | สมัครสมาชิก</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css" />
   </head>
-  <body>
-    <div class="container">
-      <header>
-        <div class="brand">
-          <div class="brand-mark">♥</div>
-          <span>MatchSpace</span>
-        </div>
-        <nav class="nav">
-          <a href="/">เข้าสู่ระบบ</a>
-          <a href="/report">รายงานปัญหา</a>
-          <a href="/admin">ผู้ดูแล</a>
+  <body class="auth-page-body">
+    <!-- Ambient Background Glows -->
+    <div class="auth-ambient-glow glow-1" aria-hidden="true"></div>
+    <div class="auth-ambient-glow glow-2" aria-hidden="true"></div>
+
+    <div class="register-container">
+      <!-- Minimalist Frosted Topbar -->
+      <header class="auth-topbar">
+        <a href="/" class="auth-brand" title="MatchSpace">
+          <div class="auth-brand-logo">♥</div>
+          <span class="auth-brand-text">MatchSpace</span>
+        </a>
+        <nav class="auth-nav">
+          <a href="/" class="auth-nav-link">เข้าสู่ระบบ</a>
+          <a href="/report" class="auth-nav-link">รายงานปัญหา</a>
+          <a href="/admin" class="auth-nav-link admin-pill">ผู้ดูแล</a>
         </nav>
       </header>
 
-      <main class="grid">
-        <section class="card hero">
-          <h1>สร้างบัญชีใหม่ เพื่อเริ่มเจอคนที่ใช่</h1>
-          <p>
-            สมัครสมาชิกเพื่อเริ่มใช้งานระบบหาคู่และรับประสบการณ์การคุยที่ปลอดภัยมากขึ้น
-            พร้อมใช้งานหน้ารายงานและแอดมินตรวจสอบภายในระบบจริง
-          </p>
-        </section>
+      <!-- Register Header Banner -->
+      <div class="register-header-banner">
+        <div class="register-badge-pill">
+          <span>✨ เข้าร่วมคอมมูนิตี้ ม.ขอนแก่น</span>
+        </div>
+        <h1 class="register-title">สร้างบัญชีใหม่ เพื่อเริ่มเจอคนที่ใช่</h1>
+        <p class="register-subtitle">
+          กรอกข้อมูลตามจริงเพื่อการแนะนำเพื่อนและกิจกรรมที่ตรงกับไลฟ์สไตล์ของคุณมากที่สุด
+        </p>
+      </div>
 
-        <section class="card form-card">
-          <h2>สมัครสมาชิก</h2>
-          <form id="registerForm">
-            <div class="form-grid">
-              <div class="form-group">
-                <label for="name">ชื่อ-นามสกุล</label>
-                <input name="name" id="name" type="text" placeholder="กรอกชื่อจริง" required />
-              </div>
-
-              <div class="form-group">
-                <label for="nickname">ชื่อเล่น</label>
-                <input name="nickname" id="nickname" type="text" placeholder="ชื่อเล่นของคุณ" />
-              </div>
-
-              <div class="form-group">
-                <label for="email">อีเมล</label>
-                <input name="email" id="email" type="email" placeholder="name@email.com" required />
-              </div>
-
-              <div class="form-group">
-                <label for="phone">เบอร์โทรศัพท์</label>
-                <input name="phone" id="phone" type="tel" placeholder="0812345678" pattern="[0-9]{9,10}" maxlength="10" required />
-              </div>
-
-              <div class="form-group">
-                <label for="age">อายุ</label>
-                <input name="age" id="age" type="number" min="18" max="60" placeholder="18" />
-              </div>
-
-              <div class="form-group">
-                <label for="password">รหัสผ่าน</label>
-                <input name="password" id="password" type="password" placeholder="********" required />
-              </div>
-
-              <div class="form-group">
-                <label for="gender">เพศของคุณ</label>
-                <select id="gender" name="gender" required>
-                  <option value="ชาย">👨 ชาย</option>
-                  <option value="หญิง">👩 หญิง</option>
-                  <option value="เพศหลากหลาย">🌈 เพศหลากหลาย (LGBTQ+)</option>
-                </select>
-              </div>
-
-              <div class="form-group">
-                <label for="interestedGender">สนใจเพศไหน (Looking for)</label>
-                <select id="interestedGender" name="interested_gender" required>
-                  <option value="ทุกเพศ" selected>🌈 ทุกเพศ (All / Any)</option>
-                  <option value="หญิง">👩 หญิง</option>
-                  <option value="ชาย">👨 ชาย</option>
-                  <option value="เพศหลากหลาย">🌈 เพศหลากหลาย (LGBTQ+)</option>
-                </select>
-              </div>
-
-              <div class="form-group">
-                <label for="university">มหาวิทยาลัย</label>
-                <select id="university" name="university" required>
-                  <option value="มหาวิทยาลัยขอนแก่น" selected>🏫 มหาวิทยาลัยขอนแก่น (KKU)</option>
-                  <option value="other">🏛️ อื่นๆ (ระบุชื่อมหาวิทยาลัยเอง)</option>
-                </select>
-                <input type="text" id="customUniversity" class="hidden" placeholder="พิมพ์ชื่อมหาวิทยาลัยของคุณ..." style="margin-top: 8px;" />
-              </div>
-
-              <div class="form-group">
-                <label for="year">ชั้นปี</label>
-                <select id="year" name="year">
-                  <option value="ปี 1">ปี 1</option>
-                  <option value="ปี 2">ปี 2</option>
-                  <option value="ปี 3">ปี 3</option>
-                  <option value="ปี 4">ปี 4</option>
-                  <option value="บัณฑิตศึกษา (ป.โท/ป.เอก)">บัณฑิตศึกษา (ป.โท/ป.เอก)</option>
-                  <option value="ศิษย์เก่า / อื่นๆ">ศิษย์เก่า / อื่นๆ</option>
-                </select>
-              </div>
-
-              <div class="form-group full">
-                <label id="majorLabel" for="major">คณะ / วิทยาลัย (ม.ขอนแก่น)</label>
-                <select id="major" name="major">
-                  <option value="">-- กรุณาเลือกคณะ / วิทยาลัย --</option>
-                  <option value="คณะแพทยศาสตร์">คณะแพทยศาสตร์</option>
-                  <option value="คณะพยาบาลศาสตร์">คณะพยาบาลศาสตร์</option>
-                  <option value="คณะทันตแพทยศาสตร์">คณะทันตแพทยศาสตร์</option>
-                  <option value="คณะเภสัชศาสตร์">คณะเภสัชศาสตร์</option>
-                  <option value="คณะเทคนิคการแพทย์">คณะเทคนิคการแพทย์</option>
-                  <option value="คณะสาธารณสุขศาสตร์">คณะสาธารณสุขศาสตร์</option>
-                  <option value="คณะสัตวแพทยศาสตร์">คณะสัตวแพทยศาสตร์</option>
-                  <option value="คณะวิทยาศาสตร์">คณะวิทยาศาสตร์</option>
-                  <option value="คณะวิศวกรรมศาสตร์">คณะวิศวกรรมศาสตร์</option>
-                  <option value="คณะเกษตรศาสตร์">คณะเกษตรศาสตร์</option>
-                  <option value="คณะเทคโนโลยี">คณะเทคโนโลยี</option>
-                  <option value="คณะสถาปัตยกรรมศาสตร์">คณะสถาปัตยกรรมศาสตร์</option>
-                  <option value="วิทยาลัยการคอมพิวเตอร์">วิทยาลัยการคอมพิวเตอร์</option>
-                  <option value="คณะมนุษยศาสตร์และสังคมศาสตร์">คณะมนุษยศาสตร์และสังคมศาสตร์</option>
-                  <option value="คณะศึกษาศาสตร์">คณะศึกษาศาสตร์</option>
-                  <option value="คณะบริหารธุรกิจและการบัญชี">คณะบริหารธุรกิจและการบัญชี</option>
-                  <option value="คณะเศรษฐศาสตร์">คณะเศรษฐศาสตร์</option>
-                  <option value="คณะนิติศาสตร์">คณะนิติศาสตร์</option>
-                  <option value="คณะศิลปกรรมศาสตร์">คณะศิลปกรรมศาสตร์</option>
-                  <option value="คณะสหวิทยาการ (วิทยาเขตหนองคาย)">คณะสหวิทยาการ (วิทยาเขตหนองคาย)</option>
-                  <option value="วิทยาลัยนานาชาติ">วิทยาลัยนานาชาติ</option>
-                  <option value="วิทยาลัยการปกครองท้องถิ่น">วิทยาลัยการปกครองท้องถิ่น</option>
-                  <option value="วิทยาลัยบัณฑิตศึกษาการจัดการ">วิทยาลัยบัณฑิตศึกษาการจัดการ</option>
-                  <option value="other">คณะ / สาขาวิชาอื่นๆ (ระบุเอง)</option>
-                </select>
-                <input type="text" id="customMajor" class="hidden" placeholder="พิมพ์ชื่อคณะ / สาขาวิชาของคุณ..." style="margin-top: 8px;" />
-              </div>
-
-              <div class="form-group full">
-                <label for="profileImage">รูปโปรไฟล์</label>
-                <div id="googleAvatarSection" class="hidden" style="display:flex; align-items:center; gap:12px; margin-bottom:10px; padding:10px 14px; background:#f8f5ff; border:1px solid var(--purple-soft); border-radius:12px;">
-                  <img id="googleAvatarImg" src="" alt="Google Profile" style="width:48px; height:48px; border-radius:50%; object-fit:cover; border:2px solid var(--purple);" />
-                  <div style="font-size:0.85rem; color:var(--purple-dark); font-weight:600;">
-                    ✓ ใช้รูปโปรไฟล์จาก Google อัตโนมัติ
-                    <div style="font-weight:400; font-size:0.78rem; color:var(--muted);">หรือสามารถเลือกไฟล์รูปอื่นเพื่ออัปโหลดแทนที่ได้</div>
-                  </div>
-                </div>
-                <input type="file" id="profileImage" accept="image/*" />
-                <input type="hidden" id="googleProfileImage" name="google_profile_image" />
-              </div>
-
-              <div class="form-group full">
-                <label>ความสนใจ</label>
-                <div class="tags-info" style="font-size: 12px; color: var(--muted); margin-bottom: 8px;">เลือกความสนใจของคุณ</div>
-                <div id="interestsTags" class="tags-container" style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px;"></div>
-                <input type="hidden" id="interests" name="interests" />
-              </div>
-
-              <!-- ความยินยอมในการเก็บรวบรวมและใช้ข้อมูลส่วนบุคคล (PDPA Consent) -->
-              <div class="consent-container form-group full">
-                <div class="consent-box">
-                  <h3>ความยินยอมในการเก็บรวบรวมและใช้ข้อมูลส่วนบุคคล</h3>
-                  <p>เว็บไซต์ <strong>MatchSpace</strong> ขอความยินยอมจากท่านในการเก็บรวบรวม ใช้ และประมวลผลข้อมูลส่วนบุคคล เพื่อให้บริการจับคู่และแนะนำผู้ใช้งานที่มีความสนใจหรือมีกิจกรรมที่เหมาะสมร่วมกัน</p>
-
-                  <h4>ข้อมูลส่วนบุคคลที่เก็บรวบรวม</h4>
-                  <p>MatchSpace อาจเก็บรวบรวมข้อมูลที่ท่านให้ไว้ ได้แก่</p>
-                  <ul>
-                    <li>รูปภาพหรือรูปโปรไฟล์</li>
-                    <li>ชั้นปี</li>
-                    <li>ความสนใจและงานอดิเรก</li>
-                    <li>เวลาว่างที่สะดวกสำหรับทำกิจกรรม</li>
-                    <li>ลานหรือพื้นที่จัดกิจกรรมที่ท่านสนใจ</li>
-                  </ul>
-
-                  <h4>วัตถุประสงค์ในการเก็บและใช้ข้อมูล</h4>
-                  <p>ข้อมูลดังกล่าวจะถูกนำไปใช้เพื่อ</p>
-                  <ol>
-                    <li>สร้างและแสดงโปรไฟล์ของผู้ใช้งาน</li>
-                    <li>วิเคราะห์และจับคู่ผู้ใช้งานที่มีความสนใจหรือช่วงเวลาว่างที่ใกล้เคียงกัน</li>
-                    <li>แนะนำกิจกรรมหรือพื้นที่จัดกิจกรรมที่เหมาะสมกับผู้ใช้งาน</li>
-                    <li>ปรับปรุงการให้บริการและประสบการณ์การใช้งานของ MatchSpace</li>
-                  </ol>
-                  <p>MatchSpace จะเก็บรวบรวมและใช้ข้อมูลเท่าที่จำเป็นตามวัตถุประสงค์ที่แจ้งไว้ และจะไม่ใช้ข้อมูลเพื่อวัตถุประสงค์อื่นนอกเหนือจากที่ระบุ เว้นแต่จะได้รับความยินยอมหรือมีฐานทางกฎหมายที่สามารถดำเนินการได้ตามกฎหมาย</p>
-
-                  <h4>การให้ความยินยอม</h4>
-                  <p>โดยการกดปุ่ม <strong>“ยินยอม”</strong> ท่านรับทราบและยินยอมให้ MatchSpace เก็บรวบรวม ใช้ และประมวลผลข้อมูลส่วนบุคคลตามรายละเอียดข้างต้น</p>
-                  <p>ท่านมีสิทธิถอนความยินยอมได้ทุกเมื่อ โดยการถอนความยินยอมจะไม่กระทบต่อการประมวลผลข้อมูลที่ได้ดำเนินการไปแล้วก่อนการถอนความยินยอม ทั้งนี้ การถอนความยินยอมอาจทำให้ท่านไม่สามารถใช้งานฟังก์ชันบางอย่างของ MatchSpace ที่จำเป็นต้องใช้ข้อมูลดังกล่าวได้</p>
-                </div>
-
-                <div class="consent-checkbox-row">
-                  <label class="consent-label" for="consentCheckbox">
-                    <input type="checkbox" id="consentCheckbox" />
-                    <span>ข้าพเจ้าได้อ่านและเข้าใจรายละเอียดการเก็บรวบรวมและใช้ข้อมูลส่วนบุคคลแล้ว และยินยอมให้ MatchSpace เก็บรวบรวม ใช้ และประมวลผลข้อมูลส่วนบุคคลตามวัตถุประสงค์ที่ระบุไว้</span>
-                  </label>
-                </div>
-
-                <div class="consent-actions">
-                  <button type="button" id="btnAcceptConsent" class="button primary btn-consent-accept">ยินยอมและดำเนินการต่อ</button>
-                  <button type="button" id="btnDeclineConsent" class="button secondary-action btn-consent-decline">ไม่ยินยอม</button>
-                </div>
+      <!-- Main Register Card Form -->
+      <div class="register-form-card">
+        <form id="registerForm" autocomplete="on">
+          <!-- SECTION 1: ข้อมูลส่วนตัวพื้นฐาน -->
+          <div class="form-section-block">
+            <div class="form-section-header">
+              <span class="section-step-badge">1</span>
+              <div>
+                <h3 class="form-section-title">ข้อมูลส่วนตัวและบัญชี</h3>
+                <p class="form-section-desc">ข้อมูลทั่วไปสำหรับการแสดงโปรไฟล์ของคุณ</p>
               </div>
             </div>
 
-            <button type="submit" id="registerSubmitBtn" class="button primary register-btn-disabled" disabled style="width: 100%; margin-top: 16px;">สมัครสมาชิก</button>
-          </form>
+            <div class="register-inputs-grid">
+              <div class="auth-input-field">
+                <label for="name" class="auth-label">
+                  <span>ชื่อ-นามสกุลจริง *</span>
+                </label>
+                <div class="input-control-wrap">
+                  <input name="name" id="name" type="text" placeholder="เช่น กานต์ สมบูรณ์" required class="auth-input" />
+                </div>
+              </div>
 
-          <div style="margin-top: 14px; text-align: center; color: var(--muted);">
-            มีบัญชีแล้ว <a href="/" style="color: var(--purple); font-weight:700;">เข้าสู่ระบบ</a>
+              <div class="auth-input-field">
+                <label for="nickname" class="auth-label">
+                  <span>ชื่อเล่น *</span>
+                </label>
+                <div class="input-control-wrap">
+                  <input name="nickname" id="nickname" type="text" placeholder="ชื่อเล่นที่ใช้เรียก" required class="auth-input" />
+                </div>
+              </div>
+
+              <div class="auth-input-field">
+                <label for="email" class="auth-label">
+                  <span>อีเมลติดต่อ *</span>
+                </label>
+                <div class="input-control-wrap">
+                  <input name="email" id="email" type="email" placeholder="name@email.com" required class="auth-input" />
+                </div>
+              </div>
+
+              <div class="auth-input-field">
+                <label for="phone" class="auth-label">
+                  <span>เบอร์โทรศัพท์ (10 หลัก) *</span>
+                </label>
+                <div class="input-control-wrap">
+                  <input name="phone" id="phone" type="tel" placeholder="0812345678" pattern="[0-9]{9,10}" maxlength="10" required class="auth-input" />
+                </div>
+              </div>
+
+              <div class="auth-input-field">
+                <label for="age" class="auth-label">
+                  <span>อายุ (ปี) *</span>
+                </label>
+                <div class="input-control-wrap">
+                  <input name="age" id="age" type="number" min="18" max="60" placeholder="20" required class="auth-input" />
+                </div>
+              </div>
+
+              <div class="auth-input-field">
+                <label for="password" class="auth-label">
+                  <span>รหัสผ่าน *</span>
+                </label>
+                <div class="input-control-wrap">
+                  <input name="password" id="password" type="password" placeholder="อย่างน้อย 6 ตัวอักษร" required class="auth-input" />
+                </div>
+              </div>
+
+              <div class="auth-input-field">
+                <label for="gender" class="auth-label">
+                  <span>เพศของคุณ *</span>
+                </label>
+                <div class="input-control-wrap">
+                  <select id="gender" name="gender" required class="auth-input select-styled">
+                    <option value="ชาย">👨 ชาย</option>
+                    <option value="หญิง">👩 หญิง</option>
+                    <option value="เพศหลากหลาย">🌈 เพศหลากหลาย (LGBTQ+)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="auth-input-field">
+                <label for="interestedGender" class="auth-label">
+                  <span>สนใจเพศไหน (Looking for) *</span>
+                </label>
+                <div class="input-control-wrap">
+                  <select id="interestedGender" name="interested_gender" required class="auth-input select-styled">
+                    <option value="ทุกเพศ" selected>🌈 ทุกเพศ (All / Any)</option>
+                    <option value="หญิง">👩 หญิง</option>
+                    <option value="ชาย">👨 ชาย</option>
+                    <option value="เพศหลากหลาย">🌈 เพศหลากหลาย (LGBTQ+)</option>
+                  </select>
+                </div>
+              </div>
+            </div>
           </div>
 
-          <div id="registerMessage" class="message"></div>
-        </section>
-      </main>
+          <!-- SECTION 2: มหาวิทยาลัยและการศึกษา -->
+          <div class="form-section-block">
+            <div class="form-section-header">
+              <span class="section-step-badge">2</span>
+              <div>
+                <h3 class="form-section-title">สถาบันและการศึกษา</h3>
+                <p class="form-section-desc">เพื่อช่วยแนะนำเพื่อนที่อยู่ใกล้เคียงและเรียนสายคล้ายกัน</p>
+              </div>
+            </div>
+
+            <div class="register-inputs-grid">
+              <div class="auth-input-field">
+                <label for="university" class="auth-label">
+                  <span>มหาวิทยาลัย *</span>
+                </label>
+                <div class="input-control-wrap">
+                  <select id="university" name="university" required class="auth-input select-styled">
+                    <option value="มหาวิทยาลัยขอนแก่น" selected>🏫 มหาวิทยาลัยขอนแก่น (KKU)</option>
+                    <option value="other">🏛️ อื่นๆ (ระบุชื่อมหาวิทยาลัยเอง)</option>
+                  </select>
+                  <input type="text" id="customUniversity" class="auth-input hidden" placeholder="พิมพ์ชื่อมหาวิทยาลัยของคุณ..." style="margin-top: 8px;" />
+                </div>
+              </div>
+
+              <div class="auth-input-field">
+                <label for="year" class="auth-label">
+                  <span>ชั้นปี *</span>
+                </label>
+                <div class="input-control-wrap">
+                  <select id="year" name="year" class="auth-input select-styled">
+                    <option value="ปี 1">ปี 1 (Freshman)</option>
+                    <option value="ปี 2">ปี 2 (Sophomore)</option>
+                    <option value="ปี 3">ปี 3 (Junior)</option>
+                    <option value="ปี 4">ปี 4 (Senior)</option>
+                    <option value="บัณฑิตศึกษา (ป.โท/ป.เอก)">บัณฑิตศึกษา (ป.โท/ป.เอก)</option>
+                    <option value="ศิษย์เก่า / อื่นๆ">ศิษย์เก่า / อื่นๆ</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="auth-input-field full-width">
+                <label id="majorLabel" for="major" class="auth-label">
+                  <span>คณะ / วิทยาลัย (ม.ขอนแก่น) *</span>
+                </label>
+                <div class="input-control-wrap">
+                  <select id="major" name="major" class="auth-input select-styled">
+                    <option value="">-- กรุณาเลือกคณะ / วิทยาลัย --</option>
+                    <option value="คณะแพทยศาสตร์">คณะแพทยศาสตร์</option>
+                    <option value="คณะพยาบาลศาสตร์">คณะพยาบาลศาสตร์</option>
+                    <option value="คณะทันตแพทยศาสตร์">คณะทันตแพทยศาสตร์</option>
+                    <option value="คณะเภสัชศาสตร์">คณะเภสัชศาสตร์</option>
+                    <option value="คณะเทคนิคการแพทย์">คณะเทคนิคการแพทย์</option>
+                    <option value="คณะสาธารณสุขศาสตร์">คณะสาธารณสุขศาสตร์</option>
+                    <option value="คณะสัตวแพทยศาสตร์">คณะสัตวแพทยศาสตร์</option>
+                    <option value="คณะวิทยาศาสตร์">คณะวิทยาศาสตร์</option>
+                    <option value="คณะวิศวกรรมศาสตร์">คณะวิศวกรรมศาสตร์</option>
+                    <option value="คณะเกษตรศาสตร์">คณะเกษตรศาสตร์</option>
+                    <option value="คณะเทคโนโลยี">คณะเทคโนโลยี</option>
+                    <option value="คณะสถาปัตยกรรมศาสตร์">คณะสถาปัตยกรรมศาสตร์</option>
+                    <option value="วิทยาลัยการคอมพิวเตอร์">วิทยาลัยการคอมพิวเตอร์</option>
+                    <option value="คณะมนุษยศาสตร์และสังคมศาสตร์">คณะมนุษยศาสตร์และสังคมศาสตร์</option>
+                    <option value="คณะศึกษาศาสตร์">คณะศึกษาศาสตร์</option>
+                    <option value="คณะบริหารธุรกิจและการบัญชี">คณะบริหารธุรกิจและการบัญชี</option>
+                    <option value="คณะเศรษฐศาสตร์">คณะเศรษฐศาสตร์</option>
+                    <option value="คณะนิติศาสตร์">คณะนิติศาสตร์</option>
+                    <option value="คณะศิลปกรรมศาสตร์">คณะศิลปกรรมศาสตร์</option>
+                    <option value="คณะสหวิทยาการ (วิทยาเขตหนองคาย)">คณะสหวิทยาการ (วิทยาเขตหนองคาย)</option>
+                    <option value="วิทยาลัยนานาชาติ">วิทยาลัยนานาชาติ</option>
+                    <option value="วิทยาลัยการปกครองท้องถิ่น">วิทยาลัยการปกครองท้องถิ่น</option>
+                    <option value="วิทยาลัยบัณฑิตศึกษาการจัดการ">วิทยาลัยบัณฑิตศึกษาการจัดการ</option>
+                    <option value="other">คณะ / สาขาวิชาอื่นๆ (ระบุเอง)</option>
+                  </select>
+                  <input type="text" id="customMajor" class="auth-input hidden" placeholder="พิมพ์ชื่อคณะ / สาขาวิชาของคุณ..." style="margin-top: 8px;" />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- SECTION 3: รูปโปรไฟล์และความสนใจ -->
+          <div class="form-section-block">
+            <div class="form-section-header">
+              <span class="section-step-badge">3</span>
+              <div>
+                <h3 class="form-section-title">รูปโปรไฟล์และความสนใจ</h3>
+                <p class="form-section-desc">บอกเล่าตัวตนของคุณผ่านรูปภาพและสิ่งที่คุณชอบทำ</p>
+              </div>
+            </div>
+
+            <div class="auth-input-field" style="margin-bottom: 20px;">
+              <label for="profileImage" class="auth-label">
+                <span>รูปโปรไฟล์แรกของคุณ</span>
+              </label>
+
+              <!-- Google Avatar Section (If registering via Google) -->
+              <div id="googleAvatarSection" class="hidden google-avatar-preview-box">
+                <img id="googleAvatarImg" src="" alt="Google Profile" class="google-avatar-img" />
+                <div>
+                  <div class="google-avatar-status">✓ ดึงรูปโปรไฟล์จาก Google เรียบร้อยแล้ว</div>
+                  <div class="google-avatar-sub">หรือเลือกไฟล์ใหม่ด้านล่างเพื่อเปลี่ยนรูป</div>
+                </div>
+              </div>
+
+              <div class="input-file-dropzone">
+                <input type="file" id="profileImage" accept="image/*" class="auth-file-input" />
+                <input type="hidden" id="googleProfileImage" name="google_profile_image" />
+                <span class="file-hint">📸 คลิกเพื่อเลือกรูปภาพจากเครื่อง (JPG, PNG, WebP)</span>
+              </div>
+            </div>
+
+            <div class="auth-input-field">
+              <label class="auth-label">
+                <span>สิ่งที่คุณสนใจ / งานอดิเรก</span>
+                <span class="label-hint">(คลิกเลือกได้หลายข้อ)</span>
+              </label>
+              <div id="interestsTags" class="tags-container modern-chips-wrap"></div>
+              <input type="hidden" id="interests" name="interests" />
+            </div>
+          </div>
+
+          <!-- SECTION 4: นโยบายและความยินยอมข้อมูลส่วนบุคคล (PDPA) -->
+          <div class="form-section-block consent-section">
+            <div class="form-section-header">
+              <span class="section-step-badge">4</span>
+              <div>
+                <h3 class="form-section-title">ความยินยอมในการใช้ข้อมูลส่วนบุคคล (PDPA)</h3>
+                <p class="form-section-desc">โปรดอ่านและให้ความยินยอมตาม พ.ร.บ. คุ้มครองข้อมูลส่วนบุคคล</p>
+              </div>
+            </div>
+
+            <div class="consent-box-modern">
+              <p>เว็บไซต์ <strong>MatchSpace</strong> ขอความยินยอมจากท่านในการเก็บรวบรวม ใช้ และประมวลผลข้อมูลส่วนบุคคล เพื่อให้บริการจับคู่และแนะนำผู้ใช้งานที่มีความสนใจหรือมีกิจกรรมที่เหมาะสมร่วมกัน</p>
+              
+              <h4>ข้อมูลส่วนบุคคลที่เก็บรวบรวม</h4>
+              <ul>
+                <li>รูปภาพหรือรูปโปรไฟล์</li>
+                <li>ชั้นปี คณะ และสถาบันการศึกษา</li>
+                <li>ความสนใจและงานอดิเรก</li>
+                <li>เบอร์โทรศัพท์และอีเมลสำหรับติดต่อ</li>
+              </ul>
+
+              <h4>วัตถุประสงค์ในการเก็บและใช้ข้อมูล</h4>
+              <p>เพื่อสร้างโปรไฟล์ผู้ใช้งาน แนะนำเพื่อนที่เข้ากัน แนะนำกิจกรรม และเพื่อปรับปรุงประสบการณ์การใช้งาน โดยจะเก็บรักษาข้อมูลอย่างปลอดภัยตามมาตรฐานความมั่นคงปลอดภัย</p>
+            </div>
+
+            <div class="consent-checkbox-wrap">
+              <label class="consent-custom-label" for="consentCheckbox">
+                <input type="checkbox" id="consentCheckbox" class="custom-checkbox" />
+                <span class="checkbox-text">ข้าพเจ้าได้อ่านและเข้าใจรายละเอียดการเก็บรวบรวมและใช้ข้อมูลส่วนบุคคลแล้ว และยินยอมให้ MatchSpace ดำเนินการตามวัตถุประสงค์ที่ระบุไว้</span>
+              </label>
+            </div>
+
+            <div class="consent-quick-buttons">
+              <button type="button" id="btnAcceptConsent" class="btn-consent-quick accept">
+                ✓ กดเพื่อยินยอมข้อตกลง
+              </button>
+              <button type="button" id="btnDeclineConsent" class="btn-consent-quick decline">
+                ✕ ไม่ยินยอม
+              </button>
+            </div>
+          </div>
+
+          <!-- Submit Button & Footer -->
+          <div class="register-submit-area">
+            <button type="submit" id="registerSubmitBtn" class="auth-btn-primary register-submit-btn" disabled>
+              <span>ยืนยันและสมัครสมาชิก</span>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+            </button>
+            
+            <div class="register-switch-footer">
+              <span>มีบัญชีอยู่แล้วใช่หรือไม่?</span>
+              <a href="/" class="auth-switch-link">เข้าสู่ระบบที่นี่ →</a>
+            </div>
+
+            <div id="registerMessage" class="message"></div>
+          </div>
+        </form>
+      </div>
     </div>
 
     <script src="js/core.js"></script>

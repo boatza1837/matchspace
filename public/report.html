@@ -3,93 +3,161 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>MatchSpace | Report</title>
+    <title>MatchSpace | รายงานปัญหา</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css" />
   </head>
-  <body>
-    <div class="container">
-      <header>
-        <div class="brand">
-          <div class="brand-mark">!</div>
-          <span>MatchSpace Report</span>
-        </div>
-        <nav class="nav">
-          <a href="/app" class="button secondary-action" style="padding: 6px 14px; font-weight: 600;">← กลับสู่แอป</a>
-          <a href="/">หน้าแรก</a>
-          <a href="/report">รายงานปัญหา</a>
-          <a href="/admin">ผู้ดูแล</a>
+  <body class="auth-page-body">
+    <!-- Ambient Background Glows -->
+    <div class="auth-ambient-glow glow-1" aria-hidden="true"></div>
+    <div class="auth-ambient-glow glow-2" aria-hidden="true"></div>
+
+    <div class="auth-container">
+      <!-- Minimalist Frosted Topbar -->
+      <header class="auth-topbar">
+        <a href="/" class="auth-brand" title="MatchSpace">
+          <div class="auth-brand-logo danger">!</div>
+          <span class="auth-brand-text">MatchSpace Report</span>
+        </a>
+        <nav class="auth-nav">
+          <a href="/app" class="btn-topbar-back">← กลับสู่แอป</a>
+          <a href="/" class="auth-nav-link">หน้าแรก</a>
+          <a href="/admin" class="auth-nav-link admin-pill">ผู้ดูแล</a>
         </nav>
       </header>
 
-      <main class="grid">
-        <section class="card form-card">
-          <h2>ส่งรายงานปัญหา</h2>
-          <form id="reportForm">
-            <div class="form-grid">
-              <div class="form-group">
-                <label for="reporterName">ชื่อผู้แจ้ง</label>
-                <input id="reporterName" name="reporter_name" type="text" required />
+      <!-- Main Content Grid -->
+      <main class="auth-main-grid report-grid">
+        <!-- Form Section: Clean & Structured -->
+        <section class="auth-card-col">
+          <div class="auth-card report-card-box">
+            <div class="auth-card-header">
+              <div class="report-badge-pill">
+                <span>🛡️ ศูนย์รายงานความประพฤติและปัญหาการใช้งาน</span>
               </div>
-
-              <div class="form-group">
-                <label for="reporterEmail">อีเมลผู้แจ้ง</label>
-                <input id="reporterEmail" name="reporter_email" type="email" required />
-              </div>
-
-              <div class="form-group full">
-                <label for="reportedUser">ผู้ถูกแจ้ง / เลือกจากรายชื่อผู้ใช้งาน</label>
-                <select id="reportedUser" name="reported_user" required>
-                  <option value="">-- เลือกผู้ใช้งาน --</option>
-                </select>
-              </div>
-
-              <div class="form-group full">
-                <label for="reportType">ประเภทปัญหา</label>
-                <select id="reportType" name="report_type" required>
-                  <option value="">เลือกประเภท</option>
-                  <option value="spam">สแปม</option>
-                  <option value="harassment">คุกคาม</option>
-                  <option value="fake_profile">โปรไฟล์ปลอม</option>
-                  <option value="fraud">หลอกลวง</option>
-                  <option value="other">อื่น ๆ</option>
-                </select>
-              </div>
-
-              <div class="form-group full">
-                <label for="description">รายละเอียด</label>
-                <textarea id="description" name="description" placeholder="อธิบายเหตุการณ์ที่เกิดขึ้น" required></textarea>
-              </div>
-
-              <div class="form-group full">
-                <label for="evidence">หลักฐาน (ภาพหรือสกรีนช็อต)</label>
-                <input id="evidence" name="evidence" type="file" accept="image/*" />
-                <div style="font-size: 12px; color: var(--muted); margin-top: 6px;">ไฟล์ภาพ JPG, PNG ขนาดไม่เกิน 5MB</div>
-              </div>
+              <h2 class="auth-card-title" style="margin-top: 8px;">ส่งรายงานปัญหา</h2>
+              <p class="auth-card-subtitle">
+                หากคุณพบผู้ใช้งานที่ไม่เหมาะสม สแปม หลอกลวง หรือพฤติกรรมคุกคาม โปรดแจ้งให้เราทราบ
+              </p>
             </div>
 
-            <button type="submit" class="button primary" style="margin-top: 12px; width: 100%;">ส่งรายงาน</button>
-          </form>
-          <div id="reportMessage" class="message"></div>
+            <form id="reportForm" class="auth-form" autocomplete="on">
+              <div class="register-inputs-grid" style="margin-bottom: 16px;">
+                <div class="auth-input-field">
+                  <label for="reporterName" class="auth-label">
+                    <span>ชื่อผู้แจ้ง *</span>
+                  </label>
+                  <div class="input-control-wrap">
+                    <input id="reporterName" name="reporter_name" type="text" placeholder="ชื่อของคุณ" required class="auth-input" />
+                  </div>
+                </div>
+
+                <div class="auth-input-field">
+                  <label for="reporterEmail" class="auth-label">
+                    <span>อีเมลติดต่อกลับ *</span>
+                  </label>
+                  <div class="input-control-wrap">
+                    <input id="reporterEmail" name="reporter_email" type="email" placeholder="name@email.com" required class="auth-input" />
+                  </div>
+                </div>
+              </div>
+
+              <div class="auth-input-field" style="margin-bottom: 16px;">
+                <label for="reportedUser" class="auth-label">
+                  <span>ผู้ถูกแจ้ง / เลือกจากรายชื่อผู้ใช้งาน *</span>
+                </label>
+                <div class="input-control-wrap">
+                  <select id="reportedUser" name="reported_user" required class="auth-input select-styled">
+                    <option value="">-- เลือกผู้ใช้งานที่ต้องการรายงาน --</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="auth-input-field" style="margin-bottom: 16px;">
+                <label for="reportType" class="auth-label">
+                  <span>ประเภทปัญหาที่พบ *</span>
+                </label>
+                <div class="input-control-wrap">
+                  <select id="reportType" name="report_type" required class="auth-input select-styled">
+                    <option value="">-- เลือกประเภทปัญหา --</option>
+                    <option value="spam">📢 ข้อความสแปม / โฆษณา</option>
+                    <option value="harassment">⚠️ การคุกคาม / ใช้ถ้อยคำหยาบคาย</option>
+                    <option value="fake_profile">🎭 โปรไฟล์ปลอม / แอบอ้างบุคคลอื่น</option>
+                    <option value="fraud">💸 หลอกลวง / ขอเงิน / มิจฉาชีพ</option>
+                    <option value="other">❓ อื่นๆ</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="auth-input-field" style="margin-bottom: 16px;">
+                <label for="description" class="auth-label">
+                  <span>รายละเอียดเหตุการณ์ *</span>
+                </label>
+                <div class="input-control-wrap">
+                  <textarea id="description" name="description" placeholder="อธิบายเหตุการณ์หรือพฤติกรรมที่เกิดขึ้นโดยละเอียด เพื่อความรวดเร็วในการตรวจสอบ" required class="auth-input textarea-styled"></textarea>
+                </div>
+              </div>
+
+              <div class="auth-input-field" style="margin-bottom: 20px;">
+                <label for="evidence" class="auth-label">
+                  <span>หลักฐานประกอบ (ภาพหน้าจอหรือรูปถ่าย)</span>
+                </label>
+                <div class="input-file-dropzone">
+                  <input id="evidence" name="evidence" type="file" accept="image/*" class="auth-file-input" />
+                  <span class="file-hint">📎 คลิกเพื่อแนบภาพหน้าจอหลักฐาน (ขนาดไม่เกิน 5MB)</span>
+                </div>
+              </div>
+
+              <button type="submit" class="auth-btn-primary danger-btn">
+                <span>ส่งรายงานปัญหา</span>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+              </button>
+            </form>
+
+            <div id="reportMessage" class="message"></div>
+          </div>
         </section>
 
-        <section class="card hero">
-          <h1>Report & Review</h1>
-          <p>
-            ระบบนี้ออกแบบเพื่อให้ผู้ใช้งานสามารถแจ้งปัญหาได้อย่างรวดเร็ว และให้ผู้ดูแลสามารถตรวจสอบและจัดการปัญหานั้นได้จากหน้าแอดมิน
+        <!-- Right Side: Trust & Policy Hero -->
+        <section class="auth-hero-col">
+          <div class="auth-hero-badge danger-badge">
+            <span>⚖️ มาตรฐานความปลอดภัยของคอมมูนิตี้</span>
+          </div>
+
+          <h1 class="auth-hero-title">
+            ความปลอดภัยของคุณ<br />
+            <span class="gradient-text danger-gradient">คือสิ่งสำคัญที่สุด</span>
+          </h1>
+
+          <p class="auth-hero-desc">
+            ทุกรายงานจะถูกส่งตรงไปยังทีมผู้ดูแลเพื่อตรวจสอบทันที รายละเอียดการแจ้งจะถูกเก็บเป็นความลับสูงสุด
+            โดยผู้ถูกรายงานจะไม่สามารถทราบได้ว่าใครเป็นผู้แจ้งรายงาน
           </p>
 
-          <div class="stats">
-            <div class="stat">
-              <strong>7 min</strong>
-              <span>เวลาตอบกลับเฉลี่ย</span>
+          <!-- Report Key Metrics -->
+          <div class="auth-stats-row">
+            <div class="auth-stat-pill">
+              <div class="stat-num">7 min</div>
+              <div class="stat-lbl">ตรวจสอบเฉลี่ย</div>
             </div>
-            <div class="stat">
-              <strong>4 ขั้นตอน</strong>
-              <span>ตรวจสอบรายงาน</span>
+            <div class="auth-stat-pill">
+              <div class="stat-num">100%</div>
+              <div class="stat-lbl">ปกป้องข้อมูลผู้แจ้ง</div>
             </div>
-            <div class="stat">
-              <strong>100%</strong>
-              <span>คุ้มครองข้อมูล</span>
+            <div class="auth-stat-pill">
+              <div class="stat-num">24/7</div>
+              <div class="stat-lbl">มีทีมคอยดูแล</div>
+            </div>
+          </div>
+
+          <!-- Process Explanation Card -->
+          <div class="auth-trust-card" style="margin-top: 10px;">
+            <div class="trust-icon-box danger-icon">📋</div>
+            <div class="trust-content">
+              <h4>ขั้นตอนการดำเนินการ</h4>
+              <p>1. ตรวจสอบหลักฐาน → 2. ระงับการใช้งานชั่วคราวหากผิดจริง → 3. แจ้งผลการพิจารณา</p>
             </div>
           </div>
         </section>
