@@ -609,7 +609,10 @@ document.addEventListener('DOMContentLoaded', async () => {
           return `
             <tr>
               <td>${user.id}</td>
-              <td><strong>${user.name}</strong></td>
+              <td>
+                <strong>${escapeHtml(user.name)}</strong>
+                ${user.nickname && user.nickname !== user.name ? `<span class="skipped-card-nickname" style="font-size:0.76rem; margin-left:6px; vertical-align:middle;">${escapeHtml(user.nickname)}</span>` : ''}
+              </td>
               <td>${user.email}</td>
               <td>${user.major || '-'}</td>
               <td><span class="badge ${userRole === 'owner' ? 'resolved' : (userRole === 'admin' ? 'reviewed' : '')}">${userRole.toUpperCase()}</span></td>
@@ -1412,7 +1415,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const activityMemberCount = document.getElementById('activityMemberCount');
     const newActivityBtn = document.getElementById('newActivityBtn');
 
-    const tabOrder = ['home', 'discover', 'liked', 'skipped', 'chat', 'activity', 'profile'];
+    const tabOrder = ['home', 'discover', 'liked', 'skipped', 'activity', 'chat', 'profile'];
     let currentActiveTab = 'home';
     let latestActivitiesList = [];
     let latestChatsList = [];
@@ -1746,8 +1749,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         const photoCounter = document.getElementById('modalPhotoCounter');
 
         modalName.innerHTML = `
-          <span class="modal-nickname">${escapeHtml(user.nickname || user.name)}</span>
-          ${user.nickname ? `<span class="modal-fullname">(${escapeHtml(user.name)})</span>` : ''}
+          <span class="modal-nickname">${escapeHtml(user.name)}</span>
+          ${user.nickname && user.nickname !== user.name ? `<span class="modal-fullname">(${escapeHtml(user.nickname)})</span>` : ''}
         `;
 
         const genderIcon = user.gender === 'ชาย' ? '👨 ชาย' : (user.gender === 'หญิง' ? '👩 หญิง' : (user.gender ? '🌈 ' + user.gender : '👤 ไม่ระบุเพศ'));
@@ -1911,8 +1914,8 @@ document.addEventListener('DOMContentLoaded', async () => {
               <img src="${avatarSrc}" class="liked-card-avatar" alt="${escapeHtml(u.name)}" data-open-profile-id="${u.id}" title="คลิกเพื่อดูโปรไฟล์เต็ม" />
               <div class="liked-card-user-info">
                 <div class="liked-card-name" data-open-profile-id="${u.id}">
-                  <span>${escapeHtml(u.nickname || u.name)}</span>
-                  ${u.nickname ? `<span class="skipped-card-nickname">${escapeHtml(u.name)}</span>` : ''}
+                  <span>${escapeHtml(u.name)}</span>
+                  ${u.nickname && u.nickname !== u.name ? `<span class="skipped-card-nickname">${escapeHtml(u.nickname)}</span>` : ''}
                 </div>
                 <div class="skipped-card-sub">
                   <span>${u.gender ? (u.gender === 'ชาย' ? '👨 ชาย' : (u.gender === 'หญิง' ? '👩 หญิง' : '🌈 LGBTQ+')) : 'ไม่ระบุเพศ'}</span>
@@ -2005,10 +2008,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     function updateSkippedCounters() {
       const count = skippedUsersList.length;
-      const countTabBadge = document.getElementById('skippedTabCount');
+      const countTabBadge = document.getElementById('skippedTabBadge') || document.getElementById('skippedTabCount');
       if (countTabBadge) {
         countTabBadge.textContent = count;
-        countTabBadge.style.display = count > 0 ? 'inline-block' : 'none';
+        countTabBadge.classList.toggle('hidden', count === 0);
       }
       const countDiscoverBtn = document.getElementById('skippedCount');
       if (countDiscoverBtn) countDiscoverBtn.textContent = count;
@@ -2070,8 +2073,8 @@ document.addEventListener('DOMContentLoaded', async () => {
               <img src="${avatarSrc}" class="skipped-card-avatar" alt="${escapeHtml(u.name)}" data-open-profile-id="${u.id}" title="คลิกเพื่อดูโปรไฟล์เต็ม" />
               <div class="skipped-card-user-info">
                 <div class="skipped-card-name" data-open-profile-id="${u.id}">
-                  <span>${escapeHtml(u.nickname || u.name)}</span>
-                  ${u.nickname ? `<span class="skipped-card-nickname">${escapeHtml(u.name)}</span>` : ''}
+                  <span>${escapeHtml(u.name)}</span>
+                  ${u.nickname && u.nickname !== u.name ? `<span class="skipped-card-nickname">${escapeHtml(u.nickname)}</span>` : ''}
                 </div>
                 <div class="skipped-card-sub">
                   <span>${u.gender ? (u.gender === 'ชาย' ? '👨 ชาย' : (u.gender === 'หญิง' ? '👩 หญิง' : '🌈 LGBTQ+')) : 'ไม่ระบุเพศ'}</span>
@@ -2254,7 +2257,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
             <div class="discover-match-info">
               <h3 class="discover-match-name">
-                ${escapeHtml(user.nickname || user.name)}
+                ${escapeHtml(user.name)}
+                ${user.nickname && user.nickname !== user.name ? `<span class="skipped-card-nickname" style="font-size:0.75rem; vertical-align:middle; margin-left:4px;">${escapeHtml(user.nickname)}</span>` : ''}
                 <svg class="discover-verified-badge" width="19" height="19" viewBox="0 0 24 24" fill="#7c3aed" title="ยืนยันตัวตนแล้ว">
                   <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
                 </svg>
