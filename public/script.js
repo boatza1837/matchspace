@@ -1394,12 +1394,43 @@ document.addEventListener('DOMContentLoaded', async () => {
     const activityMemberCount = document.getElementById('activityMemberCount');
     const newActivityBtn = document.getElementById('newActivityBtn');
 
-    const tabOrder = ['discover', 'liked', 'skipped', 'chat', 'activity', 'profile'];
-    let currentActiveTab = 'discover';
+    const tabOrder = ['home', 'discover', 'liked', 'skipped', 'chat', 'activity', 'profile'];
+    let currentActiveTab = 'home';
+    let latestActivitiesList = [];
+    let latestChatsList = [];
+
+    function updateHomeStats() {
+      const homeUserNameEl = document.getElementById('homeUserName');
+      const homeCompatibleCountEl = document.getElementById('homeCompatibleCount');
+      const homeActivitiesCountEl = document.getElementById('homeActivitiesCount');
+      const homeNewMessagesCountEl = document.getElementById('homeNewMessagesCount');
+
+      if (homeUserNameEl && sessionState.user) {
+        homeUserNameEl.textContent = sessionState.user.nickname || sessionState.user.name || 'คุณผู้ใช้';
+      }
+
+      if (homeCompatibleCountEl) {
+        homeCompatibleCountEl.textContent = discoverUsers ? discoverUsers.length : 0;
+      }
+
+      if (homeActivitiesCountEl) {
+        homeActivitiesCountEl.textContent = latestActivitiesList ? latestActivitiesList.length : 0;
+      }
+
+      if (homeNewMessagesCountEl) {
+        homeNewMessagesCountEl.textContent = latestChatsList ? latestChatsList.length : 0;
+      }
+    }
+
+    async function loadHomeScreen() {
+      updateHomeStats();
+    }
 
     function switchTab(tabName, forceAnim) {
       const targetBtn = Array.from(tabButtons).find(b => b.dataset.tab === tabName);
       if (targetBtn) {
+        triggerTabSwitch(tabName, forceAnim);
+      } else {
         triggerTabSwitch(tabName, forceAnim);
       }
     }
@@ -1428,6 +1459,9 @@ document.addEventListener('DOMContentLoaded', async () => {
       });
 
       // Reload tabs fresh whenever user opens that tab
+      if (nextTab === 'home') {
+        loadHomeScreen();
+      }
       if (nextTab === 'activities' || nextTab === 'activity') {
         loadActivities();
       }
@@ -1444,6 +1478,53 @@ document.addEventListener('DOMContentLoaded', async () => {
         triggerTabSwitch(button.dataset.tab);
       });
     });
+
+    // Home screen interactive buttons & card links
+    const homeBtnGoDiscover = document.getElementById('homeBtnGoDiscover');
+    if (homeBtnGoDiscover) {
+      homeBtnGoDiscover.addEventListener('click', () => switchTab('discover'));
+    }
+
+    const homeCardCandidates = document.getElementById('homeCardCandidates');
+    if (homeCardCandidates) {
+      homeCardCandidates.addEventListener('click', () => switchTab('discover'));
+    }
+
+    const homeCardActivities = document.getElementById('homeCardActivities');
+    if (homeCardActivities) {
+      homeCardActivities.addEventListener('click', () => switchTab('activity'));
+    }
+
+    const homeCardMessages = document.getElementById('homeCardMessages');
+    if (homeCardMessages) {
+      homeCardMessages.addEventListener('click', () => switchTab('chat'));
+    }
+
+    const viewLikedBtn = document.getElementById('viewLikedBtn');
+    if (viewLikedBtn) {
+      viewLikedBtn.addEventListener('click', () => switchTab('liked'));
+    }
+
+    const homeNotificationBtn = document.getElementById('homeNotificationBtn');
+    const homeNotificationModal = document.getElementById('homeNotificationModal');
+    const closeNotificationModal = document.getElementById('closeNotificationModal');
+
+    if (homeNotificationBtn && homeNotificationModal) {
+      homeNotificationBtn.addEventListener('click', () => {
+        homeNotificationModal.classList.remove('hidden');
+      });
+    }
+
+    if (closeNotificationModal && homeNotificationModal) {
+      closeNotificationModal.addEventListener('click', () => {
+        homeNotificationModal.classList.add('hidden');
+      });
+      homeNotificationModal.addEventListener('click', (e) => {
+        if (e.target === homeNotificationModal) {
+          homeNotificationModal.classList.add('hidden');
+        }
+      });
+    }
 
     function renderProfile(user) {
       if (!user) return;
@@ -1526,8 +1607,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     async function loadProfile() {
       const result = await apiRequest('/api/me');
+      sessionState.user = result.user;
       renderProfile(result.user);
       renderUserPhotos(result.photos || []);
+      updateHomeStats();
     }
 
     function renderUserPhotos(photos) {
@@ -2182,6 +2265,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     async function loadDiscoverUsers() {
       const users = await apiRequest('/api/candidates');
       discoverUsers = users;
+      updateHomeStats();
       currentDiscoverIndex = 0;
       renderDiscoverCard();
     }
@@ -2255,6 +2339,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     async function loadChats() {
       const chats = await apiRequest('/api/chats');
       lastChatsCount = chats.length;
+      latestChatsList = chats;
+      updateHomeStats();
       renderChatsList(chats);
     }
 
@@ -2268,6 +2354,8 @@ document.addEventListener('DOMContentLoaded', async () => {
               showMatchToast('🎉 ได้รับการแมตช์ใหม่! ดูได้ที่แถบแชท');
             }
             lastChatsCount = chats.length;
+            latestChatsList = chats;
+            updateHomeStats();
             renderChatsList(chats);
           }
 
@@ -2484,6 +2572,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     async function loadActivities() {
       const activities = await apiRequest('/api/activities');
+      latestActivitiesList = activities;
+      updateHomeStats();
       const isOwnerOrAdmin = sessionState.user && (sessionState.user.role === 'owner' || sessionState.user.role === 'admin' || sessionState.user.is_admin);
 
       activityBoardList.innerHTML = activities.length
@@ -2771,6 +2861,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     await loadSkippedUsers();
     await loadChats();
     await loadActivities();
+    await loadHomeScreen();
     startGlobalPolling();
   }
 });

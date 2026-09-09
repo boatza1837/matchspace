@@ -2330,8 +2330,8 @@ body {
 }
 
 .bottom-tab-item:hover {
-  color: #ff6550;
-  background: rgba(255, 240, 235, 0.5);
+  color: #6946ed;
+  background: rgba(105, 70, 237, 0.05);
   transform: translateY(-2px);
 }
 
@@ -2340,8 +2340,8 @@ body {
 }
 
 .bottom-tab-item.active {
-  background: #fff0eb !important;
-  color: #ff6550 !important;
+  background: rgba(105, 70, 237, 0.08) !important;
+  color: #6946ed !important;
   animation: tabButtonPop 0.32s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
@@ -2375,8 +2375,8 @@ body {
 
 .bottom-tab-item.active .bottom-tab-icon svg {
   transform: scale(1.14);
-  stroke: #ff6550;
-  filter: drop-shadow(0 2px 5px rgba(255, 101, 80, 0.28));
+  stroke: #6946ed;
+  filter: drop-shadow(0 2px 6px rgba(105, 70, 237, 0.35));
 }
 
 .bottom-tab-label {
@@ -2616,4 +2616,291 @@ body {
   transform: translateY(-2px);
   box-shadow: 0 8px 24px rgba(225, 29, 72, 0.12);
 }
+
+/* ===================================================
+   Home Tab (New Design matching Mockup)
+   =================================================== */
+
+.home-screen-container {
+  max-width: 480px;
+  margin: 0 auto;
+  padding: 10px 6px 36px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* Top Greeting & Bell Row */
+.home-top-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 6px 0;
+}
+
+.home-greeting-col {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.home-greeting-sub {
+  font-size: 0.95rem;
+  color: #6b7280;
+  font-weight: 500;
+}
+
+.home-user-title {
+  font-size: 1.65rem;
+  font-weight: 800;
+  color: #1e1b4b;
+  margin: 0;
+  letter-spacing: -0.02em;
+}
+
+.home-bell-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: #ede9fe;
+  color: #7c3aed;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  position: relative;
+  transition: all 0.22s cubic-bezier(0.2, 0.8, 0.2, 1);
+  box-shadow: 0 4px 14px rgba(124, 58, 237, 0.14);
+}
+
+.home-bell-btn:hover {
+  background: #ddd6fe;
+  transform: scale(1.06);
+  box-shadow: 0 6px 18px rgba(124, 58, 237, 0.22);
+}
+
+.home-bell-btn:active {
+  transform: scale(0.94);
+}
+
+.home-bell-dot {
+  position: absolute;
+  top: 10px;
+  right: 11px;
+  width: 8px;
+  height: 8px;
+  background: #ef4444;
+  border-radius: 50%;
+  border: 2px solid #ffffff;
+}
+
+/* Featured Banner Card */
+.home-featured-card {
+  position: relative;
+  background: linear-gradient(135deg, #785dfa 0%, #8b6ff9 50%, #9a7dfc 100%);
+  border-radius: 28px;
+  padding: 26px 24px;
+  color: #ffffff;
+  overflow: hidden;
+  box-shadow: 0 14px 34px rgba(120, 93, 250, 0.32), 0 4px 14px rgba(120, 93, 250, 0.15);
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+
+.home-featured-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 18px 42px rgba(120, 93, 250, 0.38);
+}
+
+.home-card-watermark {
+  position: absolute;
+  right: -6px;
+  bottom: -6px;
+  width: 140px;
+  height: 140px;
+  pointer-events: none;
+  opacity: 0.32;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  user-select: none;
+}
+
+.home-featured-content {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+}
+
+.home-banner-subtitle {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.94);
+  margin-bottom: 6px;
+  letter-spacing: 0.01em;
+}
+
+.home-banner-title {
+  font-size: 1.44rem;
+  font-weight: 800;
+  color: #ffffff;
+  margin: 0 0 10px 0;
+  line-height: 1.32;
+  letter-spacing: -0.01em;
+}
+
+.home-banner-desc {
+  font-size: 0.88rem;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.9);
+  margin: 0 0 20px 0;
+  max-width: 82%;
+}
+
+.home-banner-btn {
+  align-self: flex-start;
+  background: #ffffff;
+  color: #6946ed;
+  font-weight: 800;
+  font-size: 0.95rem;
+  padding: 11px 24px;
+  border-radius: 999px;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 4px 16px rgba(45, 30, 110, 0.16);
+  transition: all 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.home-banner-btn:hover {
+  background: #fdfcff;
+  color: #5534d9;
+  transform: translateY(-2px) scale(1.02);
+  box-shadow: 0 8px 22px rgba(45, 30, 110, 0.24);
+}
+
+.home-banner-btn:active {
+  transform: scale(0.96);
+}
+
+/* Section Header: สรุปของคุณ */
+.home-section-header {
+  margin-top: 4px;
+}
+
+.home-section-header h2 {
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: #1e1b4b;
+  margin: 0;
+  letter-spacing: -0.01em;
+}
+
+/* 3 Stat Cards Grid */
+.home-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+
+.home-stat-card {
+  background: #ffffff;
+  border-radius: 20px;
+  padding: 18px 8px;
+  border: 1.5px solid rgba(230, 225, 245, 0.85);
+  box-shadow: 0 4px 18px rgba(45, 35, 80, 0.04);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: all 0.22s cubic-bezier(0.2, 0.8, 0.2, 1);
+  user-select: none;
+}
+
+.home-stat-card:hover {
+  transform: translateY(-3px);
+  border-color: rgba(124, 92, 233, 0.45);
+  box-shadow: 0 8px 24px rgba(124, 92, 233, 0.12);
+}
+
+.home-stat-card:active {
+  transform: scale(0.95);
+}
+
+.home-stat-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.home-stat-icon.purple {
+  color: #8b5cf6;
+}
+
+.home-stat-icon.orange {
+  color: #f97316;
+}
+
+.home-stat-icon.purple-soft {
+  color: #7c3aed;
+}
+
+.home-stat-num {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: #1e1b4b;
+  line-height: 1.1;
+}
+
+.home-stat-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #6b7280;
+  text-align: center;
+}
+
+/* Friendly Advice / Tip Card */
+.home-tip-card {
+  background: #ffffff;
+  border: 1.5px solid rgba(230, 225, 245, 0.85);
+  border-radius: 20px;
+  padding: 16px 20px;
+  box-shadow: 0 4px 18px rgba(45, 35, 80, 0.04);
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.home-tip-avatar {
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #e08da0 0%, #8c6be8 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  font-weight: 800;
+  font-size: 0.95rem;
+  letter-spacing: 0.05em;
+  box-shadow: 0 4px 12px rgba(140, 107, 232, 0.25);
+}
+
+.home-tip-text {
+  margin: 0;
+  font-size: 0.88rem;
+  color: #4b5563;
+  line-height: 1.48;
+  font-weight: 500;
+}
+
 
