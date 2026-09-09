@@ -1,6 +1,8 @@
 # Database
 matchspace.db
 *.db
+*.sqlite
+database.sqlite
 
 # Dependencies
 node_modules/

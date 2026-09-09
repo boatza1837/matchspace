@@ -1,3 +1,14 @@
+/**
+ * MatchSpace Modular Script Bundle
+ * Generated from public/js/* modules
+ */
+
+// ==================== public/js/core.js ====================
+/**
+ * MatchSpace Core Utilities
+ * Contains shared helpers, DOM utilities, and API wrappers
+ */
+
 const RECOMMENDED_INTERESTS = [
   'หนัง', 'เพลง', 'ดนตรี', 'ศิลปะ', 'การออกแบบ',
   'ภาพถ่าย', 'ศาสตร์', 'เทคโนโลยี', 'คอมพิวเตอร์',
@@ -85,6 +96,19 @@ function formatActivityDate(dateStr) {
   return dateStr;
 }
 
+function formatChatTime(createdAt) {
+  if (!createdAt) return '';
+  try {
+    const d = new Date(createdAt);
+    if (isNaN(d.getTime())) return '';
+    const h = String(d.getHours()).padStart(2, '0');
+    const m = String(d.getMinutes()).padStart(2, '0');
+    return `${h}:${m}`;
+  } catch (e) {
+    return '';
+  }
+}
+
 function escapeHtml(str) {
   if (str === null || str === undefined) return '';
   return String(str)
@@ -95,15 +119,204 @@ function escapeHtml(str) {
     .replace(/'/g, '&#039;');
 }
 
-document.addEventListener('DOMContentLoaded', async () => {
+function showMatchToast(message) {
+  const existing = document.getElementById('matchToast');
+  if (existing) existing.remove();
+
+  const toast = document.createElement('div');
+  toast.id = 'matchToast';
+  toast.className = 'match-toast-popup';
+  toast.innerHTML = `
+    <div class="match-toast-icon">✨</div>
+    <div class="match-toast-content">
+      <strong>การแจ้งเตือน</strong>
+      <p>${escapeHtml(message)}</p>
+    </div>
+  `;
+  document.body.appendChild(toast);
+
+  setTimeout(() => {
+    toast.classList.add('show');
+  }, 50);
+
+  setTimeout(() => {
+    toast.classList.remove('show');
+    setTimeout(() => toast.remove(), 400);
+  }, 4000);
+}
+
+
+// ==================== public/js/ws-client.js ====================
+/**
+ * MatchSpace Real-time WebSocket Client
+ * Replaces resource-draining HTTP Polling with instant bidirectional messaging.
+ */
+
+class MatchSpaceWebSocketClient {
+  constructor() {
+    this.ws = null;
+    this.userId = null;
+    this.currentChatId = null;
+    this.reconnectAttempts = 0;
+    this.maxReconnectDelay = 10000;
+    this.reconnectTimer = null;
+    this.listeners = new Map();
+    this.isConnected = false;
+  }
+
+  connect(userId) {
+    if (userId) this.userId = Number(userId);
+    if (this.ws && (this.ws.readyState === WebSocket.OPEN || this.ws.readyState === WebSocket.CONNECTING)) {
+      return;
+    }
+
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const wsUrl = `${protocol}//${window.location.host}/ws`;
+
+    try {
+      this.ws = new WebSocket(wsUrl);
+
+      this.ws.onopen = () => {
+        this.isConnected = true;
+        this.reconnectAttempts = 0;
+        console.log('[MatchSpace WS] Connected to Real-time WebSocket');
+
+        // Authenticate socket with session user ID
+        if (this.userId) {
+          this.send({ type: 'auth', userId: this.userId });
+        }
+
+        // Rejoin active chat room if any
+        if (this.currentChatId) {
+          this.send({ type: 'join_chat', chatId: this.currentChatId });
+        }
+
+        this.emit('connected', { userId: this.userId });
+      };
+
+      this.ws.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          this.handleIncomingEvent(data);
+        } catch (err) {
+          console.error('[MatchSpace WS] Error parsing message:', err);
+        }
+      };
+
+      this.ws.onclose = () => {
+        this.isConnected = false;
+        this.emit('disconnected');
+        this.scheduleReconnect();
+      };
+
+      this.ws.onerror = (err) => {
+        console.warn('[MatchSpace WS] Connection error:', err);
+        this.ws.close();
+      };
+    } catch (e) {
+      console.error('[MatchSpace WS] Init failed:', e);
+      this.scheduleReconnect();
+    }
+  }
+
+  scheduleReconnect() {
+    if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
+    const delay = Math.min(1000 * Math.pow(1.5, this.reconnectAttempts), this.maxReconnectDelay);
+    this.reconnectAttempts++;
+    this.reconnectTimer = setTimeout(() => {
+      console.log(`[MatchSpace WS] Attempting reconnect (#${this.reconnectAttempts})...`);
+      this.connect();
+    }, delay);
+  }
+
+  send(payload) {
+    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+      this.ws.send(JSON.stringify(payload));
+      return true;
+    }
+    return false;
+  }
+
+  joinChat(chatId) {
+    this.currentChatId = Number(chatId);
+    this.send({ type: 'join_chat', chatId: this.currentChatId });
+  }
+
+  leaveChat() {
+    if (this.currentChatId) {
+      this.send({ type: 'leave_chat' });
+      this.currentChatId = null;
+    }
+  }
+
+  sendTyping(chatId, userName) {
+    this.send({ type: 'typing', chatId: Number(chatId), userName });
+  }
+
+  sendStopTyping(chatId) {
+    this.send({ type: 'stop_typing', chatId: Number(chatId) });
+  }
+
+  handleIncomingEvent(data) {
+    if (!data || !data.type) return;
+
+    // Dispatch typed event
+    this.emit(data.type, data);
+
+    // Global notifications
+    if (data.type === 'mutual_match') {
+      if (typeof showMatchToast === 'function') {
+        showMatchToast(data.title || '🎉 แมตช์ใหม่สำเร็จ! เริ่มคุยกันได้เลย');
+      }
+    } else if (data.type === 'chat_notification') {
+      if (this.currentChatId !== data.chatId && typeof showMatchToast === 'function') {
+        showMatchToast(`💬 ${data.senderName}: ${data.messageSnippet || 'ส่งข้อความใหม่'}`);
+      }
+    }
+  }
+
+  on(event, handler) {
+    if (!this.listeners.has(event)) {
+      this.listeners.set(event, new Set());
+    }
+    this.listeners.get(event).add(handler);
+  }
+
+  off(event, handler) {
+    if (this.listeners.has(event)) {
+      this.listeners.get(event).delete(handler);
+    }
+  }
+
+  emit(event, payload) {
+    if (this.listeners.has(event)) {
+      this.listeners.get(event).forEach((fn) => {
+        try {
+          fn(payload);
+        } catch (err) {
+          console.error(`[WS Event Error: ${event}]`, err);
+        }
+      });
+    }
+  }
+}
+
+// Singleton global instance
+window.matchSpaceWS = new MatchSpaceWebSocketClient();
+
+
+// ==================== public/js/auth.js ====================
+/**
+ * MatchSpace Authentication & Forms Controller
+ * Handles Login, Google Sign-In, Multi-Step Registration, and User Reports.
+ */
+
+function initAuthModule() {
   const loginForm = document.getElementById('loginForm');
   const registerForm = document.getElementById('registerForm');
   const reportForm = document.getElementById('reportForm');
-  const reportsTableBody = document.getElementById('reportsTableBody');
-  const userTableBody = document.getElementById('userTableBody');
-  const activityTableBody = document.getElementById('activityTableBody');
-  const adminUsersTableBody = document.getElementById('adminUsersTableBody');
 
+  // ===================== LOGIN FORM =====================
   if (loginForm) {
     loginForm.addEventListener('submit', async (event) => {
       event.preventDefault();
@@ -250,28 +463,30 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     document.body.appendChild(overlay);
 
-    const input = document.getElementById('modalGoogleEmail');
-    if (input) input.focus();
+    const emailInput = overlay.querySelector('#modalGoogleEmail');
+    const submitBtn = overlay.querySelector('#btnSubmitGoogleModal');
+    const cancelBtn = overlay.querySelector('#btnCancelGoogleModal');
 
-    document.getElementById('btnCancelGoogleModal')?.addEventListener('click', () => overlay.remove());
+    setTimeout(() => emailInput?.focus(), 100);
 
     const submitAuth = () => {
-      const email = input?.value.trim();
-      if (!email || !email.includes('@')) {
+      const emailVal = emailInput?.value.trim();
+      if (!emailVal || !emailVal.includes('@')) {
         alert('กรุณากรอกอีเมลให้ถูกต้อง');
         return;
       }
       overlay.remove();
-      processGoogleAuth(email);
+      processGoogleAuth(emailVal, emailVal.split('@')[0], '');
     };
 
-    document.getElementById('btnSubmitGoogleModal')?.addEventListener('click', submitAuth);
-    input?.addEventListener('keypress', (e) => {
+    submitBtn?.addEventListener('click', submitAuth);
+    cancelBtn?.addEventListener('click', () => overlay.remove());
+    emailInput?.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') submitAuth();
     });
   }
 
-  // Handle official Google One-Tap / GIS callback if loaded
+  // Handle official Google One-Tap / GIS callback
   window.handleGoogleLoginResponse = async (response) => {
     const messageEl = document.getElementById('loginMessage');
     if (messageEl) {
@@ -303,8 +518,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   };
 
+  // ===================== REGISTER FORM =====================
   if (registerForm) {
-    // Auto-fill Google Email, Name, and Profile Picture if redirected from Google Auth
     const urlParams = new URLSearchParams(window.location.search);
     const googleEmail = urlParams.get('google_email');
     const googleName = urlParams.get('google_name');
@@ -488,8 +703,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
+  // ===================== REPORT FORM =====================
   if (reportForm) {
-    // Load users for report form
     async function loadReportUsers() {
       try {
         const users = await apiRequest('/api/public/users');
@@ -503,7 +718,6 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
     }
     
-    // Pre-fill reporter info if user is logged in
     async function autoFillSessionInfo() {
       try {
         const session = await apiRequest('/api/session');
@@ -573,7 +787,30 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
     });
   }
+}
 
+// Auto-run if DOM loaded
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initAuthModule);
+} else {
+  initAuthModule();
+}
+
+
+// ==================== public/js/admin.js ====================
+/**
+ * MatchSpace Admin & Owner Management Controller
+ * Handles Admin Dashboard, Reports, Activities moderation, System Stats, Login Logs,
+ * and User Management with Owner AES-256-GCM password reveal.
+ */
+
+function initAdminModule() {
+  const reportsTableBody = document.getElementById('reportsTableBody');
+  const userTableBody = document.getElementById('userTableBody');
+  const activityTableBody = document.getElementById('activityTableBody');
+  const adminUsersTableBody = document.getElementById('adminUsersTableBody');
+
+  // ===================== ADMIN DASHBOARD (admin.html) =====================
   if (reportsTableBody && userTableBody) {
     async function loadAdminDashboard() {
       try {
@@ -591,6 +828,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         document.getElementById('resolvedReports').textContent = summary.resolved_reports || 0;
 
         const isOwner = sessionState.user && sessionState.user.role === 'owner';
+        const thUserPassOwner = document.getElementById('thUserPassOwner');
+        if (thUserPassOwner) {
+          thUserPassOwner.style.display = isOwner ? '' : 'none';
+        }
 
         userTableBody.innerHTML = users.map((user) => {
           const userRole = user.role || (user.is_admin ? 'admin' : 'user');
@@ -607,14 +848,15 @@ document.addEventListener('DOMContentLoaded', async () => {
             </div>
           ` : `<span class="badge ${userRole === 'owner' ? 'resolved' : (userRole === 'admin' ? 'reviewed' : '')}">${userRole.toUpperCase()}</span>`;
 
-          const plainPassDisplay = user.plain_password ? user.plain_password : '(ตั้งผ่านระบบเก่า/Google)';
-          const resetPasswordHtml = isOwner ? `
-            <div style="display:flex; align-items:center; gap:6px;">
-              <span id="passText-${user.id}" style="font-family:monospace; font-weight:bold; color:var(--purple); background:#f0edff; padding:3px 8px; border-radius:6px; font-size:0.85rem;" data-plain="${plainPassDisplay}">••••••••</span>
-              <button type="button" class="inline-button review" data-action-toggle-pass="${user.id}" data-user-email="${user.email}" style="padding:4px 8px; font-size:0.78rem;" title="ดู/ซ่อนรหัสผ่าน">👁️ ดูรหัส</button>
-              <button type="button" class="inline-button review" data-action-reset-pass="${user.id}" data-user-email="${user.email}" style="padding:4px 8px; font-size:0.78rem;" title="เปลี่ยนรหัสผ่าน">🔑 เปลี่ยน</button>
-            </div>
-          ` : `<span style="color:#aaa; font-size:0.8rem;">สิทธิ์เฉพาะ Owner</span>`;
+          const resetPasswordTd = isOwner ? `
+            <td>
+              <div style="display:flex; align-items:center; gap:6px;">
+                <span id="passText-${user.id}" style="font-family:monospace; font-weight:bold; color:var(--purple); background:#f0edff; padding:3px 8px; border-radius:6px; font-size:0.85rem;">••••••••</span>
+                <button type="button" class="inline-button review" data-action-toggle-pass="${user.id}" data-user-email="${escapeHtml(user.email)}" style="padding:4px 8px; font-size:0.78rem;" title="ดู/ซ่อนรหัสผ่าน">👁️ ดูรหัส</button>
+                <button type="button" class="inline-button review" data-action-reset-pass="${user.id}" data-user-email="${escapeHtml(user.email)}" style="padding:4px 8px; font-size:0.78rem;" title="เปลี่ยนรหัสผ่าน">🔑 เปลี่ยน</button>
+              </div>
+            </td>
+          ` : '';
 
           return `
             <tr>
@@ -627,7 +869,7 @@ document.addEventListener('DOMContentLoaded', async () => {
               <td>${user.major || '-'}</td>
               <td><span class="badge ${userRole === 'owner' ? 'resolved' : (userRole === 'admin' ? 'reviewed' : '')}">${userRole.toUpperCase()}</span></td>
               <td>${roleSelectHtml}</td>
-              <td>${resetPasswordHtml}</td>
+              ${resetPasswordTd}
               <td>
                 <button class="inline-button ${isBanned ? 'resolve' : 'reject'}" data-user-id="${user.id}" data-action="${isBanned ? 'enable' : 'disable'}" style="padding:4px 10px; font-size:0.78rem;">
                   ${isBanned ? '✅ ปลดแบน' : '🚫 แบนผู้ใช้'}
@@ -637,40 +879,46 @@ document.addEventListener('DOMContentLoaded', async () => {
           `;
         }).join('');
 
-        document.querySelectorAll('[data-action-toggle-pass]').forEach((btn) => {
-          btn.addEventListener('click', async () => {
-            const userId = btn.dataset.actionTogglePass;
-            const passEl = document.getElementById(`passText-${userId}`);
-            if (passEl) {
-              const plainVal = passEl.dataset.plain;
-              if (plainVal === '(ตั้งผ่านระบบเก่า/Google)' || !plainVal) {
-                const userEmail = btn.dataset.userEmail;
-                const newPassword = prompt(`บัญชีนี้สร้างจากระบบเก่า/Google ยังไม่มีรหัสแบบข้อความ กรุณาตั้งรหัสผ่านใหม่สำหรับ ${userEmail}:`);
-                if (newPassword && newPassword.trim()) {
-                  try {
-                    const res = await apiRequest(`/api/admin/users/${userId}/password`, {
-                      method: 'PUT',
-                      body: JSON.stringify({ new_password: newPassword.trim() })
-                    });
-                    alert(res.message);
-                    loadAdminDashboard();
-                  } catch (e) {
-                    alert('เกิดข้อผิดพลาด: ' + e.message);
-                  }
-                }
+        if (isOwner) {
+          document.querySelectorAll('[data-action-toggle-pass]').forEach((btn) => {
+            btn.addEventListener('click', async () => {
+              const userId = btn.dataset.actionTogglePass;
+              const passEl = document.getElementById(`passText-${userId}`);
+              if (!passEl) return;
+
+              if (passEl.dataset.revealed === 'true') {
+                passEl.textContent = '••••••••';
+                passEl.dataset.revealed = 'false';
+                btn.textContent = '👁️ ดูรหัส';
                 return;
               }
 
-              if (passEl.textContent === '••••••••') {
-                passEl.textContent = plainVal;
+              if (passEl.dataset.plain) {
+                passEl.textContent = passEl.dataset.plain;
+                passEl.dataset.revealed = 'true';
                 btn.textContent = '🔒 ซ่อน';
-              } else {
-                passEl.textContent = '••••••••';
-                btn.textContent = '👁️ ดูรหัส';
+                return;
               }
-            }
+
+              const origText = btn.textContent;
+              btn.disabled = true;
+              btn.textContent = '⏳';
+              try {
+                const res = await apiRequest(`/api/admin/users/${userId}/reveal-password`, { method: 'POST' });
+                const pass = res.password || '(สมัครผ่าน Google หรือไม่มีรหัส)';
+                passEl.dataset.plain = pass;
+                passEl.textContent = pass;
+                passEl.dataset.revealed = 'true';
+                btn.textContent = '🔒 ซ่อน';
+              } catch (err) {
+                alert('ไม่สามารถถอดรหัสผ่านได้: ' + err.message);
+                btn.textContent = origText;
+              } finally {
+                btn.disabled = false;
+              }
+            });
           });
-        });
+        }
 
         document.querySelectorAll('[data-action-save-role]').forEach((btn) => {
           btn.addEventListener('click', async () => {
@@ -1021,6 +1269,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     loadAdminDashboard();
   }
 
+  // ===================== ADMIN USERS MANAGEMENT (admin-users.html) =====================
   if (adminUsersTableBody) {
     let allAdminUsers = [];
     const searchInput = document.getElementById('userSearchInput');
@@ -1125,6 +1374,10 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
 
       const isOwner = currentUserSession && currentUserSession.role === 'owner';
+      const thAdminUserPass = document.getElementById('thAdminUserPass');
+      if (thAdminUserPass) {
+        thAdminUserPass.style.display = isOwner ? '' : 'none';
+      }
 
       adminUsersTableBody.innerHTML = filtered.map(user => {
         const userRole = user.role || (user.is_admin ? 'admin' : 'user');
@@ -1133,16 +1386,17 @@ document.addEventListener('DOMContentLoaded', async () => {
           ? `<img src="${escapeHtml(user.profile_image)}" class="user-table-avatar" alt="${escapeHtml(user.name)}" data-view-detail-id="${user.id}" />`
           : `<div class="user-table-avatar-initial" data-view-detail-id="${user.id}">${escapeHtml((user.name || 'U').charAt(0))}</div>`;
 
-        const plainPassDisplay = user.plain_password ? user.plain_password : '(ตั้งผ่านระบบเก่า/Google)';
-        const resetPasswordHtml = isOwner ? `
-          <div style="display:flex; flex-direction:column; gap:4px;">
-            <div style="display:flex; align-items:center; gap:4px;">
-              <span id="uPassText-${user.id}" style="font-family:monospace; font-weight:bold; color:var(--purple); background:#f0edff; padding:2px 6px; border-radius:4px; font-size:0.8rem;" data-plain="${escapeHtml(plainPassDisplay)}">••••••••</span>
-              <button type="button" class="inline-button review" data-uaction-toggle-pass="${user.id}" data-user-email="${escapeHtml(user.email)}" style="padding:2px 6px; font-size:0.75rem;" title="ดู/ซ่อนรหัสผ่าน">👁️</button>
+        const resetPasswordTd = isOwner ? `
+          <td>
+            <div style="display:flex; flex-direction:column; gap:4px;">
+              <div style="display:flex; align-items:center; gap:4px;">
+                <span id="uPassText-${user.id}" style="font-family:monospace; font-weight:bold; color:var(--purple); background:#f0edff; padding:2px 6px; border-radius:4px; font-size:0.8rem;">••••••••</span>
+                <button type="button" class="inline-button review" data-uaction-toggle-pass="${user.id}" data-user-email="${escapeHtml(user.email)}" style="padding:2px 6px; font-size:0.75rem;" title="ดู/ซ่อนรหัสผ่าน">👁️</button>
+              </div>
+              <button type="button" class="inline-button review" data-uaction-reset-pass="${user.id}" data-user-email="${escapeHtml(user.email)}" style="padding:2px 6px; font-size:0.75rem;">🔑 เปลี่ยนรหัส</button>
             </div>
-            <button type="button" class="inline-button review" data-uaction-reset-pass="${user.id}" data-user-email="${escapeHtml(user.email)}" style="padding:2px 6px; font-size:0.75rem;">🔑 เปลี่ยนรหัส</button>
-          </div>
-        ` : `<span style="color:#aaa; font-size:0.75rem;">สิทธิ์เฉพาะ Owner</span>`;
+          </td>
+        ` : '';
 
         const roleSelectHtml = isOwner ? `
           <div style="display:flex; flex-direction:column; gap:4px;">
@@ -1190,7 +1444,7 @@ document.addEventListener('DOMContentLoaded', async () => {
               <div>${interestsHtml}</div>
               ${user.bio ? `<div class="bio-snippet" title="${escapeHtml(user.bio)}">${escapeHtml(user.bio)}</div>` : ''}
             </td>
-            <td>${resetPasswordHtml}</td>
+            ${resetPasswordTd}
             <td>${roleSelectHtml}</td>
             <td>
               <div style="display:flex; flex-direction:column; gap:6px;">
@@ -1210,26 +1464,46 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     function attachUserTableEvents() {
-      // Toggle plain password
-      adminUsersTableBody.querySelectorAll('[data-uaction-toggle-pass]').forEach(btn => {
-        btn.addEventListener('click', () => {
-          const userId = btn.dataset.uactionTogglePass;
-          const passEl = document.getElementById(`uPassText-${userId}`);
-          if (!passEl) return;
-          const plainVal = passEl.dataset.plain;
-          if (plainVal === '(ตั้งผ่านระบบเก่า/Google)' || !plainVal) {
-            alert('บัญชีนี้สร้างจากระบบเก่า/Google ยังไม่มีรหัสผ่านข้อความธรรมดา (สามารถกดเปลี่ยนรหัสเพื่อตั้งใหม่ได้)');
-            return;
-          }
-          if (passEl.textContent === '••••••••') {
-            passEl.textContent = plainVal;
-            btn.textContent = '🔒';
-          } else {
-            passEl.textContent = '••••••••';
-            btn.textContent = '👁️';
-          }
+      const isOwner = currentUserSession && currentUserSession.role === 'owner';
+      if (isOwner) {
+        adminUsersTableBody.querySelectorAll('[data-uaction-toggle-pass]').forEach(btn => {
+          btn.addEventListener('click', async () => {
+            const userId = btn.dataset.uactionTogglePass;
+            const passEl = document.getElementById(`uPassText-${userId}`);
+            if (!passEl) return;
+
+            if (passEl.dataset.revealed === 'true') {
+              passEl.textContent = '••••••••';
+              passEl.dataset.revealed = 'false';
+              btn.textContent = '👁️';
+              return;
+            }
+
+            if (passEl.dataset.plain) {
+              passEl.textContent = passEl.dataset.plain;
+              passEl.dataset.revealed = 'true';
+              btn.textContent = '🔒';
+              return;
+            }
+
+            btn.disabled = true;
+            btn.textContent = '⏳';
+            try {
+              const res = await apiRequest(`/api/admin/users/${userId}/reveal-password`, { method: 'POST' });
+              const pass = res.password || '(สมัครผ่าน Google หรือไม่มีรหัส)';
+              passEl.dataset.plain = pass;
+              passEl.textContent = pass;
+              passEl.dataset.revealed = 'true';
+              btn.textContent = '🔒';
+            } catch (e) {
+              alert('ไม่สามารถถอดรหัสผ่านได้: ' + e.message);
+              btn.textContent = '👁️';
+            } finally {
+              btn.disabled = false;
+            }
+          });
         });
-      });
+      }
 
       // Reset password
       adminUsersTableBody.querySelectorAll('[data-uaction-reset-pass]').forEach(btn => {
@@ -1327,6 +1601,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       const userRole = user.role || (user.is_admin ? 'admin' : 'user');
       const isBanned = user.is_active === 0;
+      const isOwner = currentUserSession && currentUserSession.role === 'owner';
 
       modalBody.innerHTML = `
         <div class="user-detail-header-card">
@@ -1380,16 +1655,57 @@ document.addEventListener('DOMContentLoaded', async () => {
             <div class="info-field-label">🕒 วันที่ลงทะเบียน</div>
             <div class="info-field-value" style="font-size:0.85rem;">${escapeHtml(user.created_at || '-')}</div>
           </div>
-          <div class="info-field-card">
-            <div class="info-field-label">🔐 รหัสผ่าน (Plain Password)</div>
-            <div class="info-field-value" style="font-family:monospace; color:var(--purple);">${escapeHtml(user.plain_password || '(ไม่ได้ตั้งไว้)')}</div>
-          </div>
+          ${isOwner ? `
+            <div class="info-field-card">
+              <div class="info-field-label">🔐 รหัสผ่าน (Owner)</div>
+              <div class="info-field-value" style="display:flex; align-items:center; gap:8px; margin-top:4px;">
+                <span id="modalPassText-${user.id}" style="font-family:monospace; color:var(--purple); font-weight:bold;">••••••••</span>
+                <button type="button" class="inline-button review" id="btnModalRevealPass-${user.id}" style="padding:2px 8px; font-size:0.75rem;">👁️ ดูรหัส</button>
+              </div>
+            </div>
+          ` : ''}
         </div>
 
         ${photosGridHtml}
       `;
 
       modal.classList.remove('hidden');
+
+      if (isOwner) {
+        const btnModalReveal = document.getElementById(`btnModalRevealPass-${user.id}`);
+        const modalPassEl = document.getElementById(`modalPassText-${user.id}`);
+        if (btnModalReveal && modalPassEl) {
+          btnModalReveal.addEventListener('click', async () => {
+            if (modalPassEl.dataset.revealed === 'true') {
+              modalPassEl.textContent = '••••••••';
+              modalPassEl.dataset.revealed = 'false';
+              btnModalReveal.textContent = '👁️ ดูรหัส';
+              return;
+            }
+            if (modalPassEl.dataset.plain) {
+              modalPassEl.textContent = modalPassEl.dataset.plain;
+              modalPassEl.dataset.revealed = 'true';
+              btnModalReveal.textContent = '🔒 ซ่อน';
+              return;
+            }
+            btnModalReveal.disabled = true;
+            btnModalReveal.textContent = '⏳';
+            try {
+              const res = await apiRequest(`/api/admin/users/${user.id}/reveal-password`, { method: 'POST' });
+              const pass = res.password || '(สมัครผ่าน Google หรือไม่มีรหัส)';
+              modalPassEl.dataset.plain = pass;
+              modalPassEl.textContent = pass;
+              modalPassEl.dataset.revealed = 'true';
+              btnModalReveal.textContent = '🔒 ซ่อน';
+            } catch (e) {
+              alert('ไม่สามารถถอดรหัสผ่านได้: ' + e.message);
+              btnModalReveal.textContent = '👁️ ดูรหัส';
+            } finally {
+              btnModalReveal.disabled = false;
+            }
+          });
+        }
+      }
     }
 
     if (searchInput) searchInput.addEventListener('input', renderFilteredUsers);
@@ -1400,141 +1716,705 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     loadAdminUsers();
   }
+}
 
-  const appRoot = document.getElementById('appRoot');
-  if (appRoot) {
-    const sessionState = await apiRequest('/api/session').catch(() => ({ user: null }));
-    if (!sessionState.user) {
-      window.location.href = '/';
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initAdminModule);
+} else {
+  initAdminModule();
+}
+
+
+// ==================== public/js/chat.js ====================
+/**
+ * MatchSpace Real-Time Chat Controller
+ * Powered by WebSockets - replaces HTTP polling with zero lag and instant messaging.
+ */
+
+window.matchSpaceChat = (function () {
+  let currentChatId = null;
+  let currentUser = null;
+  let allLoadedChats = [];
+  let typingTimeout = null;
+  let isCurrentlyTyping = false;
+
+  const chatList = document.getElementById('chatList');
+  const messageThread = document.getElementById('messageThread');
+  const messageInput = document.getElementById('messageInput');
+  const sendMessageBtn = document.getElementById('sendMessageBtn');
+  const searchInput = document.getElementById('chatSearchInput');
+  const mobileBackBtn = document.getElementById('chatMobileBackBtn');
+  const closeGreetingsBtn = document.getElementById('btnCloseGreetings');
+  const chatLayout = document.getElementById('chatLayoutContainer');
+
+  function initChat(user) {
+    currentUser = user;
+    if (!chatList || !messageThread) return;
+
+    // Connect WebSocket if not already connected
+    if (window.matchSpaceWS && currentUser?.id) {
+      window.matchSpaceWS.connect(currentUser.id);
+      setupWebSocketListeners();
+    }
+
+    setupChatEventListeners();
+  }
+
+  function setupWebSocketListeners() {
+    const ws = window.matchSpaceWS;
+    if (!ws) return;
+
+    // Real-time new message incoming
+    ws.on('new_message', (data) => {
+      if (data.chatId === currentChatId && data.message) {
+        appendIncomingMessage(data.message);
+      }
+      updateChatSnippet(data.chatId, data.message);
+    });
+
+    // Real-time message deletion
+    ws.on('delete_message', (data) => {
+      if (data.chatId === currentChatId && data.messageId) {
+        const msgEl = document.querySelector(`[data-msg-item-id="${data.messageId}"]`);
+        if (msgEl) {
+          msgEl.style.transition = 'all 0.25s ease';
+          msgEl.style.opacity = '0';
+          msgEl.style.transform = 'scale(0.9)';
+          setTimeout(() => msgEl.remove(), 250);
+        }
+      }
+      loadChats();
+    });
+
+    // Typing indicator
+    ws.on('typing', (data) => {
+      if (data.chatId === currentChatId && Number(data.userId) !== Number(currentUser?.id)) {
+        showTypingIndicator(data.userName || 'คู่สนทนา');
+      }
+    });
+
+    // Stop typing
+    ws.on('stop_typing', (data) => {
+      if (data.chatId === currentChatId) {
+        hideTypingIndicator();
+      }
+    });
+
+    // Mutual match event -> update chats and show notification
+    ws.on('mutual_match', () => {
+      loadChats();
+    });
+  }
+
+  function showTypingIndicator(userName) {
+    const subHeader = document.getElementById('chatSubHeader');
+    if (subHeader) {
+      subHeader.innerHTML = `<span class="header-status-typing"><span class="status-pulse-dot"></span> <em>${escapeHtml(userName)} กำลังพิมพ์...</em></span>`;
+    }
+  }
+
+  function hideTypingIndicator() {
+    const subHeader = document.getElementById('chatSubHeader');
+    if (subHeader) {
+      subHeader.innerHTML = `<span class="header-status-online"><span class="status-pulse-dot"></span> พร้อมสนทนา</span>`;
+    }
+  }
+
+  function appendIncomingMessage(msg) {
+    if (!messageThread) return;
+    const emptyPlaceholder = messageThread.querySelector('.chat-empty-placeholder');
+    if (emptyPlaceholder) emptyPlaceholder.remove();
+
+    // Check if message already rendered (prevent duplicate on self-send)
+    if (messageThread.querySelector(`[data-msg-item-id="${msg.id}"]`)) return;
+
+    const isMe = Number(msg.sender_id) === Number(currentUser?.id);
+    const isOwner = currentUser && currentUser.role === 'owner';
+    const canDelete = isMe || isOwner;
+    const timeStr = formatChatTime(msg.created_at);
+
+    const deleteBtnHtml = canDelete ? `<button type="button" class="btn-delete-msg" data-msg-id="${msg.id}" title="ลบข้อความ"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>` : '';
+
+    const wrapper = document.createElement('div');
+    wrapper.dataset.msgItemId = msg.id;
+
+    if (isMe) {
+      wrapper.className = 'msg-wrapper me fade-in';
+      wrapper.innerHTML = `
+        <div class="msg-content-col">
+          <div class="bubble me">
+            <div class="bubble-text">${escapeHtml(msg.content)}</div>
+            <div class="bubble-meta">
+              <span class="msg-time me-time">${timeStr}</span>
+              ${deleteBtnHtml}
+            </div>
+          </div>
+        </div>
+      `;
+    } else {
+      wrapper.className = 'msg-wrapper them fade-in';
+      const senderAvatar = msg.sender_profile_image
+        ? `<img src="${escapeHtml(msg.sender_profile_image)}" class="chat-msg-avatar" alt="${escapeHtml(msg.sender_name || '')}" />`
+        : `<div class="chat-msg-avatar-initial">${escapeHtml((msg.sender_name || 'U').charAt(0).toUpperCase())}</div>`;
+
+      wrapper.innerHTML = `
+        <div class="msg-avatar-col">${senderAvatar}</div>
+        <div class="msg-content-col">
+          <div class="msg-sender-name"><span>${escapeHtml(msg.sender_name || 'สมาชิก')}</span></div>
+          <div class="bubble them">
+            <div class="bubble-text">${escapeHtml(msg.content)}</div>
+            <div class="bubble-meta">
+              <span class="msg-time">${timeStr}</span>
+              ${deleteBtnHtml}
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    // Attach delete handler
+    const delBtn = wrapper.querySelector('.btn-delete-msg');
+    if (delBtn) {
+      delBtn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        if (confirm('คุณต้องการลบข้อความนี้ใช่หรือไม่?')) {
+          try {
+            await apiRequest(`/api/chats/${currentChatId}/messages/${msg.id}`, { method: 'DELETE' });
+            wrapper.remove();
+          } catch(err) {
+            alert(err.message);
+          }
+        }
+      });
+    }
+
+    messageThread.appendChild(wrapper);
+    messageThread.scrollTop = messageThread.scrollHeight;
+    hideTypingIndicator();
+  }
+
+  function updateChatSnippet(chatId, message) {
+    const chat = allLoadedChats.find(c => Number(c.id) === Number(chatId));
+    if (chat && message) {
+      chat.last_message = message.content;
+      chat.last_message_time = message.created_at;
+      filterAndRenderChats();
+    } else {
+      loadChats();
+    }
+  }
+
+  function renderChatsList(chats) {
+    if (!chatList) return;
+    chatList.innerHTML = chats.length
+      ? chats.map((chat) => {
+          const isGroup = chat.type === 'group' || chat.activity_id;
+          const badge = isGroup ? '<span class="chat-badge-group">กลุ่ม</span>' : '';
+          const timeStr = formatChatTime(chat.last_message_time);
+          const isActive = chat.id === currentChatId;
+
+          const avatarHtml = isGroup
+            ? `<div class="chat-list-avatar group">👥</div>`
+            : (chat.partner_profile_image
+                ? `<img src="${escapeHtml(chat.partner_profile_image)}" class="chat-list-avatar" alt="${escapeHtml(chat.partner_name || '')}" />`
+                : `<div class="chat-list-avatar initial">${escapeHtml((chat.partner_name || 'U').charAt(0).toUpperCase())}</div>`);
+
+          return `
+            <div class="chat-list-item ${isActive ? 'active' : ''}" data-chat-id="${chat.id}">
+              <div class="chat-list-avatar-wrap">
+                ${avatarHtml}
+                ${!isGroup ? '<span class="chat-online-dot" title="พร้อมคุย"></span>' : ''}
+              </div>
+              <div class="chat-list-info">
+                <div class="chat-list-top">
+                  <div class="chat-list-title">
+                    <span class="chat-list-title-text">${escapeHtml(chat.partner_name || (isGroup ? 'แชทกลุ่ม' : 'แชท'))}</span>
+                    ${badge}
+                  </div>
+                  ${timeStr ? `<span class="chat-list-time">${timeStr}</span>` : ''}
+                </div>
+                <div class="chat-list-preview">
+                  ${escapeHtml(chat.last_message || 'ยังไม่มีข้อความ เริ่มต้นคุยกันได้เลย')}
+                </div>
+              </div>
+            </div>
+          `;
+        }).join('')
+      : '<div class="chat-empty-list"><div style="font-size:1.6rem; margin-bottom:6px;">💬</div>ยังไม่มีการสนทนาในขณะนี้</div>';
+
+    chatList.querySelectorAll('[data-chat-id]').forEach((item) => {
+      item.addEventListener('click', async () => {
+        const chatId = Number(item.dataset.chatId);
+        currentChatId = chatId;
+        if (chatLayout) chatLayout.classList.add('chat-open');
+        filterAndRenderChats();
+        await loadMessages(chatId);
+      });
+    });
+  }
+
+  function filterAndRenderChats() {
+    const query = (searchInput?.value || '').toLowerCase().trim();
+    let list = allLoadedChats;
+    if (query) {
+      list = allLoadedChats.filter(c => {
+        const name = (c.partner_name || c.title || c.activity_name || '').toLowerCase();
+        const lastMsg = (c.last_message || '').toLowerCase();
+        return name.includes(query) || lastMsg.includes(query);
+      });
+    }
+    renderChatsList(list);
+  }
+
+  async function loadChats() {
+    try {
+      const chats = await apiRequest('/api/chats');
+      allLoadedChats = chats;
+      const countEl = document.getElementById('chatTotalCountBadge');
+      if (countEl) countEl.textContent = chats.length;
+      if (window.matchSpaceApp?.updateHomeStats) {
+        window.matchSpaceApp.updateHomeStats();
+      }
+      filterAndRenderChats();
+      return chats;
+    } catch (e) {
+      return [];
+    }
+  }
+
+  function renderMessageList(data) {
+    const titleHeader = document.getElementById('chatTitleHeader');
+    const subHeader = document.getElementById('chatSubHeader');
+    const headerAvatarWrap = document.getElementById('chatActiveAvatarWrap');
+    const headerActions = document.getElementById('chatHeaderActions');
+    const isGroup = data.chat.type === 'group' || data.chat.activity_id;
+
+    if (titleHeader) {
+      titleHeader.textContent = isGroup ? `👥 ${data.chat.title || data.chat.activity_name || 'แชทกลุ่ม'}` : (data.chat.partner_name || 'ข้อความ');
+    }
+
+    if (headerAvatarWrap) {
+      if (isGroup) {
+        headerAvatarWrap.innerHTML = `<div class="chat-room-header-avatar group">👥</div>`;
+      } else if (data.chat.partner_profile_image) {
+        headerAvatarWrap.innerHTML = `<img src="${escapeHtml(data.chat.partner_profile_image)}" class="chat-room-header-avatar" alt="" />`;
+      } else {
+        headerAvatarWrap.innerHTML = `<div class="chat-room-header-avatar initial">${escapeHtml((data.chat.partner_name || 'U').charAt(0).toUpperCase())}</div>`;
+      }
+    }
+
+    if (subHeader) {
+      if (data.chat.activity_id) {
+        subHeader.innerHTML = `<span class="header-status-host">👑 หัวหน้ากิจกรรม: <strong>${escapeHtml(data.chat.creator_name || 'ผู้ขอสร้าง')}</strong></span>`;
+      } else {
+        subHeader.innerHTML = `<span class="header-status-online"><span class="status-pulse-dot"></span> พร้อมสนทนา</span>`;
+      }
+    }
+
+    if (headerActions) {
+      if (!isGroup && data.chat.partner_id) {
+        headerActions.innerHTML = `
+          <button type="button" class="btn-chat-view-profile" data-open-profile-id="${data.chat.partner_id}">
+            🔍 ดูโปรไฟล์
+          </button>
+        `;
+        headerActions.querySelector('[data-open-profile-id]')?.addEventListener('click', () => {
+          if (window.matchSpaceApp?.openProfileModal) {
+            window.matchSpaceApp.openProfileModal(Number(data.chat.partner_id));
+          }
+        });
+      } else {
+        headerActions.innerHTML = '';
+      }
+    }
+
+    const isHost = data.chat.activity_id && Number(data.chat.creator_id) === Number(currentUser?.id);
+    const isOwner = currentUser && currentUser.role === 'owner';
+
+    if (!data.messages || data.messages.length === 0) {
+      messageThread.innerHTML = `
+        <div class="chat-empty-placeholder">
+          <div class="chat-empty-icon">✨</div>
+          <div class="chat-empty-title">เริ่มต้นการสนทนา</div>
+          <div class="chat-empty-desc">ส่งข้อความทักทายแรกเพื่อเริ่มต้นมิตรภาพดีๆ ได้เลย!</div>
+        </div>
+      `;
       return;
     }
 
-    const tabButtons = document.querySelectorAll('.tab-button');
-    const tabPanels = document.querySelectorAll('.tab-panel');
-    const profileForm = document.getElementById('profileForm');
-    const chatList = document.getElementById('chatList');
-    const messageThread = document.getElementById('messageThread');
-    const messageInput = document.getElementById('messageInput');
-    const sendMessageBtn = document.getElementById('sendMessageBtn');
-    const logoutBtn = document.getElementById('logoutBtn');
-    const discoverUserCard = document.getElementById('discoverUserCard');
-    const activityBoardList = document.getElementById('activityBoardList');
-    const activityForm = document.getElementById('activityForm');
-    const activityName = document.getElementById('activityName');
-    const activityDescription = document.getElementById('activityDescription');
-    const activityMemberCount = document.getElementById('activityMemberCount');
-    const newActivityBtn = document.getElementById('newActivityBtn');
+    messageThread.innerHTML = data.messages.map((msg) => {
+      const isMe = Number(msg.sender_id) === Number(currentUser?.id);
+      const isMsgHost = data.chat.activity_id && Number(msg.sender_id) === Number(data.chat.creator_id);
+      const canDelete = isMe || isHost || isOwner;
+      const timeStr = formatChatTime(msg.created_at);
 
-    const tabOrder = ['home', 'discover', 'liked', 'skipped', 'activity', 'chat', 'profile'];
-    let currentActiveTab = 'home';
-    let latestActivitiesList = [];
-    let latestChatsList = [];
+      const hostBadgeHtml = isMsgHost ? '<span class="host-badge">👑 หัวหน้า</span>' : '';
+      const deleteBtnHtml = canDelete ? `<button type="button" class="btn-delete-msg" data-msg-id="${msg.id}" title="ลบข้อความ"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>` : '';
 
-    function updateHomeStats() {
-      const homeUserNameEl = document.getElementById('homeUserName');
-      const homeCompatibleCountEl = document.getElementById('homeCompatibleCount');
-      const homeActivitiesCountEl = document.getElementById('homeActivitiesCount');
-      const homeNewMessagesCountEl = document.getElementById('homeNewMessagesCount');
+      const senderAvatar = msg.sender_profile_image
+        ? `<img src="${escapeHtml(msg.sender_profile_image)}" class="chat-msg-avatar" alt="${escapeHtml(msg.sender_name || '')}" />`
+        : `<div class="chat-msg-avatar-initial">${escapeHtml((msg.sender_name || 'U').charAt(0).toUpperCase())}</div>`;
 
-      if (homeUserNameEl && sessionState.user) {
-        homeUserNameEl.textContent = sessionState.user.nickname || sessionState.user.name || 'คุณผู้ใช้';
+      if (isMe) {
+        return `
+          <div class="msg-wrapper me" data-msg-item-id="${msg.id}">
+            <div class="msg-content-col">
+              <div class="bubble me">
+                <div class="bubble-text">${escapeHtml(msg.content)}</div>
+                <div class="bubble-meta">
+                  <span class="msg-time me-time">${timeStr}</span>
+                  ${deleteBtnHtml}
+                </div>
+              </div>
+            </div>
+          </div>
+        `;
       }
 
-      if (homeCompatibleCountEl) {
-        homeCompatibleCountEl.textContent = discoverUsers ? discoverUsers.length : 0;
+      return `
+        <div class="msg-wrapper them" data-msg-item-id="${msg.id}">
+          <div class="msg-avatar-col">${senderAvatar}</div>
+          <div class="msg-content-col">
+            <div class="msg-sender-name">
+              <span>${escapeHtml(msg.sender_name || 'สมาชิก')}</span>
+              ${hostBadgeHtml}
+            </div>
+            <div class="bubble them">
+              <div class="bubble-text">${escapeHtml(msg.content)}</div>
+              <div class="bubble-meta">
+                <span class="msg-time">${timeStr}</span>
+                ${deleteBtnHtml}
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    messageThread.scrollTop = messageThread.scrollHeight;
+
+    // Attach delete handlers
+    messageThread.querySelectorAll('.btn-delete-msg').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const msgId = btn.dataset.msgId;
+        if (confirm('คุณต้องการลบข้อความนี้ใช่หรือไม่?')) {
+          try {
+            await apiRequest(`/api/chats/${data.chat.id}/messages/${msgId}`, { method: 'DELETE' });
+            btn.closest('.msg-wrapper')?.remove();
+          } catch(err) {
+            alert(err.message);
+          }
+        }
+      });
+    });
+  }
+
+  async function loadMessages(chatId) {
+    try {
+      currentChatId = Number(chatId);
+
+      // Join real-time WebSocket room
+      if (window.matchSpaceWS) {
+        window.matchSpaceWS.joinChat(currentChatId);
       }
 
-      if (homeActivitiesCountEl) {
-        homeActivitiesCountEl.textContent = latestActivitiesList ? latestActivitiesList.length : 0;
-      }
+      const data = await apiRequest(`/api/chats/${currentChatId}/messages`);
+      renderMessageList(data);
 
-      if (homeNewMessagesCountEl) {
-        homeNewMessagesCountEl.textContent = latestChatsList ? latestChatsList.length : 0;
-      }
-    }
-
-    async function loadHomeScreen() {
-      updateHomeStats();
-    }
-
-    function switchTab(tabName, forceAnim) {
-      const targetBtn = Array.from(tabButtons).find(b => b.dataset.tab === tabName);
-      if (targetBtn) {
-        triggerTabSwitch(tabName, forceAnim);
+      if (!data.chat.activity_id && data.chat.type !== 'group') {
+        await loadGreetingSuggestions(data.messages.length === 0);
       } else {
-        triggerTabSwitch(tabName, forceAnim);
+        const container = document.getElementById('greetingSuggestions');
+        if (container) container.classList.add('hidden');
+      }
+    } catch (e) {
+      if (messageThread) {
+        messageThread.innerHTML = `<div class="list-item" style="color:var(--muted); text-align:center; padding:20px;">⚠️ ${e.message || 'ไม่สามารถโหลดข้อความได้'}</div>`;
       }
     }
+  }
 
-    function triggerTabSwitch(nextTab, customAnim) {
-      if (!nextTab) return;
+  async function openChatTabAndLoad(chatId) {
+    if (window.matchSpaceApp?.triggerTabSwitch) {
+      window.matchSpaceApp.triggerTabSwitch('chat', 'slide-right');
+    }
+    currentChatId = Number(chatId);
+    if (chatLayout) chatLayout.classList.add('chat-open');
+    await loadChats();
+    await loadMessages(chatId);
+  }
 
-      const prevIndex = tabOrder.indexOf(currentActiveTab);
-      const nextIndex = tabOrder.indexOf(nextTab);
-      let animClass = customAnim || 'fade-up';
-      if (!customAnim && prevIndex !== -1 && nextIndex !== -1 && prevIndex !== nextIndex) {
-        animClass = nextIndex > prevIndex ? 'slide-right' : 'slide-left';
+  async function loadGreetingSuggestions(isEmpty) {
+    const container = document.getElementById('greetingSuggestions');
+    const chipsEl = document.getElementById('greetingChips');
+    if (!container || !chipsEl) return;
+
+    try {
+      const greetings = await apiRequest('/api/greetings');
+      const shuffled = greetings.sort(() => 0.5 - Math.random()).slice(0, 4);
+      chipsEl.innerHTML = shuffled.map(g => `<div class="greeting-chip">${g}</div>`).join('');
+      container.classList.remove('hidden');
+
+      chipsEl.querySelectorAll('.greeting-chip').forEach(chip => {
+        chip.addEventListener('click', () => {
+          if (messageInput) {
+            messageInput.value = chip.textContent;
+            messageInput.focus();
+          }
+        });
+      });
+    } catch (e) {
+      container.classList.add('hidden');
+    }
+  }
+
+  async function sendMessage() {
+    if (!currentChatId || !messageInput || !messageInput.value.trim()) return;
+
+    const content = messageInput.value.trim();
+    messageInput.value = '';
+
+    // Stop typing event
+    if (window.matchSpaceWS && isCurrentlyTyping) {
+      isCurrentlyTyping = false;
+      window.matchSpaceWS.sendStopTyping(currentChatId);
+    }
+
+    try {
+      const res = await apiRequest(`/api/chats/${currentChatId}/messages`, {
+        method: 'POST',
+        body: JSON.stringify({ content })
+      });
+
+      if (res.message && typeof res.message === 'object') {
+        appendIncomingMessage(res.message);
       }
-      currentActiveTab = nextTab;
+      updateChatSnippet(currentChatId, { content, created_at: new Date().toISOString() });
+    } catch (err) {
+      alert(err.message || 'ไม่สามารถส่งข้อความได้');
+    }
+  }
 
-      tabButtons.forEach((tab) => tab.classList.toggle('active', tab.dataset.tab === nextTab));
-      tabPanels.forEach((panel) => {
-        const isTarget = panel.id === `tab-${nextTab}`;
-        panel.classList.remove('slide-right', 'slide-left', 'fade-up');
-        if (isTarget) {
-          void panel.offsetWidth; // Force CSS animation reflow
-          panel.classList.add('active', animClass);
-        } else {
-          panel.classList.remove('active');
+  function setupChatEventListeners() {
+    if (sendMessageBtn) {
+      sendMessageBtn.addEventListener('click', sendMessage);
+    }
+
+    if (messageInput) {
+      messageInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+          e.preventDefault();
+          sendMessage();
         }
       });
 
-      // Reload tabs fresh whenever user opens that tab
-      if (nextTab === 'home') {
-        loadHomeScreen();
-      }
-      if (nextTab === 'activities' || nextTab === 'activity') {
-        loadActivities();
-      }
-      if (nextTab === 'liked') {
-        loadLikedUsers();
-      }
-      if (nextTab === 'skipped') {
-        loadSkippedUsers();
-      }
+      // Handle real-time typing indicator
+      messageInput.addEventListener('input', () => {
+        if (!currentChatId || !window.matchSpaceWS) return;
+
+        if (!isCurrentlyTyping) {
+          isCurrentlyTyping = true;
+          window.matchSpaceWS.sendTyping(currentChatId, currentUser?.name || 'คู่สนทนา');
+        }
+
+        clearTimeout(typingTimeout);
+        typingTimeout = setTimeout(() => {
+          isCurrentlyTyping = false;
+          window.matchSpaceWS.sendStopTyping(currentChatId);
+        }, 1500);
+      });
     }
 
+    if (searchInput) {
+      searchInput.addEventListener('input', filterAndRenderChats);
+    }
+
+    if (mobileBackBtn && chatLayout) {
+      mobileBackBtn.addEventListener('click', () => {
+        chatLayout.classList.remove('chat-open');
+        if (window.matchSpaceWS) {
+          window.matchSpaceWS.leaveChat();
+        }
+      });
+    }
+
+    if (closeGreetingsBtn) {
+      closeGreetingsBtn.addEventListener('click', () => {
+        document.getElementById('greetingSuggestions')?.classList.add('hidden');
+      });
+    }
+  }
+
+  return {
+    initChat,
+    loadChats,
+    loadMessages,
+    openChatTabAndLoad,
+    getCurrentChatId: () => currentChatId
+  };
+})();
+
+
+// ==================== public/js/app.js ====================
+/**
+ * MatchSpace Main Application Controller (app.html)
+ * Coordinates Discover, Liked, Skipped, Activities, and Profile subsystems.
+ */
+
+window.matchSpaceApp = (function () {
+  let sessionUser = null;
+  const DEFAULT_AVATAR = 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="120" height="120"><rect width="120" height="120" fill="#efe9ff"/><text x="50%" y="52%" dominant-baseline="middle" text-anchor="middle" font-size="38" fill="#4a4496">♥</text></svg>');
+
+  const tabOrder = ['home', 'discover', 'liked', 'skipped', 'activity', 'chat', 'profile'];
+  let currentActiveTab = 'home';
+  let latestActivitiesList = [];
+  let discoverUsers = [];
+  let currentDiscoverIndex = 0;
+  let skippedHistory = [];
+  let currentCategoryFilter = 'ทั้งหมด';
+  let likedUsersList = [];
+  let skippedUsersList = [];
+  let modalPhotosList = [];
+  let modalCurrentPhotoIndex = 0;
+
+  async function initApp() {
+    const appRoot = document.getElementById('appRoot');
+    if (!appRoot) return;
+
+    try {
+      const sessionState = await apiRequest('/api/session');
+      if (!sessionState || !sessionState.user) {
+        window.location.href = '/';
+        return;
+      }
+      sessionUser = sessionState.user;
+
+      // Connect real-time WebSocket
+      if (window.matchSpaceWS) {
+        window.matchSpaceWS.connect(sessionUser.id);
+
+        // Listen for real-time mutual matches (replaces polling!)
+        window.matchSpaceWS.on('mutual_match', async (data) => {
+          await loadLikedUsers();
+          await loadDiscoverUsers();
+          updateHomeStats();
+        });
+      }
+
+      // Initialize real-time chat
+      if (window.matchSpaceChat) {
+        window.matchSpaceChat.initChat(sessionUser);
+      }
+
+      setupTabs();
+      setupHomeInteractions();
+      setupProfile();
+      setupCategoryFilterChips();
+
+      await Promise.all([
+        loadProfile(),
+        loadDiscoverUsers(),
+        loadLikedUsers(),
+        loadSkippedUsers(),
+        window.matchSpaceChat?.loadChats() || Promise.resolve(),
+        loadActivities()
+      ]);
+
+      loadHomeScreen();
+    } catch (err) {
+      console.error('App init error:', err);
+      window.location.href = '/';
+    }
+  }
+
+  // ===================== TABS & NAVIGATION =====================
+  function setupTabs() {
+    const tabButtons = document.querySelectorAll('.tab-button');
     tabButtons.forEach((button) => {
       button.addEventListener('click', () => {
         triggerTabSwitch(button.dataset.tab);
       });
     });
 
-    // Home screen interactive buttons & card links
-    const homeBtnGoDiscover = document.getElementById('homeBtnGoDiscover');
-    if (homeBtnGoDiscover) {
-      homeBtnGoDiscover.addEventListener('click', () => switchTab('discover'));
+    const logoutBtn = document.getElementById('logoutBtn');
+    if (logoutBtn) {
+      logoutBtn.addEventListener('click', async () => {
+        if (window.matchSpaceWS) window.matchSpaceWS.leaveChat();
+        await apiRequest('/api/logout', { method: 'POST' });
+        window.location.href = '/';
+      });
     }
+  }
 
-    const homeCardCandidates = document.getElementById('homeCardCandidates');
-    if (homeCardCandidates) {
-      homeCardCandidates.addEventListener('click', () => switchTab('discover'));
-    }
+  function switchTab(tabName, forceAnim) {
+    triggerTabSwitch(tabName, forceAnim);
+  }
 
-    const homeCardActivities = document.getElementById('homeCardActivities');
-    if (homeCardActivities) {
-      homeCardActivities.addEventListener('click', () => switchTab('activity'));
-    }
+  function triggerTabSwitch(nextTab, customAnim) {
+    if (!nextTab) return;
+    const tabButtons = document.querySelectorAll('.tab-button');
+    const tabPanels = document.querySelectorAll('.tab-panel');
 
-    const homeCardMessages = document.getElementById('homeCardMessages');
-    if (homeCardMessages) {
-      homeCardMessages.addEventListener('click', () => switchTab('chat'));
+    const prevIndex = tabOrder.indexOf(currentActiveTab);
+    const nextIndex = tabOrder.indexOf(nextTab);
+    let animClass = customAnim || 'fade-up';
+    if (!customAnim && prevIndex !== -1 && nextIndex !== -1 && prevIndex !== nextIndex) {
+      animClass = nextIndex > prevIndex ? 'slide-right' : 'slide-left';
     }
+    currentActiveTab = nextTab;
 
-    const viewLikedBtn = document.getElementById('viewLikedBtn');
-    if (viewLikedBtn) {
-      viewLikedBtn.addEventListener('click', () => switchTab('liked'));
+    tabButtons.forEach((tab) => tab.classList.toggle('active', tab.dataset.tab === nextTab));
+    tabPanels.forEach((panel) => {
+      const isTarget = panel.id === `tab-${nextTab}`;
+      panel.classList.remove('slide-right', 'slide-left', 'fade-up');
+      if (isTarget) {
+        void panel.offsetWidth;
+        panel.classList.add('active', animClass);
+      } else {
+        panel.classList.remove('active');
+      }
+    });
+
+    if (nextTab === 'home') loadHomeScreen();
+    if (nextTab === 'activity') loadActivities();
+    if (nextTab === 'liked') loadLikedUsers();
+    if (nextTab === 'skipped') loadSkippedUsers();
+  }
+
+  // ===================== HOME SCREEN =====================
+  function updateHomeStats() {
+    const homeUserNameEl = document.getElementById('homeUserName');
+    const homeCompatibleCountEl = document.getElementById('homeCompatibleCount');
+    const homeActivitiesCountEl = document.getElementById('homeActivitiesCount');
+    const homeNewMessagesCountEl = document.getElementById('homeNewMessagesCount');
+
+    if (homeUserNameEl && sessionUser) {
+      homeUserNameEl.textContent = sessionUser.nickname || sessionUser.name || 'คุณผู้ใช้';
     }
+    if (homeCompatibleCountEl) {
+      homeCompatibleCountEl.textContent = discoverUsers ? discoverUsers.length : 0;
+    }
+    if (homeActivitiesCountEl) {
+      homeActivitiesCountEl.textContent = latestActivitiesList ? latestActivitiesList.length : 0;
+    }
+    if (homeNewMessagesCountEl) {
+      const countEl = document.getElementById('chatTotalCountBadge');
+      homeNewMessagesCountEl.textContent = countEl ? countEl.textContent : 0;
+    }
+  }
+
+  function loadHomeScreen() {
+    updateHomeStats();
+  }
+
+  function setupHomeInteractions() {
+    document.getElementById('homeBtnGoDiscover')?.addEventListener('click', () => switchTab('discover'));
+    document.getElementById('homeCardCandidates')?.addEventListener('click', () => switchTab('discover'));
+    document.getElementById('homeCardActivities')?.addEventListener('click', () => switchTab('activity'));
+    document.getElementById('homeCardMessages')?.addEventListener('click', () => switchTab('chat'));
+    document.getElementById('viewLikedBtn')?.addEventListener('click', () => switchTab('liked'));
+    document.getElementById('viewSkippedBtn')?.addEventListener('click', () => switchTab('skipped'));
 
     const homeNotificationBtn = document.getElementById('homeNotificationBtn');
     const homeNotificationModal = document.getElementById('homeNotificationModal');
@@ -1556,121 +2436,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
       });
     }
+  }
 
-    function renderProfile(user) {
-      if (!user) return;
-      const nameEl = document.getElementById('profileName');
-      const yearEl = document.getElementById('profileYear');
-      const bioEl = document.getElementById('profileBio');
-      const emailEl = document.getElementById('profileEmail');
-      const nicknameEl = document.getElementById('profileNickname');
-      const ageEl = document.getElementById('profileAge');
-      const preview = document.getElementById('profileImagePreview');
-
-      if (nameEl) nameEl.value = user.name || '';
-      if (yearEl) yearEl.value = user.year || '';
-      const genderEl = document.getElementById('profileGender');
-      if (genderEl) genderEl.value = user.gender || 'ชาย';
-      const interestedGenderEl = document.getElementById('profileInterestedGender');
-      if (interestedGenderEl) interestedGenderEl.value = user.interested_gender || 'ทุกเพศ';
-      const universityEl = document.getElementById('profileUniversity');
-      const customUniversityEl = document.getElementById('profileCustomUniversity');
-      const majorEl = document.getElementById('profileMajor');
-      const customMajorEl = document.getElementById('profileCustomMajor');
-      const majorLabelEl = document.getElementById('profileMajorLabel');
-
-      if (user.university && user.university !== 'มหาวิทยาลัยขอนแก่น') {
-        if (universityEl) universityEl.value = 'other';
-        if (customUniversityEl) {
-          customUniversityEl.value = user.university;
-          customUniversityEl.classList.remove('hidden');
-        }
-        if (majorEl) majorEl.classList.add('hidden');
-        if (customMajorEl) {
-          customMajorEl.value = user.major || '';
-          customMajorEl.classList.remove('hidden');
-        }
-        if (majorLabelEl) majorLabelEl.textContent = 'คณะ / สาขาวิชา (ระบุเอง)';
-      } else {
-        if (universityEl) universityEl.value = 'มหาวิทยาลัยขอนแก่น';
-        if (customUniversityEl) {
-          customUniversityEl.value = '';
-          customUniversityEl.classList.add('hidden');
-        }
-        if (majorEl) {
-          majorEl.classList.remove('hidden');
-          const options = Array.from(majorEl.options).map(o => o.value);
-          if (options.includes(user.major) && user.major !== 'other' && user.major !== '') {
-            majorEl.value = user.major;
-            if (customMajorEl) {
-              customMajorEl.value = '';
-              customMajorEl.classList.add('hidden');
-            }
-          } else if (user.major) {
-            majorEl.value = 'other';
-            if (customMajorEl) {
-              customMajorEl.value = user.major;
-              customMajorEl.classList.remove('hidden');
-            }
-          } else {
-            majorEl.value = '';
-            if (customMajorEl) {
-              customMajorEl.value = '';
-              customMajorEl.classList.add('hidden');
-            }
-          }
-        }
-        if (majorLabelEl) majorLabelEl.textContent = 'คณะ / วิทยาลัย (ม.ขอนแก่น)';
-      }
-      const phoneEl = document.getElementById('profilePhone');
-      if (phoneEl) phoneEl.value = user.phone || '';
-      if (bioEl) bioEl.value = user.bio || '';
-      if (emailEl) emailEl.textContent = user.email || '';
-      if (nicknameEl) nicknameEl.value = user.nickname || '';
-      if (ageEl) ageEl.value = user.age || '';
-      if (preview) {
-        preview.src = user.profile_image || 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="120" height="120"><rect width="120" height="120" fill="#efe9ff"/><text x="50%" y="52%" dominant-baseline="middle" text-anchor="middle" font-size="38" fill="#4a4496">♥</text></svg>');
-      }
-
-      const interestsList = (user.interests || '').split(',').map((i) => i.trim()).filter(Boolean);
-      initializeTagsContainer('profileInterestsTags', 'profileInterests', interestsList);
-    }
-
-    async function loadProfile() {
-      const result = await apiRequest('/api/me');
-      sessionState.user = result.user;
-      renderProfile(result.user);
-      renderUserPhotos(result.photos || []);
-      updateHomeStats();
-    }
-
-    function renderUserPhotos(photos) {
-      const grid = document.getElementById('userPhotosGrid');
-      if (!grid) return;
-      grid.innerHTML = photos.map(p => `
-        <div class="photo-thumb-box">
-          <img src="${p.photo_url}" alt="Photo" />
-          <button class="btn-delete-photo" data-photo-id="${p.id}" type="button" title="ลบรูปภาพ">✕</button>
-        </div>
-      `).join('');
-
-      grid.querySelectorAll('.btn-delete-photo').forEach(btn => {
-        btn.addEventListener('click', async (e) => {
-          e.stopPropagation();
-          const photoId = btn.dataset.photoId;
-          try {
-            await apiRequest(`/api/me/photos/${photoId}`, { method: 'DELETE' });
-            await loadProfile();
-          } catch(err) {
-            alert(err.message);
-          }
-        });
-      });
-    }
-
-    // Attach Photo Upload handler
+  // ===================== PROFILE SUBSYSTEM =====================
+  function setupProfile() {
+    const profileForm = document.getElementById('profileForm');
     const addPhotosBtn = document.getElementById('addPhotosBtn');
     const userPhotosInput = document.getElementById('userPhotosInput');
+
     if (addPhotosBtn && userPhotosInput) {
       addPhotosBtn.addEventListener('click', () => userPhotosInput.click());
       userPhotosInput.addEventListener('change', async () => {
@@ -1681,1203 +2454,16 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
         try {
           addPhotosBtn.disabled = true;
-          addPhotosBtn.textContent = '⏳ กำลังอัปโหลดรูปภาพ...';
+          addPhotosBtn.textContent = '⏳ กำลังอัปโหลด...';
           await apiRequest('/api/me/photos', { method: 'POST', body: formData });
           userPhotosInput.value = '';
           await loadProfile();
         } catch(err) {
-          alert(err.message || 'เกิดข้อผิดพลาดในการอัปโหลดรูปภาพ');
+          alert(err.message || 'เกิดข้อผิดพลาดในการอัปโหลดรูป');
         } finally {
           addPhotosBtn.disabled = false;
           addPhotosBtn.textContent = '📸 เพิ่มรูปภาพโปรไฟล์';
         }
-      });
-    }
-
-    let discoverUsers = [];
-    let currentDiscoverIndex = 0;
-    let skippedHistory = [];
-    let currentCategoryFilter = 'ทั้งหมด';
-
-    function getFilteredDiscoverUsers() {
-      if (!currentCategoryFilter || currentCategoryFilter === 'ทั้งหมด') {
-        return discoverUsers;
-      }
-      return discoverUsers.filter(u => {
-        const text = `${u.interests || ''} ${u.bio || ''} ${u.major || ''}`.toLowerCase();
-        const cat = currentCategoryFilter.toLowerCase();
-        const catAliases = {
-          'อ่านหนังสือ': ['อ่านหนังสือ', 'หนังสือ', 'ติว', 'ห้องสมุด', 'book'],
-          'คาเฟ่': ['คาเฟ่', 'กาแฟ', 'ชา', 'cafe', 'coffee'],
-          'ดนตรี': ['ดนตรี', 'ฟังเพลง', 'เพลง', 'กีต้าร์', 'ร้องเพลง', 'music', 'concert'],
-          'เกม': ['เกม', 'game', 'gaming', 'e-sport', 'rov', 'valorant', 'บอร์ดเกม'],
-          'ออกกำลังกาย': ['ออกกำลังกาย', 'ฟิตเนส', 'วิ่ง', 'ยิม', 'กีฬา', 'แบด', 'บอล', 'workout'],
-          'ถ่ายรูป': ['ถ่ายรูป', 'กล้อง', 'ภาพ', 'photo', 'film', 'ตากล้อง'],
-          'ดูหนัง': ['ดูหนัง', 'หนัง', 'ซีรีส์', 'netflix', 'movie', 'series'],
-          'ศิลปะ': ['ศิลปะ', 'วาดรูป', 'art', 'ดีไซน์', 'งานประดิษฐ์', 'วาดภาพ']
-        };
-        const keywords = catAliases[cat] || [cat];
-        return keywords.some(kw => text.includes(kw));
-      });
-    }
-
-    function setupCategoryFilterChips() {
-      const chips = document.querySelectorAll('#discoverCategoryChips .category-chip');
-      chips.forEach(chip => {
-        chip.addEventListener('click', () => {
-          chips.forEach(c => c.classList.remove('active'));
-          chip.classList.add('active');
-          currentCategoryFilter = chip.dataset.category || 'ทั้งหมด';
-          currentDiscoverIndex = 0;
-          renderDiscoverCard();
-        });
-      });
-    }
-
-    let modalCurrentPhotoIndex = 0;
-    let modalPhotosList = [];
-    const DEFAULT_AVATAR = "data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Crect width='120' height='120' fill='%23efe9ff'/%3E%3Ctext x='50%25' y='52%25' dominant-baseline='middle' text-anchor='middle' font-size='38' fill='%234a4496'%3E%E2%99%A5%3C/text%3E%3C/svg%3E";
-
-    async function openProfileModal(userId) {
-      try {
-        const data = await apiRequest(`/api/users/${userId}/profile`);
-        const { user, photos } = data;
-
-        modalPhotosList = photos && photos.length ? photos : [user.profile_image || DEFAULT_AVATAR];
-        modalCurrentPhotoIndex = 0;
-
-        const modal = document.getElementById('profileModal');
-        const modalImg = document.getElementById('modalProfileImg');
-        const modalName = document.getElementById('modalProfileName');
-        const modalGender = document.getElementById('modalProfileGender');
-        const modalAgeMajor = document.getElementById('modalProfileAgeMajor');
-        const modalBio = document.getElementById('modalProfileBio');
-        const modalInterests = document.getElementById('modalProfileInterests');
-        const galleryNav = document.getElementById('modalGalleryNav');
-        const indicators = document.getElementById('galleryIndicators');
-
-        const photoCounter = document.getElementById('modalPhotoCounter');
-
-        modalName.innerHTML = `
-          <span class="modal-nickname">${escapeHtml(user.name)}</span>
-          ${user.nickname && user.nickname !== user.name ? `<span class="modal-fullname">(${escapeHtml(user.nickname)})</span>` : ''}
-        `;
-
-        const genderIcon = user.gender === 'ชาย' ? '👨 ชาย' : (user.gender === 'หญิง' ? '👩 หญิง' : (user.gender ? '🌈 ' + user.gender : '👤 ไม่ระบุเพศ'));
-        modalGender.innerHTML = genderIcon;
-
-        const modalInterestedGender = document.getElementById('modalProfileInterestedGender');
-        if (modalInterestedGender) {
-          modalInterestedGender.textContent = `🎯 สนใจ: ${user.interested_gender || 'ทุกเพศ'}`;
-        }
-        
-        const detailsArr = [];
-        if (user.age) detailsArr.push(`🎂 ${user.age} ปี`);
-        if (user.university) detailsArr.push(`🏫 ${escapeHtml(user.university)}`);
-        if (user.major) detailsArr.push(`🎓 ${escapeHtml(user.major)}`);
-        if (user.year) detailsArr.push(escapeHtml(user.year));
-        modalAgeMajor.innerHTML = detailsArr.length ? detailsArr.join(' • ') : 'ข้อมูลทั่วไป';
-
-        if (user.bio && user.bio.trim()) {
-          modalBio.textContent = `"${user.bio.trim()}"`;
-          modalBio.classList.remove('bio-empty-hint');
-        } else {
-          modalBio.textContent = 'ยังไม่มีข้อความแนะนำตัว';
-          modalBio.classList.add('bio-empty-hint');
-        }
-
-        const tags = (user.interests || '').split(',').map(t => t.trim()).filter(Boolean);
-        modalInterests.innerHTML = tags.length
-          ? tags.map(t => `<span class="modal-interest-chip">${escapeHtml(t)}</span>`).join('')
-          : '<span class="modal-interest-chip">ทั่วไป</span>';
-
-        function updateModalPhoto() {
-          modalImg.src = modalPhotosList[modalCurrentPhotoIndex];
-          if (modalPhotosList.length > 1) {
-            galleryNav.classList.remove('hidden');
-            if (photoCounter) {
-              photoCounter.style.display = 'inline-flex';
-              photoCounter.textContent = `📸 ${modalCurrentPhotoIndex + 1}/${modalPhotosList.length}`;
-            }
-            indicators.innerHTML = modalPhotosList.map((_, i) => 
-              `<div class="story-indicator-bar ${i === modalCurrentPhotoIndex ? 'active' : ''}"></div>`
-            ).join('');
-          } else {
-            galleryNav.classList.add('hidden');
-            indicators.innerHTML = '';
-            if (photoCounter) photoCounter.style.display = 'none';
-          }
-        }
-
-        updateModalPhoto();
-
-        document.getElementById('prevPhotoBtn').onclick = () => {
-          modalCurrentPhotoIndex = (modalCurrentPhotoIndex - 1 + modalPhotosList.length) % modalPhotosList.length;
-          updateModalPhoto();
-        };
-
-        document.getElementById('nextPhotoBtn').onclick = () => {
-          modalCurrentPhotoIndex = (modalCurrentPhotoIndex + 1) % modalPhotosList.length;
-          updateModalPhoto();
-        };
-
-        const actionBtn = document.getElementById('modalActionBtn');
-        if (actionBtn) {
-          actionBtn.textContent = '💕 ส่งความสนใจ';
-          actionBtn.onclick = async () => {
-            try {
-              const res = await apiRequest('/api/matches', {
-                method: 'POST',
-                body: JSON.stringify({ matched_user_id: user.id, note: 'Interested', status: 'liked' })
-              });
-              if (res.mutual) showMatchToast(res.message);
-              modal.classList.add('hidden');
-              await loadDiscoverUsers();
-              await loadLikedUsers();
-              await loadSkippedUsers();
-            } catch(e) { alert(e.message); }
-          };
-        }
-
-        modal.classList.remove('hidden');
-      } catch(e) {
-        alert(e.message || 'ไม่สามารถโหลดข้อมูลโปรไฟล์ได้');
-      }
-    }
-
-    document.getElementById('closeProfileModal')?.addEventListener('click', () => {
-      document.getElementById('profileModal').classList.add('hidden');
-    });
-
-    document.getElementById('profileModal')?.addEventListener('click', (e) => {
-      if (e.target.id === 'profileModal') {
-        document.getElementById('profileModal').classList.add('hidden');
-      }
-    });
-
-    let likedUsersList = [];
-
-    function updateLikedCounters() {
-      const count = likedUsersList.length;
-      const countTabBadge = document.getElementById('likedTabBadge');
-      if (countTabBadge) {
-        countTabBadge.textContent = count;
-        countTabBadge.classList.toggle('hidden', count === 0);
-      }
-      const countHeader = document.getElementById('likedHeaderCountBadge');
-      if (countHeader) countHeader.textContent = `${count} คน`;
-    }
-
-    async function loadLikedUsers() {
-      try {
-        const data = await apiRequest('/api/liked');
-        likedUsersList = Array.isArray(data) ? data : [];
-        updateLikedCounters();
-        renderLikedGrid();
-      } catch (err) {
-        console.error('Failed to load liked users:', err);
-      }
-    }
-
-    function renderLikedGrid() {
-      const grid = document.getElementById('likedCardsGrid');
-      if (!grid) return;
-
-      const q = (document.getElementById('likedSearchInput')?.value || '').toLowerCase().trim();
-      const statusFilter = document.getElementById('likedStatusFilter')?.value || '';
-      const genderFilter = document.getElementById('likedGenderFilter')?.value || '';
-
-      const filtered = likedUsersList.filter(u => {
-        if (genderFilter && u.gender !== genderFilter) return false;
-        if (statusFilter && u.status !== statusFilter) return false;
-        if (q) {
-          const matchName = (u.name || '').toLowerCase().includes(q);
-          const matchNick = (u.nickname || '').toLowerCase().includes(q);
-          const matchMajor = (u.major || '').toLowerCase().includes(q);
-          const matchInterests = (u.interests || '').toLowerCase().includes(q);
-          if (!matchName && !matchNick && !matchMajor && !matchInterests) return false;
-        }
-        return true;
-      });
-
-      if (!filtered.length) {
-        grid.innerHTML = `
-          <div class="skipped-empty-state">
-            <div class="skipped-empty-icon">💖</div>
-            <div class="skipped-empty-title">${q || statusFilter || genderFilter ? 'ไม่พบคนที่ตรงกับเงื่อนไขการค้นหา' : 'ยังไม่มีคนที่คุณกดสนใจ'}</div>
-            <div class="skipped-empty-desc">${q || statusFilter || genderFilter ? 'ลองเปลี่ยนคำค้นหาหรือตัวกรอง' : 'เมื่อคุณกด "💕 สนใจ" ใครสักคนในหน้าค้นหา (Discover) รายชื่อจะมาแสดงที่นี่'}</div>
-            ${!q && !statusFilter && !genderFilter ? `<button class="button primary" id="btnGoDiscoverFromLikedEmpty" type="button">👉 ไปค้นหาคนที่ใช่ (Discover)</button>` : ''}
-          </div>
-        `;
-        document.getElementById('btnGoDiscoverFromLikedEmpty')?.addEventListener('click', () => switchTab('discover'));
-        return;
-      }
-
-      grid.innerHTML = filtered.map((u) => {
-        const avatarSrc = u.profile_image || DEFAULT_AVATAR;
-        const tags = (u.interests || '').split(',').map(t => t.trim()).filter(Boolean);
-        const isMatched = u.status === 'matched';
-
-        return `
-          <div class="liked-profile-card">
-            <div class="liked-card-header">
-              <img src="${avatarSrc}" class="liked-card-avatar" alt="${escapeHtml(u.name)}" data-open-profile-id="${u.id}" title="คลิกเพื่อดูโปรไฟล์เต็ม" />
-              <div class="liked-card-user-info">
-                <div class="liked-card-name" data-open-profile-id="${u.id}">
-                  <span>${escapeHtml(u.name)}</span>
-                  ${u.nickname && u.nickname !== u.name ? `<span class="skipped-card-nickname">${escapeHtml(u.nickname)}</span>` : ''}
-                </div>
-                <div class="skipped-card-sub">
-                  <span>${u.gender ? (u.gender === 'ชาย' ? '👨 ชาย' : (u.gender === 'หญิง' ? '👩 หญิง' : '🌈 LGBTQ+')) : 'ไม่ระบุเพศ'}</span>
-                  <span>•</span>
-                  <span>${u.age ? u.age + ' ปี' : 'ไม่ระบุอายุ'}</span>
-                  <span>•</span>
-                  <span>🎯 ${escapeHtml(u.interested_gender || 'ทุกเพศ')}</span>
-                </div>
-                <div style="margin-top:4px;">
-                  <span class="match-status-pill ${isMatched ? 'matched' : 'pending'}">
-                    ${isMatched ? '🎉 แมตช์สำเร็จแล้ว!' : '⏳ รออีกฝ่ายกดสนใจกลับ'}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            <div style="font-size:0.84rem; color:var(--purple-dark); font-weight:600;">
-              🎓 ${escapeHtml(u.major || 'ไม่ระบุคณะ')}
-            </div>
-
-            ${tags.length ? `
-              <div class="liked-card-tags">
-                ${tags.map(t => `<span class="tag selected" style="font-size:0.75rem; padding:3px 8px;">${escapeHtml(t)}</span>`).join('')}
-              </div>
-            ` : ''}
-
-            ${u.bio ? `<div class="liked-card-bio">💬 "${escapeHtml(u.bio)}"</div>` : ''}
-
-            <div class="liked-card-time">
-              <span>🕒 ส่งความสนใจเมื่อ: ${escapeHtml(u.liked_at || 'ไม่ระบุ')}</span>
-            </div>
-
-            <div class="liked-card-actions">
-              ${isMatched && u.chat_id ? `
-                <button class="button primary" data-action-chat-liked="${u.chat_id}" type="button" style="flex:2; font-size:0.84rem; padding:8px 12px; background:linear-gradient(135deg, #10b981, #059669);">
-                  💬 ทักแชทเลย
-                </button>
-              ` : `
-                <button class="button secondary-action" data-action-cancel-liked="${u.match_id}" type="button" style="flex:2; font-size:0.82rem; padding:8px 10px; color:#e11d48;" title="ยกเลิกความสนใจ">
-                  ❌ ยกเลิกสนใจ
-                </button>
-              `}
-              <button class="button secondary-action" data-open-profile-id="${u.id}" type="button" style="padding:8px 10px; font-size:0.82rem;" title="ดูอัลบั้มและโปรไฟล์เต็ม">
-                🔍
-              </button>
-            </div>
-          </div>
-        `;
-      }).join('');
-
-      // Attach event listeners
-      grid.querySelectorAll('[data-action-chat-liked]').forEach(btn => {
-        btn.addEventListener('click', () => {
-          const chatId = btn.dataset.actionChatLiked;
-          if (chatId) openChatTabAndLoad(Number(chatId));
-        });
-      });
-
-      grid.querySelectorAll('[data-action-cancel-liked]').forEach(btn => {
-        btn.addEventListener('click', async () => {
-          const matchId = btn.dataset.actionCancelLiked;
-          if (confirm('คุณต้องการยกเลิกการส่งความสนใจให้ผู้ใช้นี้ใช่หรือไม่?')) {
-            try {
-              await apiRequest(`/api/matches/${matchId}`, { method: 'DELETE' });
-              showMatchToast('ยกเลิกความสนใจเรียบร้อยแล้ว');
-              await loadLikedUsers();
-              await loadDiscoverUsers();
-            } catch (err) {
-              alert(err.message || 'เกิดข้อผิดพลาด');
-            }
-          }
-        });
-      });
-
-      grid.querySelectorAll('[data-open-profile-id]').forEach(el => {
-        el.addEventListener('click', (e) => {
-          e.stopPropagation();
-          const userId = el.dataset.openProfileId;
-          if (userId) openProfileModal(Number(userId));
-        });
-      });
-    }
-
-    document.getElementById('likedSearchInput')?.addEventListener('input', renderLikedGrid);
-    document.getElementById('likedStatusFilter')?.addEventListener('change', renderLikedGrid);
-    document.getElementById('likedGenderFilter')?.addEventListener('change', renderLikedGrid);
-    document.getElementById('btnRefreshLiked')?.addEventListener('click', loadLikedUsers);
-
-    let skippedUsersList = [];
-
-    function updateSkippedCounters() {
-      const count = skippedUsersList.length;
-      const countTabBadge = document.getElementById('skippedTabBadge') || document.getElementById('skippedTabCount');
-      if (countTabBadge) {
-        countTabBadge.textContent = count;
-        countTabBadge.classList.toggle('hidden', count === 0);
-      }
-      const countDiscoverBtn = document.getElementById('skippedCount');
-      if (countDiscoverBtn) countDiscoverBtn.textContent = count;
-      const countHeader = document.getElementById('skippedHeaderCountBadge');
-      if (countHeader) countHeader.textContent = `${count} คน`;
-    }
-
-    async function loadSkippedUsers() {
-      try {
-        const data = await apiRequest('/api/skipped');
-        skippedUsersList = Array.isArray(data) ? data : [];
-        skippedHistory = [...skippedUsersList];
-        updateSkippedCounters();
-        renderSkippedGrid();
-      } catch (err) {
-        console.error('Failed to load skipped users:', err);
-      }
-    }
-
-    function renderSkippedGrid() {
-      const grid = document.getElementById('skippedCardsGrid');
-      if (!grid) return;
-
-      const q = (document.getElementById('skippedSearchInput')?.value || '').toLowerCase().trim();
-      const genderFilter = document.getElementById('skippedGenderFilter')?.value || '';
-
-      const filtered = skippedUsersList.filter(u => {
-        if (genderFilter && u.gender !== genderFilter) return false;
-        if (q) {
-          const matchName = (u.name || '').toLowerCase().includes(q);
-          const matchNick = (u.nickname || '').toLowerCase().includes(q);
-          const matchMajor = (u.major || '').toLowerCase().includes(q);
-          const matchInterests = (u.interests || '').toLowerCase().includes(q);
-          if (!matchName && !matchNick && !matchMajor && !matchInterests) return false;
-        }
-        return true;
-      });
-
-      if (!filtered.length) {
-        grid.innerHTML = `
-          <div class="skipped-empty-state">
-            <div class="skipped-empty-icon">✨</div>
-            <div class="skipped-empty-title">${q || genderFilter ? 'ไม่พบคนที่ตรงกับเงื่อนไขการค้นหา' : 'ยังไม่มีคนที่คุณปัดผ่าน'}</div>
-            <div class="skipped-empty-desc">${q || genderFilter ? 'ลองเปลี่ยนคำค้นหาหรือตัวกรองเพศ' : 'เมื่อคุณกดข้ามผู้ใช้งานในหน้าค้นหา (Discover) รายชื่อทั้งหมดจะถูกรวบรวมไว้ที่นี่'}</div>
-            ${!q && !genderFilter ? `<button class="button primary" id="btnGoDiscoverFromEmpty" type="button">👉 ไปค้นหาคนที่ใช่ (Discover)</button>` : ''}
-          </div>
-        `;
-        document.getElementById('btnGoDiscoverFromEmpty')?.addEventListener('click', () => switchTab('discover'));
-        return;
-      }
-
-      grid.innerHTML = filtered.map((u) => {
-        const avatarSrc = u.profile_image || DEFAULT_AVATAR;
-        const tags = (u.interests || '').split(',').map(t => t.trim()).filter(Boolean);
-
-        return `
-          <div class="skipped-profile-card">
-            <div class="skipped-card-header">
-              <img src="${avatarSrc}" class="skipped-card-avatar" alt="${escapeHtml(u.name)}" data-open-profile-id="${u.id}" title="คลิกเพื่อดูโปรไฟล์เต็ม" />
-              <div class="skipped-card-user-info">
-                <div class="skipped-card-name" data-open-profile-id="${u.id}">
-                  <span>${escapeHtml(u.name)}</span>
-                  ${u.nickname && u.nickname !== u.name ? `<span class="skipped-card-nickname">${escapeHtml(u.nickname)}</span>` : ''}
-                </div>
-                <div class="skipped-card-sub">
-                  <span>${u.gender ? (u.gender === 'ชาย' ? '👨 ชาย' : (u.gender === 'หญิง' ? '👩 หญิง' : '🌈 LGBTQ+')) : 'ไม่ระบุเพศ'}</span>
-                  <span>•</span>
-                  <span>${u.age ? u.age + ' ปี' : 'ไม่ระบุอายุ'}</span>
-                  <span>•</span>
-                  <span>🎯 ${escapeHtml(u.interested_gender || 'ทุกเพศ')}</span>
-                </div>
-                <div style="font-size:0.82rem; color:var(--purple-dark); font-weight:600; margin-top:2px;">
-                  ${escapeHtml(u.major || 'ไม่ระบุคณะ')}
-                </div>
-              </div>
-            </div>
-
-            ${tags.length ? `
-              <div class="skipped-card-tags">
-                ${tags.map(t => `<span class="tag selected" style="font-size:0.75rem; padding:3px 8px;">${escapeHtml(t)}</span>`).join('')}
-              </div>
-            ` : ''}
-
-            ${u.bio ? `<div class="skipped-card-bio">💬 "${escapeHtml(u.bio)}"</div>` : ''}
-
-            <div class="skipped-card-time">
-              <span>🕒 ปัดผ่านเมื่อ: ${escapeHtml(u.skipped_at || 'ไม่ระบุ')}</span>
-            </div>
-
-            <div class="skipped-card-actions">
-              <button class="button primary" data-action-like-skipped="${u.id}" type="button" style="flex:2; font-size:0.84rem; padding:8px 12px;">
-                💕 สนใจ
-              </button>
-              <button class="button secondary-action" data-action-restore-skipped="${u.match_id}" type="button" style="flex:1; font-size:0.82rem; padding:8px 10px;" title="นำกลับไปแสดงในหน้าค้นหาอีกครั้ง">
-                🔄 ดึงกลับ
-              </button>
-              <button class="button secondary-action" data-open-profile-id="${u.id}" type="button" style="padding:8px 10px; font-size:0.82rem;" title="ดูอัลบั้มและโปรไฟล์เต็ม">
-                🔍
-              </button>
-            </div>
-          </div>
-        `;
-      }).join('');
-
-      // Attach card event listeners
-      grid.querySelectorAll('[data-action-like-skipped]').forEach(btn => {
-        btn.addEventListener('click', async (e) => {
-          e.stopPropagation();
-          const targetId = btn.dataset.actionLikeSkipped;
-          btn.disabled = true;
-          btn.textContent = '⏳ กำลังส่ง...';
-          try {
-            const res = await apiRequest('/api/matches', {
-              method: 'POST',
-              body: JSON.stringify({ matched_user_id: Number(targetId), note: 'Interested from Skipped', status: 'liked' })
-            });
-            if (res.mutual) {
-              showMatchToast(res.message);
-              await loadChats();
-            } else {
-              showMatchToast('บันทึกความสนใจเรียบร้อยแล้ว 💕');
-            }
-            await loadSkippedUsers();
-            await loadLikedUsers();
-            await loadDiscoverUsers();
-          } catch (err) {
-            btn.disabled = false;
-            btn.textContent = '💕 สนใจ';
-            alert(err.message || 'เกิดข้อผิดพลาด');
-          }
-        });
-      });
-
-      grid.querySelectorAll('[data-action-restore-skipped]').forEach(btn => {
-        btn.addEventListener('click', async (e) => {
-          e.stopPropagation();
-          const matchId = btn.dataset.actionRestoreSkipped;
-          btn.disabled = true;
-          try {
-            await apiRequest(`/api/matches/${matchId}`, { method: 'DELETE' });
-            showMatchToast('นำกลับไปที่หน้าค้นหาแล้ว 🔄');
-            await loadSkippedUsers();
-            await loadDiscoverUsers();
-          } catch (err) {
-            btn.disabled = false;
-            alert(err.message || 'เกิดข้อผิดพลาด');
-          }
-        });
-      });
-
-      grid.querySelectorAll('[data-open-profile-id]').forEach(el => {
-        el.addEventListener('click', (e) => {
-          e.stopPropagation();
-          const userId = el.dataset.openProfileId;
-          if (userId) openProfileModal(Number(userId));
-        });
-      });
-    }
-
-    document.getElementById('skippedSearchInput')?.addEventListener('input', renderSkippedGrid);
-    document.getElementById('skippedGenderFilter')?.addEventListener('change', renderSkippedGrid);
-    document.getElementById('btnRefreshSkipped')?.addEventListener('click', loadSkippedUsers);
-    document.getElementById('btnRestoreAllSkipped')?.addEventListener('click', async () => {
-      if (skippedUsersList.length === 0) {
-        alert('ไม่มีคนที่ปัดผ่านอยู่ในขณะนี้');
-        return;
-      }
-      if (confirm('คุณต้องการนำทุกคนที่เคยปัดผ่านกลับสู่หน้าค้นหาใช่หรือไม่?')) {
-        try {
-          const res = await apiRequest('/api/skipped/restore-all', { method: 'POST' });
-          showMatchToast(res.message || 'นำทุกคนกลับสู่หน้าค้นหาแล้ว');
-          await loadSkippedUsers();
-          await loadDiscoverUsers();
-        } catch (err) {
-          alert(err.message || 'เกิดข้อผิดพลาด');
-        }
-      }
-    });
-
-    function renderDiscoverCard() {
-      const filteredUsers = getFilteredDiscoverUsers();
-
-      if (!filteredUsers.length || currentDiscoverIndex >= filteredUsers.length) {
-        discoverUserCard.innerHTML = `
-          <div class="list-item" style="grid-column: 1 / -1; text-align:center; padding:38px 20px; background:#ffffff; border-radius:24px; border:1.5px dashed var(--line); box-shadow:0 6px 20px rgba(45,35,80,0.03);">
-            <div style="font-size:2.5rem; margin-bottom:10px;">${currentCategoryFilter === 'ทั้งหมด' ? '✨' : '🔍'}</div>
-            <div style="font-weight:700; color:var(--purple); font-size:1.15rem; margin-bottom:6px;">
-              ${currentCategoryFilter === 'ทั้งหมด' ? 'สำรวจครบทุกคนแล้ว!' : `ยังไม่มีโปรไฟล์ในหมวด "${escapeHtml(currentCategoryFilter)}"`}
-            </div>
-            <div style="color:var(--muted); font-size:0.88rem; margin-bottom:16px;">
-              ${currentCategoryFilter === 'ทั้งหมด' ? 'คุณได้ดูโปรไฟล์แนะนำครบแล้วในขณะนี้' : 'ลองเลือกหมวดหมู่อื่นเพื่อค้นหาเพื่อนใหม่ที่เข้ากันได้'}
-            </div>
-            <div style="display:flex; gap:10px; justify-content:center; flex-wrap:wrap;">
-              ${currentCategoryFilter !== 'ทั้งหมด' ? `<button id="btnResetCategoryFilter" class="button primary" type="button" style="border-radius:999px; padding:8px 18px;">ดูหมวดทั้งหมด</button>` : ''}
-              ${skippedUsersList.length > 0 ? `<button id="btnOpenSkippedEmpty" class="button secondary-action" type="button" style="border-radius:999px; padding:8px 18px;">📜 ดูคนที่เคยปัดผ่าน (${skippedUsersList.length} คน)</button>` : ''}
-            </div>
-          </div>
-        `;
-        document.getElementById('btnResetCategoryFilter')?.addEventListener('click', () => {
-          const chips = document.querySelectorAll('#discoverCategoryChips .category-chip');
-          chips.forEach(c => {
-            if (c.dataset.category === 'ทั้งหมด') c.classList.add('active');
-            else c.classList.remove('active');
-          });
-          currentCategoryFilter = 'ทั้งหมด';
-          currentDiscoverIndex = 0;
-          renderDiscoverCard();
-        });
-        document.getElementById('btnOpenSkippedEmpty')?.addEventListener('click', () => switchTab('skipped'));
-        updateSkippedCounters();
-        return;
-      }
-
-      const user = filteredUsers[currentDiscoverIndex];
-      const tags = (user.interests || '').split(',').map((tag) => tag.trim()).filter(Boolean);
-      const avatarSrc = user.profile_image || '';
-
-      // Calculate realistic shared interest percentage
-      let sharedPercent = 86;
-      try {
-        if (sessionState.user && sessionState.user.interests) {
-          const myTags = sessionState.user.interests.split(',').map(t => t.trim().toLowerCase()).filter(Boolean);
-          const userTags = tags.map(t => t.toLowerCase());
-          const matchCount = userTags.filter(ut => myTags.some(mt => mt.includes(ut) || ut.includes(mt))).length;
-          if (matchCount > 0) {
-            sharedPercent = Math.min(96, Math.max(68, 65 + (matchCount * 12)));
-          } else {
-            sharedPercent = 70 + ((Number(user.id || 1) * 17) % 24);
-          }
-        } else {
-          sharedPercent = 72 + ((Number(user.id || 1) * 19) % 22);
-        }
-      } catch (e) {
-        sharedPercent = 86;
-      }
-
-      discoverUserCard.innerHTML = `
-        <div class="discover-match-card">
-          <div class="discover-match-header" style="cursor:pointer;" title="กดเพื่อดูรูปภาพและโปรไฟล์เต็ม">
-            ${avatarSrc 
-              ? `<img class="discover-match-avatar" src="${escapeHtml(avatarSrc)}" alt="${escapeHtml(user.name)}" />`
-              : `<div class="discover-match-avatar-fallback">${escapeHtml((user.nickname || user.name || 'U').charAt(0).toUpperCase())}</div>`
-            }
-            <div class="discover-match-info">
-              <h3 class="discover-match-name">
-                ${escapeHtml(user.name)}
-                ${user.nickname && user.nickname !== user.name ? `<span class="skipped-card-nickname" style="font-size:0.75rem; vertical-align:middle; margin-left:4px;">${escapeHtml(user.nickname)}</span>` : ''}
-                <svg class="discover-verified-badge" width="19" height="19" viewBox="0 0 24 24" fill="#7c3aed" title="ยืนยันตัวตนแล้ว">
-                  <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
-                </svg>
-              </h3>
-              <div class="discover-match-sub">
-                ${user.year ? escapeHtml(user.year) + ' · ' : ''}${escapeHtml(user.major || 'มหาวิทยาลัยขอนแก่น')}
-              </div>
-              <div class="discover-match-tags">
-                ${tags.length ? tags.map(t => `<span class="discover-tag-chip">#${escapeHtml(t)}</span>`).join('') : '<span class="discover-tag-chip">#ทั่วไป</span>'}
-              </div>
-            </div>
-          </div>
-
-          <div class="discover-album-pill" style="margin:0; cursor:pointer;" title="กดเพื่อดูรูปภาพและโปรไฟล์เต็ม">
-            <span class="pill-camera">📸</span>
-            <span>ดูรูปภาพ &amp; ข้อมูลโปรไฟล์</span>
-            <span class="pill-gender-tag">${escapeHtml(user.gender || 'ไม่ระบุ')}</span>
-            <span class="preference-badge" style="background:#fff1f2; color:#e11d48; font-weight:700; font-size:0.75rem; padding:2px 8px; border-radius:999px;">
-              🎯 สนใจ: ${escapeHtml(user.interested_gender || 'ทุกเพศ')}
-            </span>
-          </div>
-
-          <div class="discover-shared-box">
-            <span class="discover-shared-label">ความสนใจร่วมกัน</span>
-            <span class="discover-shared-percent">${sharedPercent}%</span>
-          </div>
-
-          <div class="discover-match-actions">
-            <button class="btn-discover-skip" data-discover-action="skip" type="button">ข้าม</button>
-            <button class="btn-discover-like" data-discover-action="like" type="button">สนใจ</button>
-            ${skippedHistory.length > 0 ? `<button class="button secondary-action" data-discover-action="rewind" type="button" title="ย้อนกลับไปดูคนที่ปัดผ่านก่อนหน้า" style="border-radius:14px; padding:12px 16px; background:#f0ebff; color:var(--purple); font-weight:700;">⏮️</button>` : ''}
-          </div>
-        </div>
-
-        <div class="discover-prompts-col">
-          <div class="discover-prompt-card" data-prompt="ถ้ามีเวลาว่างเย็นนี้ อยากไปทำอะไร">
-            <span>ถ้ามีเวลาว่างเย็นนี้ อยากไปทำอะไร</span>
-            <span>💬</span>
-          </div>
-          <div class="discover-prompt-card" data-prompt="เพลงที่ฟังช่วงนี้คืออะไร">
-            <span>เพลงที่ฟังช่วงนี้คืออะไร</span>
-            <span>🎵</span>
-          </div>
-          <div class="discover-prompt-card" data-prompt="คาเฟ่โปรดในมหาวิทยาลัยคือที่ไหน">
-            <span>คาเฟ่โปรดในมหาวิทยาลัยคือที่ไหน</span>
-            <span>☕</span>
-          </div>
-          <div class="discover-prompt-card" data-prompt="วิชาที่ชอบที่สุดในเทอมนี้คืออะไร">
-            <span>วิชาที่ชอบที่สุดในเทอมนี้คืออะไร</span>
-            <span>📚</span>
-          </div>
-        </div>
-      `;
-
-      updateSkippedCounters();
-
-      // Open profile modal
-      discoverUserCard.querySelector('.discover-match-header')?.addEventListener('click', () => {
-        openProfileModal(user.id);
-      });
-      discoverUserCard.querySelector('.discover-album-pill')?.addEventListener('click', () => {
-        openProfileModal(user.id);
-      });
-
-      // Prompt cards click to copy / toast
-      discoverUserCard.querySelectorAll('.discover-prompt-card').forEach(card => {
-        card.addEventListener('click', () => {
-          const promptText = card.dataset.prompt;
-          if (navigator.clipboard && navigator.clipboard.writeText) {
-            navigator.clipboard.writeText(promptText).catch(() => {});
-          }
-          showMatchToast(`💡 คัดลอกคำถามชวนคุย: "${promptText}"`);
-        });
-      });
-
-      // Action buttons (like, skip, rewind)
-      discoverUserCard.querySelectorAll('[data-discover-action]').forEach((button) => {
-        button.addEventListener('click', async () => {
-          const action = button.dataset.discoverAction;
-          
-          if (action === 'rewind') {
-            if (skippedHistory.length > 0) {
-              const lastSkipped = skippedHistory.pop();
-              currentDiscoverIndex = Math.max(0, currentDiscoverIndex - 1);
-              const idx = discoverUsers.findIndex(u => u.id === lastSkipped.id);
-              if (idx === -1) {
-                discoverUsers.splice(currentDiscoverIndex, 0, lastSkipped);
-              }
-              renderDiscoverCard();
-            }
-            return;
-          }
-
-          // Smooth slide animation
-          const cardEl = discoverUserCard.querySelector('.discover-match-card');
-          if (cardEl) cardEl.classList.add('card-slide-out');
-
-          if (action === 'like') {
-            try {
-              const matchResult = await apiRequest('/api/matches', {
-                method: 'POST',
-                body: JSON.stringify({ matched_user_id: user.id, note: 'Interested', status: 'liked' })
-              });
-              if (matchResult.mutual) {
-                showMatchToast(matchResult.message);
-                await loadChats();
-              }
-              await loadLikedUsers();
-            } catch(e) { /* ignore */ }
-          } else if (action === 'skip') {
-            skippedHistory.push(user);
-            try {
-              await apiRequest('/api/matches', {
-                method: 'POST',
-                body: JSON.stringify({ matched_user_id: user.id, note: 'Skipped', status: 'skipped' })
-              });
-              await loadSkippedUsers();
-            } catch(e) { /* ignore */ }
-          }
-
-          setTimeout(() => {
-            currentDiscoverIndex += 1;
-            renderDiscoverCard();
-          }, 180);
-        });
-      });
-    }
-
-    document.getElementById('viewSkippedBtn')?.addEventListener('click', () => switchTab('skipped'));
-
-    function showMatchToast(message) {
-      const toast = document.createElement('div');
-      toast.className = 'match-toast';
-      toast.textContent = message;
-      document.body.appendChild(toast);
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => toast.classList.add('show'));
-      });
-      setTimeout(() => {
-        toast.classList.remove('show');
-        setTimeout(() => toast.remove(), 400);
-      }, 3500);
-    }
-
-    let lastChatsCount = 0;
-    let globalPollInterval = null;
-
-    async function loadDiscoverUsers() {
-      const users = await apiRequest('/api/candidates');
-      discoverUsers = users;
-      updateHomeStats();
-      currentDiscoverIndex = 0;
-      renderDiscoverCard();
-    }
-
-    async function openChatTabAndLoad(chatId) {
-      triggerTabSwitch('chat', 'slide-right');
-      currentChatId = chatId;
-      document.getElementById('chatLayoutContainer')?.classList.add('chat-open');
-      await loadChats();
-      await loadMessages(chatId);
-    }
-
-    function formatChatTime(createdAt) {
-      if (!createdAt) return '';
-      try {
-        const parts = String(createdAt).split(' ');
-        if (parts.length >= 2) {
-          const timeParts = parts[1].split(':');
-          return `${timeParts[0]}:${timeParts[1]}`;
-        }
-        const d = new Date(createdAt);
-        if (!isNaN(d.getTime())) {
-          return d.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', hour12: false });
-        }
-      } catch(e) {}
-      return '';
-    }
-
-    let allLoadedChats = [];
-
-    function renderChatsList(chats) {
-      chatList.innerHTML = chats.length
-        ? chats.map((chat) => {
-            const isGroup = chat.type === 'group' || chat.activity_id;
-            const badge = isGroup ? '<span class="chat-badge-group">กลุ่ม</span>' : '';
-            const timeStr = formatChatTime(chat.last_message_time);
-            const isActive = chat.id === currentChatId;
-
-            const avatarHtml = isGroup
-              ? `<div class="chat-list-avatar group">👥</div>`
-              : (chat.partner_profile_image
-                  ? `<img src="${escapeHtml(chat.partner_profile_image)}" class="chat-list-avatar" alt="${escapeHtml(chat.partner_name || '')}" />`
-                  : `<div class="chat-list-avatar initial">${escapeHtml((chat.partner_name || 'U').charAt(0).toUpperCase())}</div>`);
-
-            return `
-              <div class="chat-list-item ${isActive ? 'active' : ''}" data-chat-id="${chat.id}">
-                <div class="chat-list-avatar-wrap">
-                  ${avatarHtml}
-                  ${!isGroup ? '<span class="chat-online-dot" title="พร้อมคุย"></span>' : ''}
-                </div>
-                <div class="chat-list-info">
-                  <div class="chat-list-top">
-                    <div class="chat-list-title">
-                      <span class="chat-list-title-text">${escapeHtml(chat.partner_name || (isGroup ? 'แชทกลุ่ม' : 'แชท'))}</span>
-                      ${badge}
-                    </div>
-                    ${timeStr ? `<span class="chat-list-time">${timeStr}</span>` : ''}
-                  </div>
-                  <div class="chat-list-preview">
-                    ${escapeHtml(chat.last_message || 'ยังไม่มีข้อความ เริ่มต้นคุยกันได้เลย')}
-                  </div>
-                </div>
-              </div>
-            `;
-          }).join('')
-        : '<div class="chat-empty-list"><div style="font-size:1.6rem; margin-bottom:6px;">💬</div>ยังไม่มีการสนทนาในขณะนี้</div>';
-
-      chatList.querySelectorAll('[data-chat-id]').forEach((item) => {
-        item.addEventListener('click', async () => {
-          const chatId = Number(item.dataset.chatId);
-          currentChatId = chatId;
-          document.getElementById('chatLayoutContainer')?.classList.add('chat-open');
-          filterAndRenderChats();
-          await loadMessages(chatId);
-        });
-      });
-    }
-
-    function filterAndRenderChats() {
-      const query = (document.getElementById('chatSearchInput')?.value || '').toLowerCase().trim();
-      let list = allLoadedChats;
-      if (query) {
-        list = allLoadedChats.filter(c => {
-          const name = (c.partner_name || c.title || c.activity_name || '').toLowerCase();
-          const lastMsg = (c.last_message || '').toLowerCase();
-          return name.includes(query) || lastMsg.includes(query);
-        });
-      }
-      renderChatsList(list);
-    }
-
-    async function loadChats() {
-      const chats = await apiRequest('/api/chats');
-      lastChatsCount = chats.length;
-      latestChatsList = chats;
-      allLoadedChats = chats;
-      const countEl = document.getElementById('chatTotalCountBadge');
-      if (countEl) countEl.textContent = chats.length;
-      updateHomeStats();
-      filterAndRenderChats();
-    }
-
-    function startGlobalPolling() {
-      if (globalPollInterval) clearInterval(globalPollInterval);
-      globalPollInterval = setInterval(async () => {
-        try {
-          const chats = await apiRequest('/api/chats');
-          if (chats.length !== lastChatsCount) {
-            if (lastChatsCount > 0 && chats.length > lastChatsCount) {
-              showMatchToast('🎉 ได้รับการแมตช์ใหม่! ดูได้ที่แถบแชท');
-            }
-            lastChatsCount = chats.length;
-            latestChatsList = chats;
-            updateHomeStats();
-            renderChatsList(chats);
-          }
-
-          const candidates = await apiRequest('/api/candidates');
-          if (discoverUsers.length === 0 && candidates.length > 0) {
-            discoverUsers = candidates;
-            currentDiscoverIndex = 0;
-            renderDiscoverCard();
-          } else if (candidates.length > 0) {
-            const existingIds = new Set(discoverUsers.map(u => u.id));
-            const newCandidates = candidates.filter(c => !existingIds.has(c.id));
-            if (newCandidates.length > 0) {
-              discoverUsers = [...discoverUsers, ...newCandidates];
-              if (currentDiscoverIndex >= discoverUsers.length - newCandidates.length) {
-                renderDiscoverCard();
-              }
-            }
-          }
-        } catch(e) { /* ignore polling errors */ }
-      }, 3500);
-    }
-
-    function stopGlobalPolling() {
-      if (globalPollInterval) {
-        clearInterval(globalPollInterval);
-        globalPollInterval = null;
-      }
-    }
-
-    let currentChatId = null;
-    let chatPollInterval = null;
-    let lastMessageCount = 0;
-
-    function renderMessageList(data) {
-      const titleHeader = document.getElementById('chatTitleHeader');
-      const subHeader = document.getElementById('chatSubHeader');
-      const headerAvatarWrap = document.getElementById('chatActiveAvatarWrap');
-      const headerActions = document.getElementById('chatHeaderActions');
-      const isGroup = data.chat.type === 'group' || data.chat.activity_id;
-
-      if (titleHeader) {
-        titleHeader.textContent = isGroup ? `👥 ${data.chat.title || data.chat.activity_name || 'แชทกลุ่ม'}` : (data.chat.partner_name || 'ข้อความ');
-      }
-
-      if (headerAvatarWrap) {
-        if (isGroup) {
-          headerAvatarWrap.innerHTML = `<div class="chat-room-header-avatar group">👥</div>`;
-        } else if (data.chat.partner_profile_image) {
-          headerAvatarWrap.innerHTML = `<img src="${escapeHtml(data.chat.partner_profile_image)}" class="chat-room-header-avatar" alt="" />`;
-        } else {
-          headerAvatarWrap.innerHTML = `<div class="chat-room-header-avatar initial">${escapeHtml((data.chat.partner_name || 'U').charAt(0).toUpperCase())}</div>`;
-        }
-      }
-
-      if (subHeader) {
-        if (data.chat.activity_id) {
-          subHeader.innerHTML = `<span class="header-status-host">👑 หัวหน้ากิจกรรม: <strong>${escapeHtml(data.chat.creator_name || 'ผู้ขอสร้าง')}</strong></span>`;
-        } else {
-          subHeader.innerHTML = `<span class="header-status-online"><span class="status-pulse-dot"></span> พร้อมสนทนา</span>`;
-        }
-      }
-
-      if (headerActions) {
-        if (!isGroup && data.chat.partner_id) {
-          headerActions.innerHTML = `
-            <button type="button" class="btn-chat-view-profile" data-open-profile-id="${data.chat.partner_id}">
-              🔍 ดูโปรไฟล์
-            </button>
-          `;
-          headerActions.querySelector('[data-open-profile-id]')?.addEventListener('click', () => {
-            openProfileModal(Number(data.chat.partner_id));
-          });
-        } else {
-          headerActions.innerHTML = '';
-        }
-      }
-
-      const isHost = data.chat.activity_id && Number(data.chat.creator_id) === Number(sessionState.user.id);
-      const isOwner = sessionState.user && sessionState.user.role === 'owner';
-
-      if (!data.messages || data.messages.length === 0) {
-        messageThread.innerHTML = `
-          <div class="chat-empty-placeholder">
-            <div class="chat-empty-icon">✨</div>
-            <div class="chat-empty-title">เริ่มต้นการสนทนา</div>
-            <div class="chat-empty-desc">ส่งข้อความทักทายแรกเพื่อเริ่มต้นมิตรภาพดีๆ ได้เลย!</div>
-          </div>
-        `;
-        return;
-      }
-
-      messageThread.innerHTML = data.messages.map((msg) => {
-        const isMe = msg.sender_id === sessionState.user.id;
-        const isMsgHost = data.chat.activity_id && Number(msg.sender_id) === Number(data.chat.creator_id);
-        const canDelete = isMe || isHost || isOwner;
-        const timeStr = formatChatTime(msg.created_at);
-
-        const hostBadgeHtml = isMsgHost ? '<span class="host-badge">👑 หัวหน้า</span>' : '';
-        const deleteBtnHtml = canDelete ? `<button type="button" class="btn-delete-msg" data-msg-id="${msg.id}" title="ลบข้อความ"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>` : '';
-
-        const senderAvatar = msg.sender_profile_image
-          ? `<img src="${escapeHtml(msg.sender_profile_image)}" class="chat-msg-avatar" alt="${escapeHtml(msg.sender_name || '')}" />`
-          : `<div class="chat-msg-avatar-initial">${escapeHtml((msg.sender_name || 'U').charAt(0).toUpperCase())}</div>`;
-
-        if (isMe) {
-          return `
-            <div class="msg-wrapper me">
-              <div class="msg-content-col">
-                <div class="bubble me">
-                  <div class="bubble-text">${escapeHtml(msg.content)}</div>
-                  <div class="bubble-meta">
-                    <span class="msg-time me-time">${timeStr}</span>
-                    ${deleteBtnHtml}
-                  </div>
-                </div>
-              </div>
-            </div>
-          `;
-        }
-
-        return `
-          <div class="msg-wrapper them">
-            <div class="msg-avatar-col">
-              ${senderAvatar}
-            </div>
-            <div class="msg-content-col">
-              <div class="msg-sender-name">
-                <span>${escapeHtml(msg.sender_name || 'สมาชิก')}</span>
-                ${hostBadgeHtml}
-              </div>
-              <div class="bubble them">
-                <div class="bubble-text">${escapeHtml(msg.content)}</div>
-                <div class="bubble-meta">
-                  <span class="msg-time">${timeStr}</span>
-                  ${deleteBtnHtml}
-                </div>
-              </div>
-            </div>
-          </div>
-        `;
-      }).join('');
-
-      messageThread.scrollTop = messageThread.scrollHeight;
-
-      // Attach delete handlers
-      messageThread.querySelectorAll('.btn-delete-msg').forEach(btn => {
-        btn.addEventListener('click', async (e) => {
-          e.stopPropagation();
-          const msgId = btn.dataset.msgId;
-          if (confirm('คุณต้องการลบข้อความนี้ใช่หรือไม่?')) {
-            try {
-              await apiRequest(`/api/chats/${data.chat.id}/messages/${msgId}`, { method: 'DELETE' });
-              await loadMessages(data.chat.id);
-            } catch(err) {
-              alert(err.message);
-            }
-          }
-        });
-      });
-    }
-
-    function startChatPolling() {
-      stopChatPolling();
-      chatPollInterval = setInterval(async () => {
-        if (!currentChatId) return;
-        try {
-          const data = await apiRequest(`/api/chats/${currentChatId}/messages`);
-          if (data.messages.length !== lastMessageCount) {
-            lastMessageCount = data.messages.length;
-            renderMessageList(data);
-          }
-          await loadChats();
-        } catch(e) {
-          if (e.message && (e.message.includes('สิทธิ์') || e.message.includes('ไม่พบ'))) {
-            stopChatPolling();
-            currentChatId = null;
-            messageThread.innerHTML = '<div class="list-item" style="color:var(--muted); text-align:center; padding:20px;">⚠️ กลุ่มนี้ถูกยุบแล้ว เนื่องจากกิจกรรมถูกลบออกหรือปฏิเสธ</div>';
-            const titleHeader = document.getElementById('chatTitleHeader');
-            if (titleHeader) titleHeader.textContent = 'ข้อความ';
-            const subHeader = document.getElementById('chatSubHeader');
-            if (subHeader) subHeader.innerHTML = '';
-            await loadChats();
-          }
-        }
-      }, 3000);
-    }
-
-    function stopChatPolling() {
-      if (chatPollInterval) {
-        clearInterval(chatPollInterval);
-        chatPollInterval = null;
-      }
-    }
-
-    async function loadMessages(chatId) {
-      try {
-        const data = await apiRequest(`/api/chats/${chatId}/messages`);
-        lastMessageCount = data.messages.length;
-        renderMessageList(data);
-
-        if (!data.chat.activity_id && data.chat.type !== 'group') {
-          await loadGreetingSuggestions(data.messages.length === 0);
-        } else {
-          const container = document.getElementById('greetingSuggestions');
-          if (container) container.classList.add('hidden');
-        }
-
-        startChatPolling();
-      } catch(e) {
-        messageThread.innerHTML = `<div class="list-item" style="color:var(--muted); text-align:center; padding:20px;">⚠️ ${e.message || 'ไม่สามารถโหลดข้อความได้'}</div>`;
-        const titleHeader = document.getElementById('chatTitleHeader');
-        if (titleHeader) titleHeader.textContent = 'ข้อความ';
-        const subHeader = document.getElementById('chatSubHeader');
-        if (subHeader) subHeader.innerHTML = '';
-      }
-    }
-
-    async function loadGreetingSuggestions(isEmpty) {
-      const container = document.getElementById('greetingSuggestions');
-      const chipsEl = document.getElementById('greetingChips');
-      if (!container || !chipsEl) return;
-
-      try {
-        const greetings = await apiRequest('/api/greetings');
-        const shuffled = greetings.sort(() => 0.5 - Math.random()).slice(0, 4);
-        chipsEl.innerHTML = shuffled.map(g => 
-          `<div class="greeting-chip">${g}</div>`
-        ).join('');
-
-        container.classList.remove('hidden');
-
-        chipsEl.querySelectorAll('.greeting-chip').forEach(chip => {
-          chip.addEventListener('click', () => {
-            document.getElementById('messageInput').value = chip.textContent;
-            document.getElementById('messageInput').focus();
-          });
-        });
-      } catch(e) {
-        container.classList.add('hidden');
-      }
-    }
-
-    async function loadActivities() {
-      const activities = await apiRequest('/api/activities');
-      latestActivitiesList = activities;
-      updateHomeStats();
-      const isOwnerOrAdmin = sessionState.user && (sessionState.user.role === 'owner' || sessionState.user.role === 'admin' || sessionState.user.is_admin);
-
-      activityBoardList.innerHTML = activities.length
-        ? activities.map((activity) => {
-            const isCreator = Number(activity.created_by) === Number(sessionState.user.id);
-            const canAccessChat = activity.has_joined || isCreator || isOwnerOrAdmin;
-            const canDeleteActivity = isCreator || isOwnerOrAdmin;
-
-            return `
-              <div class="activity-card">
-                <h3>${escapeHtml(activity.name)}</h3>
-                <p>${escapeHtml(activity.description || 'ไม่มีรายละเอียด')}</p>
-                <div class="activity-location">${escapeHtml(activity.location || 'ไม่ระบุสถานที่')}</div>
-                ${(activity.event_date || activity.event_time) ? `
-                  <div class="activity-schedule-row">
-                    ${activity.event_date ? `<span class="activity-schedule-pill date">📅 ${formatActivityDate(activity.event_date)}</span>` : ''}
-                    ${activity.event_time ? `<span class="activity-schedule-pill time">⏰ ${escapeHtml(activity.event_time)} น.</span>` : ''}
-                  </div>
-                ` : ''}
-                <div class="meta">
-                  <span>ผู้สร้าง: ${escapeHtml(activity.creator_name || 'ไม่ระบุ')} ${isCreator ? '👑' : ''}</span>
-                  <span>คณะ: ${escapeHtml(activity.creator_major || '-')}</span>
-                </div>
-                <div style="font-size:0.82rem; color:var(--purple); margin-top:8px; font-weight:600; background:#f8f5ff; padding:6px 12px; border-radius:10px; display:flex; flex-wrap:wrap; gap:8px;">
-                  <span>👥 รวม: ${activity.actual_members || 0} คน</span>
-                  <span>👨 ชาย: ${activity.male_count || 0} คน</span>
-                  <span>👩 หญิง: ${activity.female_count || 0} คน</span>
-                  <span>🌈 LGBTQ+: ${activity.lgbtq_count || 0} คน</span>
-                </div>
-                <div class="activity-actions" style="margin-top:12px; display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
-                  <button class="btn-join-activity ${activity.has_joined ? 'joined' : ''}" 
-                    data-join-activity-id="${activity.id}" type="button">
-                    ${activity.has_joined ? '✓ เข้าร่วมแล้ว' : '🙋 สนใจเข้าร่วม'}
-                  </button>
-                  ${canAccessChat && activity.chat_id ? `
-                    <button class="button secondary-action btn-open-group-chat" data-chat-id="${activity.chat_id}" type="button" style="padding:10px 16px; font-size:0.85rem;">
-                      💬 เข้าแชทกลุ่ม
-                    </button>
-                  ` : ''}
-                  ${canDeleteActivity ? `
-                    <button class="button outline btn-delete-activity" data-delete-activity-id="${activity.id}" type="button" style="padding:8px 14px; font-size:0.82rem; color:#d32f2f; border-color:#ffcdd2;">
-                      🗑️ ลบกิจกรรม
-                    </button>
-                  ` : ''}
-                </div>
-              </div>
-            `;
-          }).join('')
-        : '<div class="list-item">ยังไม่มีกิจกรรมที่ได้รับการอนุมัติ</div>';
-
-      // Attach join/leave handlers
-      activityBoardList.querySelectorAll('[data-join-activity-id]').forEach(btn => {
-        btn.addEventListener('click', async () => {
-          const id = btn.dataset.joinActivityId;
-          const isJoined = btn.classList.contains('joined');
-          try {
-            if (isJoined) {
-              await apiRequest(`/api/activities/${id}/join`, { method: 'DELETE' });
-              await loadActivities();
-            } else {
-              const res = await apiRequest(`/api/activities/${id}/join`, { method: 'POST' });
-              if (res.chat_id) {
-                await openChatTabAndLoad(res.chat_id);
-              } else {
-                await loadActivities();
-              }
-            }
-          } catch (err) {
-            alert(err.message);
-          }
-        });
-      });
-
-      // Attach open group chat handlers
-      activityBoardList.querySelectorAll('.btn-open-group-chat').forEach(btn => {
-        btn.addEventListener('click', async () => {
-          const chatId = Number(btn.dataset.chatId);
-          if (chatId) {
-            await openChatTabAndLoad(chatId);
-          }
-        });
-      });
-
-      // Attach delete activity handlers
-      activityBoardList.querySelectorAll('[data-delete-activity-id]').forEach(btn => {
-        btn.addEventListener('click', async () => {
-          const id = btn.dataset.deleteActivityId;
-          if (confirm('คุณต้องการลบกิจกรรมนี้และยุบแชทกลุ่มใช่หรือไม่?')) {
-            try {
-              const res = await apiRequest(`/api/activities/${id}`, { method: 'DELETE' });
-              alert(res.message || 'ลบกิจกรรมและยุบกลุ่มเรียบร้อย');
-              await loadActivities();
-              await loadChats();
-            } catch(err) {
-              alert('เกิดข้อผิดพลาด: ' + err.message);
-            }
-          }
-        });
       });
     }
 
@@ -2928,174 +2514,1048 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       profileForm.addEventListener('submit', async (event) => {
         event.preventDefault();
-
-        const uniValue = (profileUniEl?.value === 'other')
-          ? (profileCustomUniEl?.value.trim() || 'อื่นๆ')
-          : (profileUniEl?.value || 'มหาวิทยาลัยขอนแก่น');
-
-        let majorValue = '';
-        if (profileUniEl?.value === 'other') {
-          majorValue = profileCustomMajorEl?.value.trim() || 'ไม่ระบุ';
-        } else if (profileMajorEl?.value === 'other') {
-          majorValue = profileCustomMajorEl?.value.trim() || 'อื่นๆ';
-        } else {
-          majorValue = profileMajorEl?.value || '';
-        }
-
-        const formData = new FormData();
-        formData.append('name', document.getElementById('profileName').value);
-        formData.append('nickname', document.getElementById('profileNickname').value);
-        formData.append('gender', document.getElementById('profileGender')?.value || 'ชาย');
-        formData.append('interested_gender', document.getElementById('profileInterestedGender')?.value || 'ทุกเพศ');
-        formData.append('university', uniValue);
-        formData.append('major', majorValue);
-        formData.append('year', document.getElementById('profileYear').value);
-        formData.append('age', document.getElementById('profileAge').value);
-        formData.append('phone', document.getElementById('profilePhone')?.value || '');
-        formData.append('interests', document.getElementById('profileInterests').value);
-        formData.append('bio', document.getElementById('profileBio').value);
-
-        const fileInput = document.getElementById('profileImageInput');
-        if (fileInput && fileInput.files.length > 0) {
-          formData.append('profile_image_file', fileInput.files[0]);
-        }
-
-        const result = await apiRequest('/api/me', {
-          method: 'PUT',
-          body: formData
-        });
-
-        document.getElementById('profileStatus').textContent = result.message;
-        await loadProfile();
-      });
-    }
-
-    if (newActivityBtn && activityForm) {
-      newActivityBtn.addEventListener('click', () => {
-        activityForm.classList.toggle('hidden');
-      });
-    }
-
-    if (activityForm) {
-      activityForm.addEventListener('submit', async (event) => {
-        event.preventDefault();
-        const submitBtn = activityForm.querySelector('button[type="submit"]');
-
-        const payload = {
-          name: activityName.value,
-          description: activityDescription.value,
-          member_count: activityMemberCount.value,
-          location: document.getElementById('activityLocation').value,
-          event_date: document.getElementById('activityDate')?.value || '',
-          event_time: document.getElementById('activityTime')?.value || ''
-        };
-
-        if (!payload.name.trim()) {
-          alert('กรุณากรอกชื่อกิจกรรม');
-          return;
-        }
-
-        if (!payload.location.trim()) {
-          alert('กรุณากรอกสถานที่จัดกิจกรรม');
-          return;
-        }
-
-        if (!payload.event_date) {
-          alert('กรุณาเลือกวันที่จัดกิจกรรม');
-          return;
-        }
-
-        if (!payload.event_time) {
-          alert('กรุณาระบุเวลาจัดกิจกรรม');
-          return;
-        }
+        const messageEl = document.getElementById('profileMessage');
 
         try {
-          if (submitBtn) {
-            submitBtn.disabled = true;
-            submitBtn.textContent = '⏳ กำลังส่งข้อมูล...';
+          const uniValue = (profileUniEl?.value === 'other')
+            ? (profileCustomUniEl?.value.trim() || 'อื่นๆ')
+            : (profileUniEl?.value || 'มหาวิทยาลัยขอนแก่น');
+
+          let majorValue = '';
+          if (profileUniEl?.value === 'other') {
+            majorValue = profileCustomMajorEl?.value.trim() || 'ไม่ระบุ';
+          } else if (profileMajorEl?.value === 'other') {
+            majorValue = profileCustomMajorEl?.value.trim() || 'อื่นๆ';
+          } else {
+            majorValue = profileMajorEl?.value || '';
           }
 
-          const result = await apiRequest('/api/activities', {
-            method: 'POST',
-            body: JSON.stringify(payload)
+          const formData = new FormData();
+          formData.append('name', document.getElementById('profileName').value);
+          formData.append('year', document.getElementById('profileYear').value);
+          formData.append('gender', document.getElementById('profileGender')?.value || 'ชาย');
+          formData.append('interested_gender', document.getElementById('profileInterestedGender')?.value || 'ทุกเพศ');
+          formData.append('university', uniValue);
+          formData.append('major', majorValue);
+          formData.append('phone', document.getElementById('profilePhone')?.value || '');
+          formData.append('nickname', document.getElementById('profileNickname')?.value || '');
+          formData.append('age', document.getElementById('profileAge')?.value || '');
+          formData.append('interests', document.getElementById('profileInterests')?.value || '');
+          formData.append('bio', document.getElementById('profileBio')?.value || '');
+
+          const fileInput = document.getElementById('profileImageInput');
+          if (fileInput && fileInput.files.length > 0) {
+            formData.append('profile_image_file', fileInput.files[0]);
+          }
+
+          const result = await apiRequest('/api/me', {
+            method: 'PUT',
+            body: formData
           });
 
-          activityForm.reset();
-          activityForm.classList.add('hidden');
-          alert(result.message || 'สร้างกิจกรรมเรียบร้อย');
-          await loadActivities();
-        } catch (err) {
-          alert(err.message || 'เกิดข้อผิดพลาดในการสร้างกิจกรรม');
-        } finally {
-          if (submitBtn) {
-            submitBtn.disabled = false;
-            submitBtn.textContent = 'สร้างกิจกรรม';
+          if (messageEl) {
+            messageEl.className = 'message success';
+            messageEl.textContent = result.message || 'บันทึกโปรไฟล์สำเร็จ';
+          }
+          await loadProfile();
+        } catch (error) {
+          if (messageEl) {
+            messageEl.className = 'message error';
+            messageEl.textContent = error.message;
           }
         }
       });
     }
 
-    sendMessageBtn.addEventListener('click', async () => {
-      if (!currentChatId || !messageInput.value.trim()) return;
-      await apiRequest(`/api/chats/${currentChatId}/messages`, {
-        method: 'POST',
-        body: JSON.stringify({ content: messageInput.value })
-      });
-      messageInput.value = '';
-      await loadMessages(currentChatId);
-      await loadChats();
+    // Modal close listeners
+    document.getElementById('closeProfileModal')?.addEventListener('click', () => {
+      document.getElementById('profileModal')?.classList.add('hidden');
     });
 
-    // Enter key to send message
-    messageInput.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter' && !e.shiftKey) {
-        e.preventDefault();
-        sendMessageBtn.click();
+    document.getElementById('profileModal')?.addEventListener('click', (e) => {
+      if (e.target.id === 'profileModal') {
+        document.getElementById('profileModal')?.classList.add('hidden');
       }
     });
+  }
 
-    // Chat search, mobile back, and close greetings listeners
-    document.getElementById('chatSearchInput')?.addEventListener('input', filterAndRenderChats);
-    document.getElementById('chatMobileBackBtn')?.addEventListener('click', () => {
-      document.getElementById('chatLayoutContainer')?.classList.remove('chat-open');
-    });
-    document.getElementById('btnCloseGreetings')?.addEventListener('click', () => {
-      document.getElementById('greetingSuggestions')?.classList.add('hidden');
-    });
+  function renderProfile(user) {
+    if (!user) return;
+    const nameEl = document.getElementById('profileName');
+    const yearEl = document.getElementById('profileYear');
+    const bioEl = document.getElementById('profileBio');
+    const emailEl = document.getElementById('profileEmail');
+    const nicknameEl = document.getElementById('profileNickname');
+    const ageEl = document.getElementById('profileAge');
+    const preview = document.getElementById('profileImagePreview');
 
-    // Start/stop chat polling based on active tab
-    tabButtons.forEach((button) => {
-      button.addEventListener('click', () => {
-        if (button.dataset.tab === 'chat' && currentChatId) {
-          startChatPolling();
+    if (nameEl) nameEl.value = user.name || '';
+    if (yearEl) yearEl.value = user.year || '';
+    const genderEl = document.getElementById('profileGender');
+    if (genderEl) genderEl.value = user.gender || 'ชาย';
+    const interestedGenderEl = document.getElementById('profileInterestedGender');
+    if (interestedGenderEl) interestedGenderEl.value = user.interested_gender || 'ทุกเพศ';
+    const universityEl = document.getElementById('profileUniversity');
+    const customUniversityEl = document.getElementById('profileCustomUniversity');
+    const majorEl = document.getElementById('profileMajor');
+    const customMajorEl = document.getElementById('profileCustomMajor');
+    const majorLabelEl = document.getElementById('profileMajorLabel');
+
+    if (user.university && user.university !== 'มหาวิทยาลัยขอนแก่น') {
+      if (universityEl) universityEl.value = 'other';
+      if (customUniversityEl) {
+        customUniversityEl.value = user.university;
+        customUniversityEl.classList.remove('hidden');
+      }
+      if (majorEl) majorEl.classList.add('hidden');
+      if (customMajorEl) {
+        customMajorEl.value = user.major || '';
+        customMajorEl.classList.remove('hidden');
+      }
+      if (majorLabelEl) majorLabelEl.textContent = 'คณะ / สาขาวิชา (ระบุเอง)';
+    } else {
+      if (universityEl) universityEl.value = 'มหาวิทยาลัยขอนแก่น';
+      if (customUniversityEl) {
+        customUniversityEl.value = '';
+        customUniversityEl.classList.add('hidden');
+      }
+      if (majorEl) {
+        majorEl.classList.remove('hidden');
+        const options = Array.from(majorEl.options).map(o => o.value);
+        if (options.includes(user.major) && user.major !== 'other' && user.major !== '') {
+          majorEl.value = user.major;
+          if (customMajorEl) {
+            customMajorEl.value = '';
+            customMajorEl.classList.add('hidden');
+          }
+        } else if (user.major) {
+          majorEl.value = 'other';
+          if (customMajorEl) {
+            customMajorEl.value = user.major;
+            customMajorEl.classList.remove('hidden');
+          }
         } else {
-          stopChatPolling();
+          majorEl.value = '';
+          if (customMajorEl) {
+            customMajorEl.value = '';
+            customMajorEl.classList.add('hidden');
+          }
+        }
+      }
+      if (majorLabelEl) majorLabelEl.textContent = 'คณะ / วิทยาลัย (ม.ขอนแก่น)';
+    }
+    const phoneEl = document.getElementById('profilePhone');
+    if (phoneEl) phoneEl.value = user.phone || '';
+    if (bioEl) bioEl.value = user.bio || '';
+    if (emailEl) emailEl.textContent = user.email || '';
+    if (nicknameEl) nicknameEl.value = user.nickname || '';
+    if (ageEl) ageEl.value = user.age || '';
+    if (preview) {
+      preview.src = user.profile_image || DEFAULT_AVATAR;
+    }
+
+    const interestsList = (user.interests || '').split(',').map((i) => i.trim()).filter(Boolean);
+    initializeTagsContainer('profileInterestsTags', 'profileInterests', interestsList);
+  }
+
+  async function loadProfile() {
+    const result = await apiRequest('/api/me');
+    sessionUser = result.user;
+    renderProfile(result.user);
+    renderUserPhotos(result.photos || []);
+    updateHomeStats();
+  }
+
+  function renderUserPhotos(photos) {
+    const grid = document.getElementById('userPhotosGrid');
+    if (!grid) return;
+    grid.innerHTML = photos.map(p => `
+      <div class="photo-thumb-box">
+        <img src="${p.photo_url}" alt="Photo" />
+        <button class="btn-delete-photo" data-photo-id="${p.id}" type="button" title="ลบรูปภาพ">✕</button>
+      </div>
+    `).join('');
+
+    grid.querySelectorAll('.btn-delete-photo').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const photoId = btn.dataset.photoId;
+        try {
+          await apiRequest(`/api/me/photos/${photoId}`, { method: 'DELETE' });
+          await loadProfile();
+        } catch(err) {
+          alert(err.message);
+        }
+      });
+    });
+  }
+
+  // ===================== PROFILE MODAL =====================
+  async function openProfileModal(userId) {
+    try {
+      const data = await apiRequest(`/api/users/${userId}/profile`);
+      const { user, photos } = data;
+
+      modalPhotosList = photos && photos.length ? photos : [user.profile_image || DEFAULT_AVATAR];
+      modalCurrentPhotoIndex = 0;
+
+      const modal = document.getElementById('profileModal');
+      const modalImg = document.getElementById('modalProfileImg');
+      const modalName = document.getElementById('modalProfileName');
+      const modalGender = document.getElementById('modalProfileGender');
+      const modalAgeMajor = document.getElementById('modalProfileAgeMajor');
+      const modalBio = document.getElementById('modalProfileBio');
+      const modalInterests = document.getElementById('modalProfileInterests');
+      const galleryNav = document.getElementById('modalGalleryNav');
+      const indicators = document.getElementById('galleryIndicators');
+      const photoCounter = document.getElementById('modalPhotoCounter');
+
+      modalName.innerHTML = `
+        <span class="modal-nickname">${escapeHtml(user.name)}</span>
+        ${user.nickname && user.nickname !== user.name ? `<span class="modal-fullname">(${escapeHtml(user.nickname)})</span>` : ''}
+      `;
+
+      const genderIcon = user.gender === 'ชาย' ? '👨 ชาย' : (user.gender === 'หญิง' ? '👩 หญิง' : (user.gender ? '🌈 ' + user.gender : '👤 ไม่ระบุเพศ'));
+      modalGender.innerHTML = genderIcon;
+
+      const modalInterestedGender = document.getElementById('modalProfileInterestedGender');
+      if (modalInterestedGender) {
+        modalInterestedGender.textContent = `🎯 สนใจ: ${user.interested_gender || 'ทุกเพศ'}`;
+      }
+      
+      const detailsArr = [];
+      if (user.age) detailsArr.push(`🎂 ${user.age} ปี`);
+      if (user.university) detailsArr.push(`🏫 ${escapeHtml(user.university)}`);
+      if (user.major) detailsArr.push(`🎓 ${escapeHtml(user.major)}`);
+      if (user.year) detailsArr.push(escapeHtml(user.year));
+      modalAgeMajor.innerHTML = detailsArr.length ? detailsArr.join(' • ') : 'ข้อมูลทั่วไป';
+
+      if (user.bio && user.bio.trim()) {
+        modalBio.textContent = `"${user.bio.trim()}"`;
+        modalBio.classList.remove('bio-empty-hint');
+      } else {
+        modalBio.textContent = 'ยังไม่มีข้อความแนะนำตัว';
+        modalBio.classList.add('bio-empty-hint');
+      }
+
+      const tags = (user.interests || '').split(',').map(t => t.trim()).filter(Boolean);
+      modalInterests.innerHTML = tags.length
+        ? tags.map(t => `<span class="modal-interest-chip">${escapeHtml(t)}</span>`).join('')
+        : '<span class="modal-interest-chip">ทั่วไป</span>';
+
+      function updateModalPhoto() {
+        modalImg.src = modalPhotosList[modalCurrentPhotoIndex];
+        if (modalPhotosList.length > 1) {
+          galleryNav.classList.remove('hidden');
+          if (photoCounter) {
+            photoCounter.style.display = 'inline-flex';
+            photoCounter.textContent = `📸 ${modalCurrentPhotoIndex + 1}/${modalPhotosList.length}`;
+          }
+          indicators.innerHTML = modalPhotosList.map((_, i) => 
+            `<div class="story-indicator-bar ${i === modalCurrentPhotoIndex ? 'active' : ''}"></div>`
+          ).join('');
+        } else {
+          galleryNav.classList.add('hidden');
+          indicators.innerHTML = '';
+          if (photoCounter) photoCounter.style.display = 'none';
+        }
+      }
+
+      updateModalPhoto();
+
+      document.getElementById('prevPhotoBtn').onclick = () => {
+        modalCurrentPhotoIndex = (modalCurrentPhotoIndex - 1 + modalPhotosList.length) % modalPhotosList.length;
+        updateModalPhoto();
+      };
+
+      document.getElementById('nextPhotoBtn').onclick = () => {
+        modalCurrentPhotoIndex = (modalCurrentPhotoIndex + 1) % modalPhotosList.length;
+        updateModalPhoto();
+      };
+
+      const actionBtn = document.getElementById('modalActionBtn');
+      if (actionBtn) {
+        actionBtn.textContent = '💕 ส่งความสนใจ';
+        actionBtn.onclick = async () => {
+          try {
+            const res = await apiRequest('/api/matches', {
+              method: 'POST',
+              body: JSON.stringify({ matched_user_id: user.id, note: 'Interested', status: 'liked' })
+            });
+            if (res.mutual) showMatchToast(res.message);
+            modal.classList.add('hidden');
+            await loadDiscoverUsers();
+            await loadLikedUsers();
+            await loadSkippedUsers();
+          } catch(e) { alert(e.message); }
+        };
+      }
+
+      modal.classList.remove('hidden');
+    } catch(e) {
+      alert(e.message || 'ไม่สามารถโหลดข้อมูลโปรไฟล์ได้');
+    }
+  }
+
+  // ===================== DISCOVER SUBSYSTEM =====================
+  function setupCategoryFilterChips() {
+    const container = document.getElementById('discoverCategoryChips');
+    if (!container) return;
+
+    container.querySelectorAll('.category-chip').forEach(chip => {
+      chip.addEventListener('click', () => {
+        container.querySelectorAll('.category-chip').forEach(c => c.classList.remove('active'));
+        chip.classList.add('active');
+        currentCategoryFilter = chip.dataset.category || 'ทั้งหมด';
+        currentDiscoverIndex = 0;
+        renderDiscoverCard();
+      });
+    });
+  }
+
+  function getFilteredDiscoverUsers() {
+    if (!currentCategoryFilter || currentCategoryFilter === 'ทั้งหมด') {
+      return discoverUsers;
+    }
+    return discoverUsers.filter(u => {
+      const text = `${u.interests || ''} ${u.bio || ''} ${u.major || ''}`.toLowerCase();
+      const cat = currentCategoryFilter.toLowerCase();
+      const catAliases = {
+        'อ่านหนังสือ': ['อ่านหนังสือ', 'หนังสือ', 'ติว', 'ห้องสมุด', 'book'],
+        'คาเฟ่': ['คาเฟ่', 'กาแฟ', 'ชา', 'cafe', 'coffee'],
+        'ดนตรี': ['ดนตรี', 'ฟังเพลง', 'เพลง', 'กีต้าร์', 'ร้องเพลง', 'music', 'concert'],
+        'เกม': ['เกม', 'game', 'gaming', 'e-sport', 'rov', 'valorant', 'บอร์ดเกม'],
+        'ออกกำลังกาย': ['ออกกำลังกาย', 'ฟิตเนส', 'วิ่ง', 'ยิม', 'กีฬา', 'แบด', 'บอล', 'workout'],
+        'ถ่ายรูป': ['ถ่ายรูป', 'กล้อง', 'ภาพ', 'photo', 'film', 'ตากล้อง'],
+        'ดูหนัง': ['ดูหนัง', 'หนัง', 'ซีรีส์', 'netflix', 'movie', 'series'],
+        'ศิลปะ': ['ศิลปะ', 'วาดรูป', 'art', 'ดีไซน์', 'งานประดิษฐ์', 'วาดภาพ']
+      };
+      const keywords = catAliases[cat] || [cat];
+      return keywords.some(kw => text.includes(kw));
+    });
+  }
+
+  async function loadDiscoverUsers() {
+    const users = await apiRequest('/api/candidates');
+    discoverUsers = users;
+    updateHomeStats();
+    currentDiscoverIndex = 0;
+    renderDiscoverCard();
+  }
+
+  function renderDiscoverCard() {
+    const discoverUserCard = document.getElementById('discoverUserCard');
+    if (!discoverUserCard) return;
+
+    const filteredUsers = getFilteredDiscoverUsers();
+
+    if (!filteredUsers.length || currentDiscoverIndex >= filteredUsers.length) {
+      discoverUserCard.innerHTML = `
+        <div class="list-item" style="grid-column: 1 / -1; text-align:center; padding:38px 20px; background:#ffffff; border-radius:24px; border:1.5px dashed var(--line); box-shadow:0 6px 20px rgba(45,35,80,0.03);">
+          <div style="font-size:2.5rem; margin-bottom:10px;">${currentCategoryFilter === 'ทั้งหมด' ? '✨' : '🔍'}</div>
+          <div style="font-weight:700; color:var(--purple); font-size:1.15rem; margin-bottom:6px;">
+            ${currentCategoryFilter === 'ทั้งหมด' ? 'สำรวจครบทุกคนแล้ว!' : `ยังไม่มีโปรไฟล์ในหมวด "${escapeHtml(currentCategoryFilter)}"`}
+          </div>
+          <div style="color:var(--muted); font-size:0.88rem; margin-bottom:16px;">
+            ${currentCategoryFilter === 'ทั้งหมด' ? 'คุณได้ดูโปรไฟล์แนะนำครบแล้วในขณะนี้' : 'ลองเลือกหมวดหมู่อื่นเพื่อค้นหาเพื่อนใหม่ที่เข้ากันได้'}
+          </div>
+          <div style="display:flex; gap:10px; justify-content:center; flex-wrap:wrap;">
+            ${currentCategoryFilter !== 'ทั้งหมด' ? `<button id="btnResetCategoryFilter" class="button primary" type="button" style="border-radius:999px; padding:8px 18px;">ดูหมวดทั้งหมด</button>` : ''}
+            ${skippedUsersList.length > 0 ? `<button id="btnOpenSkippedEmpty" class="button secondary-action" type="button" style="border-radius:999px; padding:8px 18px;">📜 ดูคนที่เคยปัดผ่าน (${skippedUsersList.length} คน)</button>` : ''}
+          </div>
+        </div>
+      `;
+      document.getElementById('btnResetCategoryFilter')?.addEventListener('click', () => {
+        const chips = document.querySelectorAll('#discoverCategoryChips .category-chip');
+        chips.forEach(c => {
+          if (c.dataset.category === 'ทั้งหมด') c.classList.add('active');
+          else c.classList.remove('active');
+        });
+        currentCategoryFilter = 'ทั้งหมด';
+        currentDiscoverIndex = 0;
+        renderDiscoverCard();
+      });
+      document.getElementById('btnOpenSkippedEmpty')?.addEventListener('click', () => switchTab('skipped'));
+      updateSkippedCounters();
+      return;
+    }
+
+    const user = filteredUsers[currentDiscoverIndex];
+    const tags = (user.interests || '').split(',').map((tag) => tag.trim()).filter(Boolean);
+    const avatarSrc = user.profile_image || '';
+
+    let sharedPercent = 86;
+    try {
+      if (sessionUser && sessionUser.interests) {
+        const myTags = sessionUser.interests.split(',').map(t => t.trim().toLowerCase()).filter(Boolean);
+        const userTags = tags.map(t => t.toLowerCase());
+        const matchCount = userTags.filter(ut => myTags.some(mt => mt.includes(ut) || ut.includes(mt))).length;
+        if (matchCount > 0) {
+          sharedPercent = Math.min(96, Math.max(68, 65 + (matchCount * 12)));
+        } else {
+          sharedPercent = 70 + ((Number(user.id || 1) * 17) % 24);
+        }
+      } else {
+        sharedPercent = 72 + ((Number(user.id || 1) * 19) % 22);
+      }
+    } catch (e) {
+      sharedPercent = 86;
+    }
+
+    discoverUserCard.innerHTML = `
+      <div class="discover-match-card">
+        <div class="discover-match-header" style="cursor:pointer;" title="กดเพื่อดูรูปภาพและโปรไฟล์เต็ม">
+          ${avatarSrc 
+            ? `<img class="discover-match-avatar" src="${escapeHtml(avatarSrc)}" alt="${escapeHtml(user.name)}" />`
+            : `<div class="discover-match-avatar-fallback">${escapeHtml((user.nickname || user.name || 'U').charAt(0).toUpperCase())}</div>`
+          }
+          <div class="discover-match-info">
+            <h3 class="discover-match-name">
+              ${escapeHtml(user.name)}
+              ${user.nickname && user.nickname !== user.name ? `<span class="skipped-card-nickname" style="font-size:0.75rem; vertical-align:middle; margin-left:4px;">${escapeHtml(user.nickname)}</span>` : ''}
+              <svg class="discover-verified-badge" width="19" height="19" viewBox="0 0 24 24" fill="#7c3aed" title="ยืนยันตัวตนแล้ว">
+                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+              </svg>
+            </h3>
+            <div class="discover-match-sub">
+              ${user.year ? escapeHtml(user.year) + ' · ' : ''}${escapeHtml(user.major || 'มหาวิทยาลัยขอนแก่น')}
+            </div>
+            <div class="discover-match-tags">
+              ${tags.length ? tags.map(t => `<span class="discover-tag-chip">#${escapeHtml(t)}</span>`).join('') : '<span class="discover-tag-chip">#ทั่วไป</span>'}
+            </div>
+          </div>
+        </div>
+
+        <div class="discover-album-pill" style="margin:0; cursor:pointer;" title="กดเพื่อดูรูปภาพและโปรไฟล์เต็ม">
+          <span class="pill-camera">📸</span>
+          <span>ดูรูปภาพ &amp; ข้อมูลโปรไฟล์</span>
+          <span class="pill-gender-tag">${escapeHtml(user.gender || 'ไม่ระบุ')}</span>
+          <span class="preference-badge" style="background:#fff1f2; color:#e11d48; font-weight:700; font-size:0.75rem; padding:2px 8px; border-radius:999px;">
+            🎯 สนใจ: ${escapeHtml(user.interested_gender || 'ทุกเพศ')}
+          </span>
+        </div>
+
+        <div class="discover-shared-box">
+          <span class="discover-shared-label">ความสนใจร่วมกัน</span>
+          <span class="discover-shared-percent">${sharedPercent}%</span>
+        </div>
+
+        <div class="discover-match-actions">
+          <button class="btn-discover-skip" data-discover-action="skip" type="button">ข้าม</button>
+          <button class="btn-discover-like" data-discover-action="like" type="button">สนใจ</button>
+          ${skippedHistory.length > 0 ? `<button class="button secondary-action" data-discover-action="rewind" type="button" title="ย้อนกลับไปดูคนที่ปัดผ่านก่อนหน้า" style="border-radius:14px; padding:12px 16px; background:#f0ebff; color:var(--purple); font-weight:700;">⏮️</button>` : ''}
+        </div>
+      </div>
+
+      <div class="discover-prompts-col">
+        <div class="discover-prompt-card" data-prompt="ถ้ามีเวลาว่างเย็นนี้ อยากไปทำอะไร">
+          <span>ถ้ามีเวลาว่างเย็นนี้ อยากไปทำอะไร</span>
+          <span>💬</span>
+        </div>
+        <div class="discover-prompt-card" data-prompt="เพลงที่ฟังช่วงนี้คืออะไร">
+          <span>เพลงที่ฟังช่วงนี้คืออะไร</span>
+          <span>🎵</span>
+        </div>
+        <div class="discover-prompt-card" data-prompt="คาเฟ่โปรดในมหาวิทยาลัยคือที่ไหน">
+          <span>คาเฟ่โปรดในมหาวิทยาลัยคือที่ไหน</span>
+          <span>☕</span>
+        </div>
+        <div class="discover-prompt-card" data-prompt="วิชาที่ชอบที่สุดในเทอมนี้คืออะไร">
+          <span>วิชาที่ชอบที่สุดในเทอมนี้คืออะไร</span>
+          <span>📚</span>
+        </div>
+      </div>
+    `;
+
+    updateSkippedCounters();
+
+    // Open profile modal
+    discoverUserCard.querySelector('.discover-match-header')?.addEventListener('click', () => {
+      openProfileModal(user.id);
+    });
+    discoverUserCard.querySelector('.discover-album-pill')?.addEventListener('click', () => {
+      openProfileModal(user.id);
+    });
+
+    // Prompt cards click to copy
+    discoverUserCard.querySelectorAll('.discover-prompt-card').forEach(card => {
+      card.addEventListener('click', () => {
+        const promptText = card.dataset.prompt;
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(promptText).catch(() => {});
+        }
+        showMatchToast(`💡 คัดลอกคำถามชวนคุย: "${promptText}"`);
+      });
+    });
+
+    // Action buttons (like, skip, rewind)
+    discoverUserCard.querySelectorAll('[data-discover-action]').forEach((button) => {
+      button.addEventListener('click', async () => {
+        const action = button.dataset.discoverAction;
+        
+        if (action === 'rewind') {
+          if (skippedHistory.length > 0) {
+            const lastSkipped = skippedHistory.pop();
+            currentDiscoverIndex = Math.max(0, currentDiscoverIndex - 1);
+            const idx = discoverUsers.findIndex(u => u.id === lastSkipped.id);
+            if (idx === -1) {
+              discoverUsers.splice(currentDiscoverIndex, 0, lastSkipped);
+            }
+            renderDiscoverCard();
+          }
+          return;
+        }
+
+        const cardEl = discoverUserCard.querySelector('.discover-match-card');
+        if (cardEl) cardEl.classList.add('card-slide-out');
+
+        if (action === 'like') {
+          try {
+            const matchResult = await apiRequest('/api/matches', {
+              method: 'POST',
+              body: JSON.stringify({ matched_user_id: user.id, note: 'Interested', status: 'liked' })
+            });
+            if (matchResult.mutual) {
+              showMatchToast(matchResult.message);
+              if (window.matchSpaceChat) await window.matchSpaceChat.loadChats();
+            }
+            await loadLikedUsers();
+          } catch(e) { /* ignore */ }
+        } else if (action === 'skip') {
+          skippedHistory.push(user);
+          try {
+            await apiRequest('/api/matches', {
+              method: 'POST',
+              body: JSON.stringify({ matched_user_id: user.id, note: 'Skipped', status: 'skipped' })
+            });
+            await loadSkippedUsers();
+          } catch(e) { /* ignore */ }
+        }
+
+        setTimeout(() => {
+          currentDiscoverIndex += 1;
+          renderDiscoverCard();
+        }, 180);
+      });
+    });
+  }
+
+  // ===================== LIKED USERS SUBSYSTEM =====================
+  function updateLikedCounters() {
+    const count = likedUsersList.length;
+    const countTabBadge = document.getElementById('likedTabBadge');
+    if (countTabBadge) {
+      countTabBadge.textContent = count;
+      countTabBadge.classList.toggle('hidden', count === 0);
+    }
+    const countHeader = document.getElementById('likedHeaderCountBadge');
+    if (countHeader) countHeader.textContent = `${count} คน`;
+  }
+
+  async function loadLikedUsers() {
+    try {
+      const data = await apiRequest('/api/liked');
+      likedUsersList = Array.isArray(data) ? data : [];
+      updateLikedCounters();
+      renderLikedGrid();
+    } catch (err) {
+      console.error('Failed to load liked users:', err);
+    }
+  }
+
+  function renderLikedGrid() {
+    const grid = document.getElementById('likedCardsGrid');
+    if (!grid) return;
+
+    const q = (document.getElementById('likedSearchInput')?.value || '').toLowerCase().trim();
+    const statusFilter = document.getElementById('likedStatusFilter')?.value || '';
+    const genderFilter = document.getElementById('likedGenderFilter')?.value || '';
+
+    const filtered = likedUsersList.filter(u => {
+      if (genderFilter && u.gender !== genderFilter) return false;
+      if (statusFilter && u.status !== statusFilter) return false;
+      if (q) {
+        const matchName = (u.name || '').toLowerCase().includes(q);
+        const matchNick = (u.nickname || '').toLowerCase().includes(q);
+        const matchMajor = (u.major || '').toLowerCase().includes(q);
+        const matchInterests = (u.interests || '').toLowerCase().includes(q);
+        if (!matchName && !matchNick && !matchMajor && !matchInterests) return false;
+      }
+      return true;
+    });
+
+    if (!filtered.length) {
+      grid.innerHTML = `
+        <div class="skipped-empty-state">
+          <div class="skipped-empty-icon">💖</div>
+          <div class="skipped-empty-title">${q || statusFilter || genderFilter ? 'ไม่พบคนที่ตรงกับเงื่อนไขการค้นหา' : 'ยังไม่มีคนที่คุณกดสนใจ'}</div>
+          <div class="skipped-empty-desc">${q || statusFilter || genderFilter ? 'ลองเปลี่ยนคำค้นหาหรือตัวกรอง' : 'เมื่อคุณกด "💕 สนใจ" ใครสักคนในหน้าค้นหา (Discover) รายชื่อจะมาแสดงที่นี่'}</div>
+          ${!q && !statusFilter && !genderFilter ? `<button class="button primary" id="btnGoDiscoverFromLikedEmpty" type="button">👉 ไปค้นหาคนที่ใช่ (Discover)</button>` : ''}
+        </div>
+      `;
+      document.getElementById('btnGoDiscoverFromLikedEmpty')?.addEventListener('click', () => switchTab('discover'));
+      return;
+    }
+
+    grid.innerHTML = filtered.map((u) => {
+      const avatarSrc = u.profile_image || DEFAULT_AVATAR;
+      const tags = (u.interests || '').split(',').map(t => t.trim()).filter(Boolean);
+      const isMatched = u.status === 'matched';
+
+      return `
+        <div class="liked-profile-card">
+          <div class="liked-card-header">
+            <img src="${avatarSrc}" class="liked-card-avatar" alt="${escapeHtml(u.name)}" data-open-profile-id="${u.id}" title="คลิกเพื่อดูโปรไฟล์เต็ม" />
+            <div class="liked-card-user-info">
+              <div class="liked-card-name" data-open-profile-id="${u.id}">
+                <span>${escapeHtml(u.name)}</span>
+                ${u.nickname && u.nickname !== u.name ? `<span class="skipped-card-nickname">${escapeHtml(u.nickname)}</span>` : ''}
+              </div>
+              <div class="skipped-card-sub">
+                <span>${u.gender ? (u.gender === 'ชาย' ? '👨 ชาย' : (u.gender === 'หญิง' ? '👩 หญิง' : '🌈 LGBTQ+')) : 'ไม่ระบุเพศ'}</span>
+                <span>•</span>
+                <span>${u.age ? u.age + ' ปี' : 'ไม่ระบุอายุ'}</span>
+                <span>•</span>
+                <span>🎯 ${escapeHtml(u.interested_gender || 'ทุกเพศ')}</span>
+              </div>
+              <div style="margin-top:4px;">
+                <span class="match-status-pill ${isMatched ? 'matched' : 'pending'}">
+                  ${isMatched ? '🎉 แมตช์สำเร็จแล้ว!' : '⏳ รออีกฝ่ายกดสนใจกลับ'}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div style="font-size:0.84rem; color:var(--purple-dark); font-weight:600;">
+            🎓 ${escapeHtml(u.major || 'ไม่ระบุคณะ')}
+          </div>
+
+          ${tags.length ? `
+            <div class="liked-card-tags">
+              ${tags.map(t => `<span class="tag selected" style="font-size:0.75rem; padding:3px 8px;">${escapeHtml(t)}</span>`).join('')}
+            </div>
+          ` : ''}
+
+          ${u.bio ? `<div class="liked-card-bio">💬 "${escapeHtml(u.bio)}"</div>` : ''}
+
+          <div class="liked-card-time">
+            <span>🕒 ส่งความสนใจเมื่อ: ${escapeHtml(u.liked_at || 'ไม่ระบุ')}</span>
+          </div>
+
+          <div class="liked-card-actions">
+            ${isMatched && u.chat_id ? `
+              <button class="button primary" data-action-chat-liked="${u.chat_id}" type="button" style="flex:2; font-size:0.84rem; padding:8px 12px; background:linear-gradient(135deg, #10b981, #059669);">
+                💬 ทักแชทเลย
+              </button>
+            ` : `
+              <button class="button secondary-action" data-action-cancel-liked="${u.match_id}" type="button" style="flex:2; font-size:0.82rem; padding:8px 10px; color:#e11d48;" title="ยกเลิกความสนใจ">
+                ❌ ยกเลิกสนใจ
+              </button>
+            `}
+            <button class="button secondary-action" data-open-profile-id="${u.id}" type="button" style="padding:8px 10px; font-size:0.82rem;" title="ดูอัลบั้มและโปรไฟล์เต็ม">
+              🔍
+            </button>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    grid.querySelectorAll('[data-action-chat-liked]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const chatId = btn.dataset.actionChatLiked;
+        if (chatId && window.matchSpaceChat) {
+          window.matchSpaceChat.openChatTabAndLoad(Number(chatId));
         }
       });
     });
 
-    // Cleanup polling on page unload
-    window.addEventListener('beforeunload', () => {
-      stopChatPolling();
-      stopGlobalPolling();
+    grid.querySelectorAll('[data-action-cancel-liked]').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const matchId = btn.dataset.actionCancelLiked;
+        if (confirm('คุณต้องการยกเลิกการส่งความสนใจให้ผู้ใช้นี้ใช่หรือไม่?')) {
+          try {
+            await apiRequest(`/api/matches/${matchId}`, { method: 'DELETE' });
+            showMatchToast('ยกเลิกความสนใจเรียบร้อยแล้ว');
+            await loadLikedUsers();
+            await loadDiscoverUsers();
+          } catch (err) {
+            alert(err.message || 'เกิดข้อผิดพลาด');
+          }
+        }
+      });
     });
 
-    logoutBtn.addEventListener('click', async () => {
-      stopChatPolling();
-      stopGlobalPolling();
-      await apiRequest('/api/logout', { method: 'POST' });
-      window.location.href = '/';
+    grid.querySelectorAll('[data-open-profile-id]').forEach(el => {
+      el.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const userId = el.dataset.openProfileId;
+        if (userId) openProfileModal(Number(userId));
+      });
     });
-
-    await loadProfile();
-    setupCategoryFilterChips();
-    await loadDiscoverUsers();
-    await loadLikedUsers();
-    await loadSkippedUsers();
-    await loadChats();
-    await loadActivities();
-    await loadHomeScreen();
-    startGlobalPolling();
   }
-});
+
+  document.getElementById('likedSearchInput')?.addEventListener('input', renderLikedGrid);
+  document.getElementById('likedStatusFilter')?.addEventListener('change', renderLikedGrid);
+  document.getElementById('likedGenderFilter')?.addEventListener('change', renderLikedGrid);
+  document.getElementById('btnRefreshLiked')?.addEventListener('click', loadLikedUsers);
+
+  // ===================== SKIPPED USERS SUBSYSTEM =====================
+  function updateSkippedCounters() {
+    const count = skippedUsersList.length;
+    const countTabBadge = document.getElementById('skippedTabBadge') || document.getElementById('skippedTabCount');
+    if (countTabBadge) {
+      countTabBadge.textContent = count;
+      countTabBadge.classList.toggle('hidden', count === 0);
+    }
+    const countDiscoverBtn = document.getElementById('skippedCount');
+    if (countDiscoverBtn) countDiscoverBtn.textContent = count;
+    const countHeader = document.getElementById('skippedHeaderCountBadge');
+    if (countHeader) countHeader.textContent = `${count} คน`;
+  }
+
+  async function loadSkippedUsers() {
+    try {
+      const data = await apiRequest('/api/skipped');
+      skippedUsersList = Array.isArray(data) ? data : [];
+      skippedHistory = [...skippedUsersList];
+      updateSkippedCounters();
+      renderSkippedGrid();
+    } catch (err) {
+      console.error('Failed to load skipped users:', err);
+    }
+  }
+
+  function renderSkippedGrid() {
+    const grid = document.getElementById('skippedCardsGrid');
+    if (!grid) return;
+
+    const q = (document.getElementById('skippedSearchInput')?.value || '').toLowerCase().trim();
+    const genderFilter = document.getElementById('skippedGenderFilter')?.value || '';
+
+    const filtered = skippedUsersList.filter(u => {
+      if (genderFilter && u.gender !== genderFilter) return false;
+      if (q) {
+        const matchName = (u.name || '').toLowerCase().includes(q);
+        const matchNick = (u.nickname || '').toLowerCase().includes(q);
+        const matchMajor = (u.major || '').toLowerCase().includes(q);
+        const matchInterests = (u.interests || '').toLowerCase().includes(q);
+        if (!matchName && !matchNick && !matchMajor && !matchInterests) return false;
+      }
+      return true;
+    });
+
+    if (!filtered.length) {
+      grid.innerHTML = `
+        <div class="skipped-empty-state">
+          <div class="skipped-empty-icon">✨</div>
+          <div class="skipped-empty-title">${q || genderFilter ? 'ไม่พบคนที่ตรงกับเงื่อนไขการค้นหา' : 'ยังไม่มีคนที่คุณปัดผ่าน'}</div>
+          <div class="skipped-empty-desc">${q || genderFilter ? 'ลองเปลี่ยนคำค้นหาหรือตัวกรองเพศ' : 'เมื่อคุณกดข้ามผู้ใช้งานในหน้าค้นหา (Discover) รายชื่อทั้งหมดจะถูกรวบรวมไว้ที่นี่'}</div>
+          ${!q && !genderFilter ? `<button class="button primary" id="btnGoDiscoverFromEmpty" type="button">👉 ไปค้นหาคนที่ใช่ (Discover)</button>` : ''}
+        </div>
+      `;
+      document.getElementById('btnGoDiscoverFromEmpty')?.addEventListener('click', () => switchTab('discover'));
+      return;
+    }
+
+    grid.innerHTML = filtered.map((u) => {
+      const avatarSrc = u.profile_image || DEFAULT_AVATAR;
+      const tags = (u.interests || '').split(',').map(t => t.trim()).filter(Boolean);
+
+      return `
+        <div class="skipped-profile-card">
+          <div class="skipped-card-header">
+            <img src="${avatarSrc}" class="skipped-card-avatar" alt="${escapeHtml(u.name)}" data-open-profile-id="${u.id}" title="คลิกเพื่อดูโปรไฟล์เต็ม" />
+            <div class="skipped-card-user-info">
+              <div class="skipped-card-name" data-open-profile-id="${u.id}">
+                <span>${escapeHtml(u.name)}</span>
+                ${u.nickname && u.nickname !== u.name ? `<span class="skipped-card-nickname">${escapeHtml(u.nickname)}</span>` : ''}
+              </div>
+              <div class="skipped-card-sub">
+                <span>${u.gender ? (u.gender === 'ชาย' ? '👨 ชาย' : (u.gender === 'หญิง' ? '👩 หญิง' : '🌈 LGBTQ+')) : 'ไม่ระบุเพศ'}</span>
+                <span>•</span>
+                <span>${u.age ? u.age + ' ปี' : 'ไม่ระบุอายุ'}</span>
+                <span>•</span>
+                <span>🎯 ${escapeHtml(u.interested_gender || 'ทุกเพศ')}</span>
+              </div>
+              <div style="font-size:0.82rem; color:var(--purple-dark); font-weight:600; margin-top:2px;">
+                ${escapeHtml(u.major || 'ไม่ระบุคณะ')}
+              </div>
+            </div>
+          </div>
+
+          ${tags.length ? `
+            <div class="skipped-card-tags">
+              ${tags.map(t => `<span class="tag selected" style="font-size:0.75rem; padding:3px 8px;">${escapeHtml(t)}</span>`).join('')}
+            </div>
+          ` : ''}
+
+          ${u.bio ? `<div class="skipped-card-bio">💬 "${escapeHtml(u.bio)}"</div>` : ''}
+
+          <div class="skipped-card-time">
+            <span>🕒 ปัดผ่านเมื่อ: ${escapeHtml(u.skipped_at || 'ไม่ระบุ')}</span>
+          </div>
+
+          <div class="skipped-card-actions">
+            <button class="button primary" data-action-like-skipped="${u.id}" type="button" style="flex:2; font-size:0.84rem; padding:8px 12px;">
+              💕 สนใจ
+            </button>
+            <button class="button secondary-action" data-action-restore-skipped="${u.match_id}" type="button" style="flex:1; font-size:0.82rem; padding:8px 10px;" title="นำกลับไปแสดงในหน้าค้นหาอีกครั้ง">
+              🔄 ดึงกลับ
+            </button>
+            <button class="button secondary-action" data-open-profile-id="${u.id}" type="button" style="padding:8px 10px; font-size:0.82rem;" title="ดูอัลบั้มและโปรไฟล์เต็ม">
+              🔍
+            </button>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    grid.querySelectorAll('[data-action-like-skipped]').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const targetId = btn.dataset.actionLikeSkipped;
+        btn.disabled = true;
+        btn.textContent = '⏳ กำลังส่ง...';
+        try {
+          const res = await apiRequest('/api/matches', {
+            method: 'POST',
+            body: JSON.stringify({ matched_user_id: Number(targetId), note: 'Interested from Skipped', status: 'liked' })
+          });
+          if (res.mutual) {
+            showMatchToast(res.message);
+            if (window.matchSpaceChat) await window.matchSpaceChat.loadChats();
+          } else {
+            showMatchToast('บันทึกความสนใจเรียบร้อยแล้ว 💕');
+          }
+          await loadSkippedUsers();
+          await loadLikedUsers();
+          await loadDiscoverUsers();
+        } catch (err) {
+          btn.disabled = false;
+          btn.textContent = '💕 สนใจ';
+          alert(err.message || 'เกิดข้อผิดพลาด');
+        }
+      });
+    });
+
+    grid.querySelectorAll('[data-action-restore-skipped]').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const matchId = btn.dataset.actionRestoreSkipped;
+        btn.disabled = true;
+        try {
+          await apiRequest(`/api/matches/${matchId}`, { method: 'DELETE' });
+          showMatchToast('นำกลับไปที่หน้าค้นหาแล้ว 🔄');
+          await loadSkippedUsers();
+          await loadDiscoverUsers();
+        } catch (err) {
+          btn.disabled = false;
+          alert(err.message || 'เกิดข้อผิดพลาด');
+        }
+      });
+    });
+
+    grid.querySelectorAll('[data-open-profile-id]').forEach(el => {
+      el.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const userId = el.dataset.openProfileId;
+        if (userId) openProfileModal(Number(userId));
+      });
+    });
+  }
+
+  document.getElementById('skippedSearchInput')?.addEventListener('input', renderSkippedGrid);
+  document.getElementById('skippedGenderFilter')?.addEventListener('change', renderSkippedGrid);
+  document.getElementById('btnRefreshSkipped')?.addEventListener('click', loadSkippedUsers);
+  document.getElementById('btnRestoreAllSkipped')?.addEventListener('click', async () => {
+    if (skippedUsersList.length === 0) {
+      alert('ไม่มีคนที่ปัดผ่านอยู่ในขณะนี้');
+      return;
+    }
+    if (confirm('คุณต้องการนำทุกคนที่เคยปัดผ่านกลับสู่หน้าค้นหาใช่หรือไม่?')) {
+      try {
+        const res = await apiRequest('/api/skipped/restore-all', { method: 'POST' });
+        showMatchToast(res.message || 'นำทุกคนกลับสู่หน้าค้นหาแล้ว');
+        await loadSkippedUsers();
+        await loadDiscoverUsers();
+      } catch (err) {
+        alert(err.message || 'เกิดข้อผิดพลาด');
+      }
+    }
+  });
+
+  // ===================== ACTIVITIES SUBSYSTEM =====================
+  async function loadActivities() {
+    const activityBoardList = document.getElementById('activityBoardList');
+    if (!activityBoardList) return;
+
+    try {
+      const activities = await apiRequest('/api/activities');
+      latestActivitiesList = activities;
+      updateHomeStats();
+      const isOwnerOrAdmin = sessionUser && (sessionUser.role === 'owner' || sessionUser.role === 'admin' || sessionUser.is_admin);
+
+      activityBoardList.innerHTML = activities.length
+        ? activities.map((activity) => {
+            const isCreator = Number(activity.created_by) === Number(sessionUser.id);
+            const canAccessChat = activity.has_joined || isCreator || isOwnerOrAdmin;
+            const canDeleteActivity = isCreator || isOwnerOrAdmin;
+
+            return `
+              <div class="activity-card">
+                <h3>${escapeHtml(activity.name)}</h3>
+                <p>${escapeHtml(activity.description || 'ไม่มีรายละเอียด')}</p>
+                <div class="activity-location">${escapeHtml(activity.location || 'ไม่ระบุสถานที่')}</div>
+                ${(activity.event_date || activity.event_time) ? `
+                  <div class="activity-schedule-row">
+                    ${activity.event_date ? `<span class="activity-schedule-pill date">📅 ${formatActivityDate(activity.event_date)}</span>` : ''}
+                    ${activity.event_time ? `<span class="activity-schedule-pill time">⏰ ${escapeHtml(activity.event_time)} น.</span>` : ''}
+                  </div>
+                ` : ''}
+                <div class="meta">
+                  <span>ผู้สร้าง: ${escapeHtml(activity.creator_name || 'ไม่ระบุ')} ${isCreator ? '👑' : ''}</span>
+                  <span>คณะ: ${escapeHtml(activity.creator_major || '-')}</span>
+                </div>
+                <div style="font-size:0.82rem; color:var(--purple); margin-top:8px; font-weight:600; background:#f8f5ff; padding:6px 12px; border-radius:10px; display:flex; flex-wrap:wrap; gap:8px;">
+                  <span>👥 รวม: ${activity.actual_members || 0} คน</span>
+                  <span>👨 ชาย: ${activity.male_count || 0} คน</span>
+                  <span>👩 หญิง: ${activity.female_count || 0} คน</span>
+                  <span>🌈 LGBTQ+: ${activity.lgbtq_count || 0} คน</span>
+                </div>
+                <div class="activity-actions" style="margin-top:12px; display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+                  <button class="btn-join-activity ${activity.has_joined ? 'joined' : ''}" 
+                    data-join-activity-id="${activity.id}" type="button">
+                    ${activity.has_joined ? '✓ เข้าร่วมแล้ว' : '🙋 สนใจเข้าร่วม'}
+                  </button>
+                  ${canAccessChat && activity.chat_id ? `
+                    <button class="button secondary-action btn-open-group-chat" data-chat-id="${activity.chat_id}" type="button" style="padding:10px 16px; font-size:0.85rem;">
+                      💬 เข้าแชทกลุ่ม
+                    </button>
+                  ` : ''}
+                  ${canDeleteActivity ? `
+                    <button class="button outline btn-delete-activity" data-delete-activity-id="${activity.id}" type="button" style="padding:8px 14px; font-size:0.82rem; color:#d32f2f; border-color:#ffcdd2;">
+                      🗑️ ลบกิจกรรม
+                    </button>
+                  ` : ''}
+                </div>
+              </div>
+            `;
+          }).join('')
+        : '<div class="list-item">ยังไม่มีกิจกรรมที่ได้รับการอนุมัติ</div>';
+
+      activityBoardList.querySelectorAll('[data-join-activity-id]').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const id = btn.dataset.joinActivityId;
+          const isJoined = btn.classList.contains('joined');
+          try {
+            if (isJoined) {
+              await apiRequest(`/api/activities/${id}/join`, { method: 'DELETE' });
+              await loadActivities();
+            } else {
+              const res = await apiRequest(`/api/activities/${id}/join`, { method: 'POST' });
+              if (res.chat_id && window.matchSpaceChat) {
+                await window.matchSpaceChat.openChatTabAndLoad(res.chat_id);
+              } else {
+                await loadActivities();
+              }
+            }
+          } catch (err) {
+            alert(err.message);
+          }
+        });
+      });
+
+      activityBoardList.querySelectorAll('.btn-open-group-chat').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const chatId = Number(btn.dataset.chatId);
+          if (chatId && window.matchSpaceChat) {
+            await window.matchSpaceChat.openChatTabAndLoad(chatId);
+          }
+        });
+      });
+
+      activityBoardList.querySelectorAll('[data-delete-activity-id]').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const id = btn.dataset.deleteActivityId;
+          if (confirm('คุณต้องการลบกิจกรรมนี้และยุบแชทกลุ่มใช่หรือไม่?')) {
+            try {
+              const res = await apiRequest(`/api/activities/${id}`, { method: 'DELETE' });
+              alert(res.message || 'ลบกิจกรรมและยุบกลุ่มเรียบร้อย');
+              await loadActivities();
+              if (window.matchSpaceChat) await window.matchSpaceChat.loadChats();
+            } catch(err) {
+              alert('เกิดข้อผิดพลาด: ' + err.message);
+            }
+          }
+        });
+      });
+    } catch (e) {}
+  }
+
+  // Setup Activity Form
+  const newActivityBtn = document.getElementById('newActivityBtn');
+  const activityForm = document.getElementById('activityForm');
+  if (newActivityBtn && activityForm) {
+    newActivityBtn.addEventListener('click', () => {
+      activityForm.classList.toggle('hidden');
+    });
+
+    activityForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const submitBtn = activityForm.querySelector('button[type="submit"]');
+      try {
+        if (submitBtn) {
+          submitBtn.disabled = true;
+          submitBtn.textContent = '⏳ กำลังสร้างกิจกรรม...';
+        }
+
+        const payload = {
+          name: document.getElementById('activityName')?.value,
+          description: document.getElementById('activityDescription')?.value,
+          member_count: Number(document.getElementById('activityMemberCount')?.value || 4),
+          location: document.getElementById('activityLocation')?.value,
+          event_date: document.getElementById('activityDate')?.value || null,
+          event_time: document.getElementById('activityTime')?.value || null
+        };
+
+        const result = await apiRequest('/api/activities', {
+          method: 'POST',
+          body: JSON.stringify(payload)
+        });
+
+        activityForm.reset();
+        activityForm.classList.add('hidden');
+        alert(result.message || 'สร้างกิจกรรมเรียบร้อย');
+        await loadActivities();
+      } catch (err) {
+        alert(err.message || 'เกิดข้อผิดพลาดในการสร้างกิจกรรม');
+      } finally {
+        if (submitBtn) {
+          submitBtn.disabled = false;
+          submitBtn.textContent = 'สร้างกิจกรรม';
+        }
+      }
+    });
+  }
+
+  return {
+    initApp,
+    switchTab,
+    triggerTabSwitch,
+    openProfileModal,
+    updateHomeStats,
+    loadDiscoverUsers,
+    loadLikedUsers,
+    loadSkippedUsers,
+    loadActivities
+  };
+})();
+
+// Auto-run if DOM loaded
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', () => window.matchSpaceApp.initApp());
+} else {
+  window.matchSpaceApp.initApp();
+}
+
+
