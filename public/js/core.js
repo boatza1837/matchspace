@@ -138,3 +138,42 @@ function showMatchToast(message) {
     setTimeout(() => toast.remove(), 400);
   }, 4000);
 }
+
+/**
+ * Check session and only display admin pill if role is 'admin' or 'owner' / 'own'
+ */
+async function checkAdminNavVisibility() {
+  const adminLinks = document.querySelectorAll('.admin-pill, #adminNavLink');
+  if (!adminLinks.length) return;
+
+  try {
+    const res = await fetch('/api/me');
+    if (res.ok) {
+      const data = await res.json();
+      const user = data?.user;
+      const role = String(user?.role || '').toLowerCase();
+      const isAdminOrOwner = Boolean(user?.is_admin || role === 'admin' || role === 'owner' || role === 'own');
+
+      if (isAdminOrOwner) {
+        adminLinks.forEach(el => {
+          el.classList.add('visible');
+          el.style.setProperty('display', 'inline-flex', 'important');
+        });
+        return;
+      }
+    }
+  } catch (e) {}
+
+  // Keep hidden for guests and regular users
+  adminLinks.forEach(el => {
+    el.classList.remove('visible');
+    el.style.setProperty('display', 'none', 'important');
+  });
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', checkAdminNavVisibility);
+} else {
+  checkAdminNavVisibility();
+}
+

@@ -4502,9 +4502,14 @@ body {
 }
 
 .auth-nav-link.admin-pill {
+  display: none !important;
   color: #7c3aed;
   background: #f5f3ff;
   border: 1px solid #ddd6fe;
+}
+
+.auth-nav-link.admin-pill.visible {
+  display: inline-flex !important;
 }
 
 .auth-nav-link.admin-pill:hover {
