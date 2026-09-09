@@ -7,12 +7,12 @@ const { requireAuth, formatUser } = require('../middlewares/auth');
 // University Email Pattern (KKU Mail e.g. @kkumail.com, @kku.ac.th, or Thai university .ac.th)
 const UNIVERSITY_EMAIL_REGEX = /^[a-zA-Z0-9._%+-]+@([a-zA-Z0-9.-]+\.)?(kkumail\.com|kku\.ac\.th|[a-zA-Z0-9.-]+\.ac\.th)$/i;
 
-const { getTransporter } = require('../services/email');
+const { getTransporter, getFromAddress } = require('../services/email');
 
 // Get SMTP status check
 router.get('/api/verify/smtp-status', async (req, res) => {
-  const user = process.env.SMTP_USER;
-  const service = process.env.SMTP_SERVICE || (process.env.SMTP_HOST ? 'custom_smtp' : 'none');
+  const user = process.env.SMTP_USER || 'matchspace89@gmail.com';
+  const service = process.env.SMTP_SERVICE || 'gmail';
 
   if (!user) {
     return res.json({
@@ -95,7 +95,7 @@ router.post('/api/verify/student/send-otp', requireAuth, async (req, res) => {
     let emailSent = false;
     let sendError = null;
     const transporter = getTransporter();
-    const fromAddress = process.env.SMTP_FROM || (process.env.SMTP_USER ? `"MatchSpace Student Verification" <${process.env.SMTP_USER}>` : '"MatchSpace" <verify@matchspace.com>');
+    const fromAddress = getFromAddress();
 
     if (transporter) {
       try {

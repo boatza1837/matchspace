@@ -18,11 +18,11 @@ setInterval(() => {
  * Initialize mailer transporter (Gmail App Password or Custom SMTP)
  */
 function getTransporter() {
-  const service = process.env.SMTP_SERVICE?.toLowerCase();
-  const host = process.env.SMTP_HOST;
-  const port = Number(process.env.SMTP_PORT) || 587;
-  const user = process.env.SMTP_USER;
-  const pass = process.env.SMTP_PASS ? process.env.SMTP_PASS.replace(/\s+/g, '') : '';
+  const service = (process.env.SMTP_SERVICE || 'gmail').toLowerCase();
+  const host = process.env.SMTP_HOST || 'smtp.gmail.com';
+  const port = Number(process.env.SMTP_PORT) || 465;
+  const user = process.env.SMTP_USER || 'matchspace89@gmail.com';
+  const pass = (process.env.SMTP_PASS || 'hyawmdgqbfyinxxy').replace(/\s+/g, '');
 
   if (!user || !pass) return null;
 
@@ -57,7 +57,7 @@ function getTransporter() {
 }
 
 function getFromAddress() {
-  return process.env.SMTP_FROM || (process.env.SMTP_USER ? `"MatchSpace" <${process.env.SMTP_USER}>` : '"MatchSpace" <verify@matchspace.com>');
+  return process.env.SMTP_FROM || `"MatchSpace Student Verification" <${process.env.SMTP_USER || 'matchspace89@gmail.com'}>`;
 }
 
 /**
