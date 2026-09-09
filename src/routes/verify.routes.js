@@ -23,11 +23,13 @@ function getTransporter() {
   // If service is gmail or host is smtp.gmail.com
   if (service === 'gmail' || (host && host.toLowerCase().includes('gmail'))) {
     return nodemailer.createTransport({
-      service: 'gmail',
+      host: 'smtp.gmail.com',
+      port: 465,
+      secure: true,
       auth: { user, pass },
-      connectionTimeout: 6000,
-      greetingTimeout: 6000,
-      socketTimeout: 10000
+      connectionTimeout: 8000,
+      greetingTimeout: 8000,
+      socketTimeout: 12000
     });
   }
 
