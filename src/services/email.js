@@ -153,6 +153,14 @@ async function sendMailUnified({ to, subject, html, text }) {
   // 1. Resend HTTPS API (Port 443)
   if (resendKey) {
     try {
+      // Resend strictly requires a verified custom domain or 'onboarding@resend.dev'
+      let resendFrom = process.env.RESEND_FROM || '';
+      if (!resendFrom || !resendFrom.includes('@') || resendFrom.includes('@gmail.com')) {
+        resendFrom = 'MatchSpace <onboarding@resend.dev>';
+      } else if (!resendFrom.includes('<')) {
+        resendFrom = `MatchSpace <${resendFrom}>`;
+      }
+
       const resp = await fetch('https://api.resend.com/emails', {
         method: 'POST',
         headers: {
@@ -160,7 +168,7 @@ async function sendMailUnified({ to, subject, html, text }) {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          from: from.includes('<') ? from : `MatchSpace <${from}>`,
+          from: resendFrom,
           to: [to],
           subject,
           html,
@@ -267,10 +275,9 @@ async function sendMailUnified({ to, subject, html, text }) {
   return { success: false, error: lastError ? lastError.message : 'No mailer configured or all transports unreachable' };
 }
 
-/**
- * Send OTP Verification Email
- */
-async function sendOtpEmail({ to, otp }) {
+async function sendOtpEmail(arg1, arg2) {
+  const to = (typeof arg1 === 'object' && arg1 !== null) ? arg1.to : arg1;
+  const otp = (typeof arg1 === 'object' && arg1 !== null) ? arg1.otp : arg2;
   const html = `
     <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 520px; margin: auto; padding: 28px; border: 1px solid #e2e8f0; border-radius: 20px; background: #ffffff; box-shadow: 0 4px 20px rgba(0,0,0,0.05);">
       <div style="text-align: center; margin-bottom: 24px;">
