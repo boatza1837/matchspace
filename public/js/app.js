@@ -1730,12 +1730,7 @@ window.matchSpaceApp = (function () {
           otpInput.focus();
         }
 
-        if (res.email_sent) {
-          showMatchToast(`✉️ ส่งรหัส OTP ไปยัง ${res.target_email || email} แล้ว (ตรวจสอบกล่องจดหมาย/Junk)`);
-        } else if (res.dev_otp) {
-          showMatchToast(`🔑 รหัส OTP คือ: ${res.dev_otp}`);
-          if (otpInput) otpInput.value = res.dev_otp;
-        }
+        showMatchToast(`✉️ ส่งรหัส OTP ไปยัง ${res.target_email || email} แล้ว (ตรวจสอบกล่องจดหมาย/Junk)`);
       } catch (err) {
         alert(err.message || 'เกิดข้อผิดพลาดในการส่ง OTP');
       } finally {

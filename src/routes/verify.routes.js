@@ -148,26 +148,22 @@ router.post('/api/verify/student/send-otp', requireAuth, async (req, res) => {
 
     console.log(`[Student Verification OTP] User #${userId} (${cleanEmail}) OTP: ${otp} (Method: ${sendResult?.method || 'fallback'}, Sent: ${emailSent})`);
 
-    // Payload response
-    const responsePayload = {
-      success: true,
-      email_sent: emailSent,
-      target_email: cleanEmail,
-      method: sendResult?.method || 'fallback',
-      message: emailSent
-        ? `รหัส OTP ถูกส่งไปยัง ${cleanEmail} เรียบร้อยแล้ว กรุณาตรวจสอบกล่องจดหมายของคุณ (รวมทั้งโฟลเดอร์ Junk/Spam)`
-        : `ระบบสร้างรหัส OTP เรียบร้อยแล้ว`,
-      expires_at: expiresAt
-    };
-
     if (!emailSent) {
-      responsePayload.dev_otp = otp;
-      if (sendError) {
-        responsePayload.smtp_warning = sendError;
-      }
+      console.error(`[Student Verification OTP] Failed to send email to ${cleanEmail}:`, sendError);
+      return res.status(502).json({
+        success: false,
+        message: 'ไม่สามารถส่งรหัส OTP ไปยังอีเมลนี้ได้ในขณะนี้ กรุณาตรวจสอบอีเมลหรือติดต่อผู้ดูแลระบบ'
+      });
     }
 
-    res.json(responsePayload);
+    res.json({
+      success: true,
+      email_sent: true,
+      target_email: cleanEmail,
+      method: sendResult?.method || 'smtp',
+      message: `รหัส OTP ถูกส่งไปยัง ${cleanEmail} เรียบร้อยแล้ว กรุณาตรวจสอบกล่องจดหมายของคุณ (รวมทั้งโฟลเดอร์ Junk/Spam)`,
+      expires_at: expiresAt
+    });
   } catch (err) {
     console.error('[Send Student OTP Error]', err);
     res.status(500).json({ message: err.message || 'เกิดข้อผิดพลาดในการส่งรหัส OTP' });
