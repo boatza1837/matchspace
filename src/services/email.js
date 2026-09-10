@@ -153,6 +153,7 @@ async function sendMailUnified({ to, subject, html, text }) {
   // 1. Brevo HTTPS API (Port 443 - Verified & Reliable)
   if (brevoKey) {
     try {
+      const brevoSender = process.env.BREVO_SENDER || 'boatza1837@gmail.com';
       const resp = await fetch('https://api.brevo.com/v3/smtp/email', {
         method: 'POST',
         headers: {
@@ -160,7 +161,7 @@ async function sendMailUnified({ to, subject, html, text }) {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          sender: { name: 'MatchSpace Student Verification', email: user },
+          sender: { name: 'MatchSpace Student Verification', email: brevoSender },
           to: [{ email: to }],
           subject,
           htmlContent: html,
