@@ -13,6 +13,16 @@ const { getTransporter, getFromAddress, sendOtpEmail, getCredentials } = require
 router.get('/api/verify/smtp-status', async (req, res) => {
   const { user, service, brevoKey, resendKey, webhookUrl } = getCredentials();
 
+  if (webhookUrl) {
+    return res.json({
+      configured: true,
+      service: 'google-apps-script-webhook',
+      verified: true,
+      sender: user || 'Gmail Direct Webhook',
+      message: 'ระบบเชื่อมต่อ Google Apps Script Webhook สำเร็จ (ส่งตรงจาก Gmail ไม่โดนบล็อก)'
+    });
+  }
+
   if (resendKey) {
     return res.json({
       configured: true,

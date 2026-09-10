@@ -150,7 +150,27 @@ async function sendMailUnified({ to, subject, html, text }) {
   const { brevoKey, resendKey, webhookUrl, user } = getCredentials();
   const from = getFromAddress();
 
-  // 1. Resend HTTPS API (Port 443)
+  // 1. Google Apps Script / Custom Mail Webhook (Port 443 HTTPS - Direct Gmail Delivery)
+  if (webhookUrl) {
+    try {
+      const resp = await fetch(webhookUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ to, subject, html, text, from }),
+        redirect: 'follow'
+      });
+      const data = await resp.json().catch(() => null);
+      if (resp.ok && (!data || data.success !== false)) {
+        console.log(`[Email-Webhook] Sent successfully to ${to}`);
+        return { success: true, method: 'webhook' };
+      }
+      console.warn('[Email-Webhook] Response error:', data);
+    } catch (err) {
+      console.warn('[Email-Webhook] Error:', err.message);
+    }
+  }
+
+  // 2. Resend HTTPS API (Port 443)
   if (resendKey) {
     try {
       // Resend strictly requires a verified custom domain or 'onboarding@resend.dev'
@@ -186,7 +206,7 @@ async function sendMailUnified({ to, subject, html, text }) {
     }
   }
 
-  // 2. Brevo HTTPS API (Port 443)
+  // 3. Brevo HTTPS API (Port 443)
   if (brevoKey) {
     try {
       const resp = await fetch('https://api.brevo.com/v3/smtp/email', {
@@ -211,23 +231,6 @@ async function sendMailUnified({ to, subject, html, text }) {
       console.warn('[Email-Brevo] API Error:', data);
     } catch (err) {
       console.warn('[Email-Brevo] Network error:', err.message);
-    }
-  }
-
-  // 3. Custom Mail Webhook (Port 443)
-  if (webhookUrl) {
-    try {
-      const resp = await fetch(webhookUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ to, subject, html, text, from })
-      });
-      if (resp.ok) {
-        console.log(`[Email-Webhook] Dispatched to ${to}`);
-        return { success: true, method: 'webhook' };
-      }
-    } catch (err) {
-      console.warn('[Email-Webhook] Error:', err.message);
     }
   }
 
