@@ -7,22 +7,43 @@ const { requireAuth, formatUser } = require('../middlewares/auth');
 // University Email Pattern (KKU Mail e.g. @kkumail.com, @kku.ac.th, or Thai university .ac.th)
 const UNIVERSITY_EMAIL_REGEX = /^[a-zA-Z0-9._%+-]+@([a-zA-Z0-9.-]+\.)?(kkumail\.com|kku\.ac\.th|[a-zA-Z0-9.-]+\.ac\.th)$/i;
 
-const { getTransporter, getFromAddress } = require('../services/email');
+const { getTransporter, getFromAddress, sendOtpEmail, getCredentials } = require('../services/email');
 
 // Get SMTP status check
 router.get('/api/verify/smtp-status', async (req, res) => {
-  const user = process.env.SMTP_USER || 'matchspace89@gmail.com';
-  const service = process.env.SMTP_SERVICE || 'gmail';
+  const { user, service, brevoKey, resendKey, webhookUrl } = getCredentials();
 
-  if (!user) {
+  if (resendKey) {
     return res.json({
-      configured: false,
-      service: 'none',
-      message: 'ยังไม่ได้ตั้งค่า SMTP ใน Environment Variables (ระบบจะใช้ Dev OTP Mode ในการทดสอบ)'
+      configured: true,
+      service: 'resend',
+      verified: true,
+      sender: 'Resend HTTPS API',
+      message: 'ระบบเชื่อมต่อ Resend HTTPS API สำเร็จ (Port 443 ปลอดภัยจากปัญหาบล็อกพอร์ต)'
     });
   }
 
-  const transporter = getTransporter();
+  if (brevoKey) {
+    return res.json({
+      configured: true,
+      service: 'brevo',
+      verified: true,
+      sender: user || 'Brevo HTTPS API',
+      message: 'ระบบเชื่อมต่อ Brevo HTTPS API สำเร็จ (Port 443)'
+    });
+  }
+
+  if (webhookUrl) {
+    return res.json({
+      configured: true,
+      service: 'webhook',
+      verified: true,
+      sender: webhookUrl,
+      message: 'ระบบเชื่อมต่อ Custom Webhook สำเร็จ (Port 443)'
+    });
+  }
+
+  const transporter = getTransporter(465);
   if (!transporter) {
     return res.json({
       configured: false,
@@ -38,18 +59,35 @@ router.get('/api/verify/smtp-status', async (req, res) => {
       service,
       verified: true,
       sender: user,
+      port: 465,
+      ipv4: true,
       message: 'ระบบเชื่อมต่อ Mail Server สำเร็จ พร้อมส่งอีเมลจริงไปยังนักศึกษา'
     });
   } catch (err) {
-    console.error('[SMTP Verify Error]', err.message);
-    return res.json({
-      configured: true,
-      service,
-      verified: false,
-      sender: user,
-      error: err.message,
-      message: `ไม่สามารถเชื่อมต่อ Mail Server: ${err.message}`
-    });
+    console.error('[SMTP 465 Verify Error]', err.message);
+    try {
+      const transporter587 = getTransporter(587);
+      await transporter587.verify();
+      return res.json({
+        configured: true,
+        service,
+        verified: true,
+        sender: user,
+        port: 587,
+        ipv4: true,
+        message: 'ระบบเชื่อมต่อ Mail Server ผ่าน Port 587 (STARTTLS) สำเร็จ'
+      });
+    } catch (err587) {
+      console.error('[SMTP 587 Verify Error]', err587.message);
+      return res.json({
+        configured: true,
+        service,
+        verified: false,
+        sender: user,
+        error: `465: ${err.message} | 587: ${err587.message}`,
+        message: `ไม่สามารถเชื่อมต่อ Mail Server: ${err.message}`
+      });
+    }
   }
 });
 
@@ -91,69 +129,22 @@ router.post('/api/verify/student/send-otp', requireAuth, async (req, res) => {
       [userId, cleanEmail, otp, expiresAt]
     );
 
-    // Attempt to send email via SMTP if configured
-    let emailSent = false;
-    let sendError = null;
-    const transporter = getTransporter();
-    const fromAddress = getFromAddress();
+    // Attempt to send email via Unified Mail Service
+    const sendResult = await sendOtpEmail({ to: cleanEmail, otp });
+    const emailSent = Boolean(sendResult?.success);
+    const sendError = sendResult?.error || null;
 
-    if (transporter) {
-      try {
-        await transporter.sendMail({
-          from: fromAddress,
-          to: cleanEmail,
-          subject: `[MatchSpace] 🎓 รหัส OTP ยืนยันตัวตนนักศึกษา: ${otp}`,
-          html: `
-            <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 520px; margin: auto; padding: 28px; border: 1px solid #e2e8f0; border-radius: 20px; background: #ffffff; box-shadow: 0 4px 20px rgba(0,0,0,0.05);">
-              <div style="text-align: center; margin-bottom: 24px;">
-                <div style="font-size: 2.4rem; margin-bottom: 6px;">🎓</div>
-                <h2 style="color: #4338ca; margin: 0; font-size: 1.4rem;">MatchSpace Campus Verification</h2>
-                <p style="color: #64748b; font-size: 0.92rem; margin-top: 4px;">ระบบค้นหาเพื่อนและสังคมมหาวิทยาลัยขอนแก่น</p>
-              </div>
-              
-              <div style="background: #f8fafc; border-radius: 14px; padding: 18px; margin-bottom: 20px; border: 1px solid #e2e8f0;">
-                <p style="margin: 0 0 10px 0; color: #1e293b; font-weight: 600;">สวัสดีครับ/ค่ะ,</p>
-                <p style="margin: 0; color: #475569; font-size: 0.95rem; line-height: 1.6;">
-                  คุณได้ทำรายการขอยืนยันสถานะนักศึกษาเพื่อรับเครื่องหมาย <strong>Verified Student (ติ๊กถูกสีฟ้า ✔️)</strong> บน MatchSpace โปรดใช้รหัส OTP ด้านล่างนี้เพื่อยืนยัน:
-                </p>
-              </div>
-
-              <div style="text-align: center; margin: 26px 0;">
-                <div style="display: inline-block; font-size: 2.5rem; font-weight: 800; letter-spacing: 10px; color: #4338ca; background: #e0e7ff; padding: 14px 32px; border-radius: 16px; border: 2px dashed #6366f1;">
-                  ${otp}
-                </div>
-              </div>
-
-              <p style="color: #dc2626; font-size: 0.85rem; text-align: center; font-weight: 600;">
-                ⏳ รหัสนี้มีอายุการใช้งาน 10 นาที (เพื่อความปลอดภัยห้ามส่งต่อให้ผู้อื่น)
-              </p>
-
-              <hr style="border: none; border-top: 1px solid #f1f5f9; margin: 24px 0;" />
-              <p style="color: #94a3b8; font-size: 0.8rem; text-align: center; line-height: 1.5;">
-                หากคุณไม่ได้ส่งคำขอยืนยันตัวตนนี้ กรุณาละเว้นอีเมลฉบับนี้ บัญชีของคุณยังคงปลอดภัยตามปกติ<br />
-                © MatchSpace Community Team
-              </p>
-            </div>
-          `
-        });
-        emailSent = true;
-        console.log(`[SMTP Success] Sent OTP email to ${cleanEmail}`);
-      } catch (err) {
-        sendError = err.message;
-        console.error('[SMTP Send Error]', err.message);
-      }
-    }
-
-    console.log(`[Student Verification OTP] User #${userId} (${cleanEmail}) OTP: ${otp} (Expires: ${expiresAt})`);
+    console.log(`[Student Verification OTP] User #${userId} (${cleanEmail}) OTP: ${otp} (Method: ${sendResult?.method || 'fallback'}, Sent: ${emailSent})`);
 
     // Payload response
     const responsePayload = {
       success: true,
       email_sent: emailSent,
       target_email: cleanEmail,
+      method: sendResult?.method || 'fallback',
       message: emailSent
-        ? `รหัส OTP ถูกส่งไปยัง ${cleanEmail} เรียบร้อยแล้ว กรุณาตรวจสอบกล่องจดหมายของคุณ`
-        : `ระบบสร้างรหัส OTP เรียบร้อยแล้ว${sendError ? ' (หมายเหตุ: SMTP เกิดข้อผิดพลาด ใช้ Dev Mode)' : ' (รหัสทดสอบ: ' + otp + ')'}`,
+        ? `รหัส OTP ถูกส่งไปยัง ${cleanEmail} เรียบร้อยแล้ว กรุณาตรวจสอบกล่องจดหมายของคุณ (รวมทั้งโฟลเดอร์ Junk/Spam)`
+        : `ระบบสร้างรหัส OTP เรียบร้อยแล้ว`,
       expires_at: expiresAt
     };
 

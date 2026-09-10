@@ -5,6 +5,7 @@
 
 window.matchSpaceChat = (function () {
   let currentChatId = null;
+  let currentPartnerId = null;
   let currentUser = null;
   let allLoadedChats = [];
   let typingTimeout = null;
@@ -305,6 +306,9 @@ window.matchSpaceChat = (function () {
         const blockBtnAction = blockedByMe ? 'unblock' : 'block';
 
         headerActions.innerHTML = `
+          <button type="button" class="btn-chat-icebreaker-trigger" id="btnChatIcebreakerTrigger" title="คำแนะนำเริ่มต้นคุย">
+            💡 <span>ไอเดียคุย</span>
+          </button>
           <button type="button" class="btn-chat-view-profile" data-open-profile-id="${data.chat.partner_id}">
             🔍 ดูโปรไฟล์
           </button>
@@ -312,6 +316,12 @@ window.matchSpaceChat = (function () {
             ${blockBtnText}
           </button>
         `;
+
+        headerActions.querySelector('#btnChatIcebreakerTrigger')?.addEventListener('click', () => {
+          if (window.matchSpaceApp?.openIcebreakerModal) {
+            window.matchSpaceApp.openIcebreakerModal(Number(data.chat.partner_id));
+          }
+        });
 
         headerActions.querySelector('[data-open-profile-id]')?.addEventListener('click', () => {
           if (window.matchSpaceApp?.openProfileModal) {
@@ -501,8 +511,10 @@ window.matchSpaceChat = (function () {
       renderMessageList(data);
 
       if (!data.chat.activity_id && data.chat.type !== 'group' && !data.chat.is_blocked) {
-        await loadGreetingSuggestions(data.messages.length === 0);
+        currentPartnerId = Number(data.chat.partner_id) || null;
+        await loadGreetingSuggestions(currentPartnerId);
       } else {
+        currentPartnerId = null;
         const container = document.getElementById('greetingSuggestions');
         if (container) container.classList.add('hidden');
       }
@@ -523,15 +535,17 @@ window.matchSpaceChat = (function () {
     await loadMessages(chatId);
   }
 
-  async function loadGreetingSuggestions(isEmpty) {
+  async function loadGreetingSuggestions(partnerId) {
     const container = document.getElementById('greetingSuggestions');
     const chipsEl = document.getElementById('greetingChips');
     if (!container || !chipsEl) return;
 
     try {
-      const greetings = await apiRequest('/api/greetings');
+      const pid = partnerId || currentPartnerId;
+      const url = pid ? `/api/greetings?target_user_id=${pid}` : '/api/greetings';
+      const greetings = await apiRequest(url);
       const shuffled = greetings.sort(() => 0.5 - Math.random()).slice(0, 4);
-      chipsEl.innerHTML = shuffled.map(g => `<div class="greeting-chip">${g}</div>`).join('');
+      chipsEl.innerHTML = shuffled.map(g => `<div class="greeting-chip">${escapeHtml(g)}</div>`).join('');
       container.classList.remove('hidden');
 
       chipsEl.querySelectorAll('.greeting-chip').forEach(chip => {
@@ -622,6 +636,31 @@ window.matchSpaceChat = (function () {
         document.getElementById('greetingSuggestions')?.classList.add('hidden');
       });
     }
+
+    const shuffleGreetingsBtn = document.getElementById('btnShuffleGreetingChips');
+    if (shuffleGreetingsBtn) {
+      shuffleGreetingsBtn.addEventListener('click', () => {
+        loadGreetingSuggestions(currentPartnerId);
+      });
+    }
+
+    const viewAllIcebreakersBtn = document.getElementById('btnViewAllIcebreakers');
+    if (viewAllIcebreakersBtn) {
+      viewAllIcebreakersBtn.addEventListener('click', () => {
+        if (window.matchSpaceApp?.openIcebreakerModal) {
+          window.matchSpaceApp.openIcebreakerModal(currentPartnerId);
+        }
+      });
+    }
+
+    const topIcebreakerBtn = document.getElementById('btnOpenIcebreakerChat');
+    if (topIcebreakerBtn) {
+      topIcebreakerBtn.addEventListener('click', () => {
+        if (window.matchSpaceApp?.openIcebreakerModal) {
+          window.matchSpaceApp.openIcebreakerModal(currentPartnerId);
+        }
+      });
+    }
   }
 
   return {
@@ -629,6 +668,8 @@ window.matchSpaceChat = (function () {
     loadChats,
     loadMessages,
     openChatTabAndLoad,
-    getCurrentChatId: () => currentChatId
+    getCurrentChatId: () => currentChatId,
+    getCurrentPartnerId: () => currentPartnerId,
+    loadGreetingSuggestions
   };
 })();

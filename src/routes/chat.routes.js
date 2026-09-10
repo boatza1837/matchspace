@@ -427,18 +427,325 @@ router.delete('/api/chats/:chatId/messages/:messageId', requireAuth, async (req,
   }
 });
 
-router.get('/api/greetings', requireAuth, (req, res) => {
-  const greetings = [
-    'สวัสดีค่า/ครับ ยินดีที่ได้แมตช์กัน 😊',
-    'เห็นว่าเราสนใจเรื่องเดียวกัน เล่าให้ฟังหน่อยได้มั้ย?',
-    'ช่วงนี้ทำอะไรอยู่คะ/ครับ?',
-    'ปกติชอบไปคาเฟ่แถวไหนอ่ะ? ☕',
-    'ดูซีรีส์/หนังเรื่องไหนอยู่เหรอ? 🎬',
-    'วันหยุดชอบทำอะไรมากที่สุด?',
-    'เพลงที่ฟังวนล่าสุดคือเพลงอะไร? 🎵',
-    'ถ้ามีเวลาว่างเย็นนี้ อยากชวนไปทำอะไร?'
-  ];
-  res.json(greetings);
+// ===================== CONVERSATION STARTERS / ICEBREAKERS SYSTEM =====================
+const PROMPTS_BY_INTEREST = {
+  cafe: [
+    'เห็นว่าชอบคาเฟ่เหมือนกัน ปกติชอบนั่งร้านไหนรอบ มข. / แถวกังสดาลมั้ย? ☕',
+    'ชอบสั่งกาแฟหรือเครื่องดื่มแนวไหนมากที่สุด เมนูประจำคืออะไร? 🧋',
+    'มีคาเฟ่บรรยากาศเงียบๆ ไว้นั่งอ่านหนังสือหรือทำงานแนะนำมั้ย? 📖',
+    'ชอบโทนร้านแบบมินิมอล หรือแบบธรรมชาติร่มรื่นมากกว่ากัน? 🌿'
+  ],
+  game: [
+    'เห็นว่าชอบเล่นเกมเหมือนกัน ปกติเล่นในคอม มือถือ หรือคอนโซลเหรอ? 🎮',
+    'ช่วงนี้ติดเกมอะไรอยู่มั้ย เผื่อเล่นเหมือนกันจะได้ชวนมาตี้! 🕹️',
+    'มีบอร์ดเกมโปรดที่เล่นบ่อยๆ มั้ย ชอบแนววางแผนหรือแนวปาร์ตี้ฮาๆ? 🎲',
+    'ถ้าว่างตรงกัน ชวนเล่นเกมสักตาสองตาได้มั้ยนะ? 👾'
+  ],
+  music: [
+    'เห็นว่าชอบฟังเพลงเหมือนกัน ช่วงนี้เพลงที่ฟังวนบ่อยสุดคือเพลงอะไร? 🎵',
+    'ชอบฟังเพลงแนวไหน มีศิลปินคนโปรดที่อยากป้ายยาให้ฟังตามมั้ย? 🎧',
+    'ชอบฟังเพลงแบบใส่หูฟังคนเดียว หรือชอบไปฟังดนตรีสด/คอนเสิร์ต? 🎤',
+    'มีเพลย์ลิสต์เพลงโปรดเวลาทำงานหรืออ่านหนังสือแนะนำมั้ย? 🎶'
+  ],
+  movie: [
+    'เห็นว่าชอบดูหนังเหมือนกัน ช่วงนี้มีซีรีส์อะไรบน Netflix หรือสตรีมมิ่งแนะนำมั้ย? 🍿',
+    'ถ้าให้แนะนำหนังหรืออนิเมะ 1 เรื่องที่ต้องดูในชีวิต จะแนะนำเรื่องอะไร? 🎬',
+    'ชอบดูแนวระทึกขวัญ ไซไฟ สืบสวน ฟีลกู๊ด หรือคอมเมดี้มากกว่ากัน? 🎞️',
+    'มีซีรีส์เรื่องไหนที่ดูแล้วติดจนไม่ได้นอนข้ามคืนมั้ย? 🌙'
+  ],
+  pet: [
+    'เห็นว่าชอบสัตว์เหมือนกัน เป็นทาสแมวหรือทาสหมามากกว่ากันเนี่ย? 🐱🐶',
+    'มีน้องเป็นของตัวเองมั้ย หรือชอบดูคลิปน้องในเน็ต? 🐾',
+    'เคยไปคาเฟ่สัตว์เลี้ยงแถวมอมั้ย มีร้านไหนที่น้องน่ารักเป็นมิตรแนะนำมั้ย? 🤍'
+  ],
+  sports: [
+    'เห็นว่าชอบออกกำลังกายเหมือนกัน ปกติไปออกกำลังกายที่ไหนเหรอ? 🏃‍♂️🏋️',
+    'หาเพื่อนตีแบด/วิ่งรอบบึงสีฐานอยู่พอดีเลย ไว้ถ้าว่างชวนกันได้นะ! 🏸',
+    'ชอบออกกำลังกายตอนเช้าหรือตอนเย็นมากกว่ากัน? ⏰',
+    'สัปดาห์นึงออกกำลังกายกี่วัน มีทริคให้มีวินัยยังไงบ้าง? 💪'
+  ],
+  art: [
+    'ชอบถ่ายรูปเหมือนกัน ใช้กล้องรุ่นไหนหรือเน้นใช้มือถือหามุมสวยๆ? 📸',
+    'รอบ มข. หรือในขอนแก่น มีมุมถ่ายรูปสวยๆ แสงดีๆ ที่ชอบไปมั้ย? 🎨',
+    'ชอบแต่งรูปสไตล์ไหน โทนฟิล์ม มินิมอล หรือสดใส? 🎞️'
+  ],
+  food: [
+    'ชอบทำอาหาร/ขนมเหมือนกัน เมนูที่ทำบ่อยที่สุดหรือมั่นใจสุดคืออะไร? 🍳',
+    'รอบ ม. มีร้านของกินเด็ดๆ หรือร้านลับที่ชอบไปกินมั้ย? 🍜',
+    'สายชาบู หมูกระทะ หรือของหวานแก้ง่วงมากกว่ากัน? 🥓🍨'
+  ],
+  study: [
+    'ชอบอ่านหนังสือเหมือนกัน ช่วงนี้กำลังอ่านเล่มไหนอยู่เหรอ? 📚',
+    'ชอบอ่านแนวนิยาย พัฒนาตัวเอง หรือแนววิทยาศาสตร์/สารคดี? 📖',
+    'ปกติชอบอ่านที่หอสมุด คอนโด หรือไปอ่านที่คาเฟ่? ✏️'
+  ],
+  travel: [
+    'ชอบเที่ยวเหมือนกัน ทริปที่ประทับใจที่สุดที่เคยไปคือที่ไหน? ✈️',
+    'ถ้าให้เลือกระหว่างไปพักผ่อนริมทะเลชิลๆ กับขึ้นดอยรับลมหนาว ชอบแบบไหน? 🏕️',
+    'มีที่เที่ยวในไทยที่อยากไปแต่ยังไม่เคยไปมั้ย? 🌿'
+  ],
+  tech: [
+    'สายเทคเหมือนกันเลย สนใจด้านไหนเป็นพิเศษเหรอ AI, เว็บ หรืออุปกรณ์ไอที? 💻',
+    'เวลาติดบั๊กหรือเขียนโค้ดไม่ออก มีวิธีฮีลใจหรือแก้เบิร์นเอาท์ยังไงบ้าง? ⌨️'
+  ]
+};
+
+const CATEGORIZED_PROMPTS = {
+  campus: [
+    'เรียนคณะอะไรเหรอ เทอมนี้ตารางเรียนหนักมั้ย? 🎓',
+    'เวลาก่อนสอบ มีเคล็ดลับอ่านหนังสือหรือพึ่งสิ่งศักดิ์สิทธิ์อะไรบ้างมั้ย? 😆',
+    'ชอบลงเรียนเซคเช้าหรือเซคบ่ายมากกว่ากัน? ⏰',
+    'มีวิชาไหนในมอที่รู้สึกว่าเรียนแล้วสนุกหรือประทับใจอาจารย์บ้างมั้ย? 📝',
+    'ปกติชอบไปอ่านหนังสือที่หอสมุดกลางหรือชอบอ่านที่ห้องคนเดียว? 🏛️',
+    'เทอมนี้มีโปรเจกต์กลุ่มหรือฝึกงานมั้ย งานเยอะหรือเปล่า? 💼',
+    'เคยไปวิ่งหรือเดินรับลมชิลๆ ที่บึงสีฐานตอนพระอาทิตย์ตกมั้ย บรรยากาศดีมากเลยนะ 🌅',
+    'ชอบไปนั่งกินข้าวหรืออ่านหนังสือที่คอมเพล็กซ์ หรือศูนย์อาหารคณะไหนที่สุด? 🍛',
+    'เวลารถติดแถวประตูกังสดาลช่วงเย็น มีวิธีแก้เบื่อยังไงบ้าง? 🛵'
+  ],
+  food: [
+    'แถว มข. มีร้านอาหารตามสั่งหรือร้านของกินดึกๆ ร้านโปรดร้านไหนบ้าง? 🍛',
+    'ชอบเครื่องดื่มหวานน้อย หรือหวานปกติ แล้วชอบชาเขียวหรือกาแฟมากกว่า? 🍵',
+    'ถ้ามีเวลาว่างช่วงเย็น ชอบไปเดินเล่นตลาดมอดินแดง หรือตลาดเปิดท้าย? 🛍️',
+    'ร้านหมูกระทะหรือชาบูในดวงใจรอบ ม. คือร้านไหน? 🥓',
+    'ของหวานแก้ง่วงหลังเลิกเรียน ชอบกินอะไรที่สุด? 🍧',
+    'ร้านอาหารแถวกังสดาลหรือหลัง ม. มีร้านไหนที่ไปกินซ้ำเกิน 10 ครั้งมั้ย? 🍜',
+    'ถ้าให้เลือกของหวานรอบดึก 1 อย่าง ระหว่างบิงซู, ปังปิ้งนมสด, หรือโรตี จะเลือกอะไร? 🧇',
+    'สายกินเผ็ดมั้ย เวลาสั่งส้มตำหรือกะเพราใส่พริกกี่เม็ด? 🌶️'
+  ],
+  hobbies: [
+    'วันหยุดชอบทำอะไรมากที่สุด มีงานอดิเรกที่ชอบทำคนเดียวมั้ย? 🎨',
+    'ชอบออกไปเที่ยวข้างนอกหรือชอบนอนพักผ่อนอยู่ห้องมากกว่า? 🛋️',
+    'มีเกมหรือกิจกรรมอะไรที่อยากลองทำแต่ยังไม่เคยได้ลองมั้ย? 🎯',
+    'ถ้ามีเวลาว่างเย็นนี้ อยากชวนไปทำอะไร? 🌇',
+    'ชอบไปตีแบดที่ยิม หรือชอบเตะบอล/ว่ายน้ำมากกว่ากัน? 🏸',
+    'มีงานอดิเรกอะไรที่คนอื่นอาจจะไม่ค่อยรู้ว่าเราชอบทำมั้ย? ✨',
+    'ชอบปลูกต้นไม้ จัดโต๊ะคอม หรือแต่งห้องมั้ย? 🪴'
+  ],
+  entertainment: [
+    'ถ้าให้เลือกซีรีส์ 1 เรื่องที่อยากลบความจำแล้วดูใหม่อีกรอบ จะเลือกเรื่องอะไร? 🍿',
+    'ฟังเพลงแนวไหนเวลาเดินทาง หรือเวลาทำงานเหรอ? 🎶',
+    'มีช่อง YouTube หรือพอดแคสต์โปรดที่เปิดฟังบ่อยๆ มั้ย? 📺',
+    'คอนเสิร์ตล่าสุดที่ไปดูมาคือคอนเสิร์ตของใคร? 🎸',
+    'เพลงที่ฟังวนซ้ำมากที่สุดในสัปดาห์นี้คือเพลงอะไร? 🎵',
+    'ชอบดูหนังในโรงหนัง หรือนอนดูที่ห้องบนเตียงสบายๆ? 🎬',
+    'ถ้าให้เลือกเพลงที่เป็น Soundtrack ประจำชีวิตช่วงนี้ จะเป็นเพลงอะไร? 📻'
+  ],
+  pets: [
+    'เป็นทาสแมว ทาสหมา หรือชอบสัตว์ชนิดอื่นมากกว่า? 🐱🐶',
+    'ชอบสัตว์เลี้ยงแนวขี้อ้อน หรือแนวอินดี้โลกส่วนตัวสูง? 🐾',
+    'ถ้าสามารถเลี้ยงสัตว์อะไรก็ได้โดยไม่ต้องกังวลเรื่องสถานที่ อยากเลี้ยงอะไร? 🦔',
+    'เคยพาน้องไปเดินเล่นที่สวนสาธารณะแถวไหนบ้างมั้ย? 🦮',
+    'ชอบดูคลิปน้องสัตว์เลี้ยงพันธุ์อะไรใน TikTok/Reels บ่อยสุด? 🐾'
+  ],
+  fun: [
+    'ถ้าถูกลอตเตอรี่รางวัลที่ 1 สิ่งแรกที่จะทำในวันรุ่งขึ้นคืออะไร? 💸',
+    'ถ้าต้องกินอาหารเมนูเดิมทุกวันตลอด 1 เดือน จะเลือกกินเมนูอะไร? 🍜',
+    'ถ้าเลือกมีพลังวิเศษได้ 1 อย่าง (เช่น วาร์ปได้, ย้อนเวลาได้) อยากได้อะไร? 🦸',
+    'ถามแปลกๆ หน่อย: มีสิ่งของชิ้นไหนที่ซื้อมาแล้วรู้สึกคุ้มค่าเงินที่สุดในชีวิตมั้ย? 🛍️',
+    'ถ้ามีโอกาสได้ไปจัดทริปเที่ยวที่ไหนก็ได้ในโลก 1 สัปดาห์ อยากไปประเทศไหน? 🗺️',
+    'คิดว่าตัวเองเป็นคน Introvert, Extrovert หรือ Ambivert? 💭',
+    'ถ้าสลับร่างกับใครก็ได้ในโลกเป็นเวลา 24 ชั่วโมง อยากสลับกับใคร? 🔄',
+    'สิ่งประดิษฐ์ที่ยอดเยี่ยมที่สุดของมนุษยชาติคืออะไร (ห้ามตอบว่าอินเทอร์เน็ต!) 💡'
+  ]
+};
+
+function mapInterestToKey(tag) {
+  const t = String(tag || '').toLowerCase();
+  if (t.includes('กาแฟ') || t.includes('คาเฟ่') || t.includes('ชา') || t.includes('coffee')) return 'cafe';
+  if (t.includes('เกม') || t.includes('game') || t.includes('บอร์ดเกม')) return 'game';
+  if (t.includes('เพลง') || t.includes('ดนตรี') || t.includes('music')) return 'music';
+  if (t.includes('หนัง') || t.includes('ซีรีส์') || t.includes('อนิเมะ') || t.includes('movie')) return 'movie';
+  if (t.includes('แมว') || t.includes('สุนัข') || t.includes('หมา') || t.includes('สัตว์')) return 'pet';
+  if (t.includes('ฟิตเนส') || t.includes('วิ่ง') || t.includes('กีฬา') || t.includes('แบด') || t.includes('โยคะ') || t.includes('ปีนเขา')) return 'sports';
+  if (t.includes('รูป') || t.includes('ภาพถ่าย') || t.includes('ศิลปะ') || t.includes('ออกแบบ') || t.includes('photo')) return 'art';
+  if (t.includes('อาหาร') || t.includes('ปรุง') || t.includes('เบเกอรี่') || t.includes('กิน') || t.includes('ชาบู')) return 'food';
+  if (t.includes('อ่าน') || t.includes('เขียน') || t.includes('ประวัติศาสตร์') || t.includes('ภาษา') || t.includes('book')) return 'study';
+  if (t.includes('เที่ยว') || t.includes('ท่องเที่ยว') || t.includes('พืช') || t.includes('travel')) return 'travel';
+  if (t.includes('คอมพิวเตอร์') || t.includes('เทคโนโลยี') || t.includes('โค้ด') || t.includes('tech')) return 'tech';
+  return null;
+}
+
+// Full Conversation Starters API
+router.get('/api/conversation-starters', requireAuth, async (req, res) => {
+  try {
+    const currentUserId = req.session.user.id;
+    const targetUserId = req.query.target_user_id || req.query.partner_id;
+
+    let targetUser = null;
+    let currentUser = null;
+    let sharedInterests = [];
+    let tailoredPrompts = [];
+
+    if (targetUserId) {
+      targetUser = await db.get(
+        'SELECT id, name, nickname, major, year, university, interests, profile_image FROM users WHERE id = ?',
+        [targetUserId]
+      );
+      currentUser = await db.get(
+        'SELECT id, name, nickname, major, year, university, interests FROM users WHERE id = ?',
+        [currentUserId]
+      );
+    }
+
+    if (targetUser && currentUser) {
+      const myTags = (currentUser.interests || '').split(',').map(s => s.trim()).filter(Boolean);
+      const targetTags = (targetUser.interests || '').split(',').map(s => s.trim()).filter(Boolean);
+
+      // Find matching/overlapping tags
+      sharedInterests = targetTags.filter(tTag =>
+        myTags.some(mTag =>
+          mTag.toLowerCase() === tTag.toLowerCase() ||
+          mTag.toLowerCase().includes(tTag.toLowerCase()) ||
+          tTag.toLowerCase().includes(mTag.toLowerCase())
+        )
+      );
+
+      // Generate tailored prompts based on shared interests
+      const matchedKeys = new Set();
+      sharedInterests.forEach(tag => {
+        const key = mapInterestToKey(tag);
+        if (key && PROMPTS_BY_INTEREST[key]) {
+          matchedKeys.add(key);
+          PROMPTS_BY_INTEREST[key].forEach(text => {
+            tailoredPrompts.push({
+              topic: tag,
+              key,
+              text,
+              is_tailored: true
+            });
+          });
+        }
+      });
+
+      // If no direct shared tags matched, check partner's individual interests
+      if (tailoredPrompts.length === 0) {
+        targetTags.forEach(tag => {
+          const key = mapInterestToKey(tag);
+          if (key && PROMPTS_BY_INTEREST[key]) {
+            PROMPTS_BY_INTEREST[key].forEach(text => {
+              tailoredPrompts.push({
+                topic: tag,
+                key,
+                text,
+                is_tailored: false
+              });
+            });
+          }
+        });
+      }
+    }
+
+    // Shuffle helper
+    const shuffle = arr => [...arr].sort(() => 0.5 - Math.random());
+
+    // Build curated 6 mixed prompts
+    const mixed = [];
+    if (tailoredPrompts.length > 0) {
+      mixed.push(...shuffle(tailoredPrompts).slice(0, 3).map(p => ({
+        topic: `ความสนใจ: ${p.topic}`,
+        text: p.text,
+        badge: '🎯 ความสนใจร่วมกัน'
+      })));
+    }
+    mixed.push(...shuffle(CATEGORIZED_PROMPTS.campus).slice(0, 2).map(text => ({
+      topic: 'ชีวิตมหาวิทยาลัย',
+      text,
+      badge: '🎓 มหาลัย & เรียน'
+    })));
+    mixed.push(...shuffle(CATEGORIZED_PROMPTS.food).slice(0, 2).map(text => ({
+      topic: 'ของกิน & คาเฟ่',
+      text,
+      badge: '☕ คาเฟ่ & อาหาร'
+    })));
+    mixed.push(...shuffle(CATEGORIZED_PROMPTS.entertainment).slice(0, 2).map(text => ({
+      topic: 'บันเทิง & ดนตรี',
+      text,
+      badge: '🎬 หนัง & เพลง'
+    })));
+    mixed.push(...shuffle(CATEGORIZED_PROMPTS.fun).slice(0, 2).map(text => ({
+      topic: 'ชวนคิดสนุกๆ',
+      text,
+      badge: '💭 สนุกๆ ชวนคุย'
+    })));
+
+    res.json({
+      partner: targetUser ? {
+        id: targetUser.id,
+        name: targetUser.name,
+        nickname: targetUser.nickname,
+        major: targetUser.major,
+        interests: (targetUser.interests || '').split(',').map(s => s.trim()).filter(Boolean),
+        profile_image: targetUser.profile_image
+      } : null,
+      shared_interests: sharedInterests,
+      tailored_prompts: tailoredPrompts,
+      categories: {
+        shared: tailoredPrompts.map(p => ({ topic: p.topic, text: p.text, badge: '🎯 สนใจตรงกัน' })),
+        campus: CATEGORIZED_PROMPTS.campus.map(text => ({ topic: 'ชีวิตมหาวิทยาลัย', text, badge: '🎓 มหาลัย & เรียน' })),
+        food: CATEGORIZED_PROMPTS.food.map(text => ({ topic: 'ของกิน & คาเฟ่', text, badge: '☕ คาเฟ่ & อาหาร' })),
+        hobbies: CATEGORIZED_PROMPTS.hobbies.map(text => ({ topic: 'งานอดิเรก & กิจกรรม', text, badge: '🎮 กิจกรรม & งานอดิเรก' })),
+        entertainment: CATEGORIZED_PROMPTS.entertainment.map(text => ({ topic: 'หนัง ซีรีส์ & เพลง', text, badge: '🎬 บันเทิง & เพลง' })),
+        pets: CATEGORIZED_PROMPTS.pets.map(text => ({ topic: 'สัตว์เลี้ยง & ไลฟ์สไตล์', text, badge: '🐾 สัตว์เลี้ยง & ไลฟ์สไตล์' })),
+        fun: CATEGORIZED_PROMPTS.fun.map(text => ({ topic: 'คำถามสนุกๆ', text, badge: '💭 ชวนคิด & ฮาๆ' }))
+      },
+      mixed_prompts: shuffle(mixed).slice(0, 8)
+    });
+  } catch (err) {
+    console.error('[Conversation Starters Error]', err);
+    res.status(500).json({ message: 'เกิดข้อผิดพลาดในการโหลดคำแนะนำเริ่มต้นคุย' });
+  }
+});
+
+// Legacy and lightweight greetings API with targetUser support
+router.get('/api/greetings', requireAuth, async (req, res) => {
+  try {
+    const targetUserId = req.query.target_user_id || req.query.partner_id;
+    const currentUserId = req.session.user.id;
+
+    let dynamicList = [];
+
+    if (targetUserId) {
+      const targetUser = await db.get('SELECT interests FROM users WHERE id = ?', [targetUserId]);
+      const currentUser = await db.get('SELECT interests FROM users WHERE id = ?', [currentUserId]);
+
+      if (targetUser && currentUser) {
+        const myTags = (currentUser.interests || '').split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
+        const targetTags = (targetUser.interests || '').split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
+        const shared = targetTags.filter(t => myTags.some(m => m === t || m.includes(t) || t.includes(m)));
+
+        shared.forEach(tag => {
+          const key = mapInterestToKey(tag);
+          if (key && PROMPTS_BY_INTEREST[key]) {
+            dynamicList.push(...PROMPTS_BY_INTEREST[key]);
+          }
+        });
+      }
+    }
+
+    const defaultGreetings = [
+      'สวัสดีค่า/ครับ ยินดีที่ได้แมตช์กัน 😊',
+      'เห็นว่าเราสนใจเรื่องเดียวกัน เล่าให้ฟังหน่อยได้มั้ย?',
+      'ช่วงนี้ทำอะไรอยู่คะ/ครับ?',
+      'ปกติชอบไปคาเฟ่แถวไหนอ่ะ? ☕',
+      'ดูซีรีส์หรือหนังเรื่องไหนอยู่เหรอ? 🎬',
+      'วันหยุดชอบทำอะไรมากที่สุด?',
+      'เพลงที่ฟังวนล่าสุดคือเพลงอะไร? 🎵',
+      'ถ้ามีเวลาว่างเย็นนี้ อยากชวนไปทำอะไร?',
+      'เรียนคณะอะไรเหรอ เทอมนี้เรียนเป็นยังไงบ้าง? 🎓',
+      'แถว มข. มีร้านของกินร้านโปรดร้านไหนแนะนำมั้ย? 🍜',
+      'ชอบฟังเพลงแนวไหน มีศิลปินที่ชอบมั้ย? 🎧'
+    ];
+
+    const combined = [...dynamicList, ...defaultGreetings];
+    res.json(combined);
+  } catch (err) {
+    res.json([
+      'สวัสดีค่า/ครับ ยินดีที่ได้แมตช์กัน 😊',
+      'ช่วงนี้ทำอะไรอยู่คะ/ครับ?',
+      'ปกติชอบไปคาเฟ่แถวไหนอ่ะ? ☕',
+      'เพลงที่ฟังวนล่าสุดคือเพลงอะไร? 🎵'
+    ]);
+  }
 });
 
 module.exports = {

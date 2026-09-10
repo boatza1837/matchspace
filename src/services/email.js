@@ -1,3 +1,8 @@
+const dns = require('dns');
+if (dns && dns.setDefaultResultOrder) {
+  dns.setDefaultResultOrder('ipv4first');
+}
+
 const nodemailer = require('nodemailer');
 
 // Anti-spam throttling map: key = `${chatId}:${recipientId}`, value = timestamp
@@ -14,42 +19,73 @@ setInterval(() => {
   }
 }, 15 * 60 * 1000).unref();
 
-/**
- * Initialize mailer transporter (Gmail App Password or Custom SMTP)
- */
-function getTransporter() {
+function getCredentials() {
   const service = (process.env.SMTP_SERVICE || 'gmail').toLowerCase();
   const host = process.env.SMTP_HOST || 'smtp.gmail.com';
   const port = Number(process.env.SMTP_PORT) || 465;
   const user = process.env.SMTP_USER || 'matchspace89@gmail.com';
   const pass = (process.env.SMTP_PASS || 'hyawmdgqbfyinxxy').replace(/\s+/g, '');
+  const brevoKey = process.env.BREVO_API_KEY || '';
+  const resendKey = process.env.RESEND_API_KEY || '';
+  const webhookUrl = process.env.MAIL_WEBHOOK_URL || '';
 
+  return { service, host, port, user, pass, brevoKey, resendKey, webhookUrl };
+}
+
+/**
+ * Initialize mailer transporter (Gmail App Password or Custom SMTP)
+ * Explicitly forces IPv4 (family: 4) to avoid ENETUNREACH in containers
+ */
+function getTransporter(customPort = null) {
+  const { service, host, port: defaultPort, user, pass } = getCredentials();
   if (!user || !pass) return null;
+
+  const port = customPort || defaultPort;
 
   // Gmail SMTP
   if (service === 'gmail' || (host && host.toLowerCase().includes('gmail'))) {
-    return nodemailer.createTransport({
-      host: 'smtp.gmail.com',
-      port: 465,
-      secure: true,
-      auth: { user, pass },
-      connectionTimeout: 8000,
-      greetingTimeout: 8000,
-      socketTimeout: 12000
-    });
+    if (port === 465) {
+      return nodemailer.createTransport({
+        host: 'smtp.gmail.com',
+        port: 465,
+        secure: true,
+        family: 4, // Force IPv4
+        lookup: (hostname, options, callback) => dns.lookup(hostname, { ...options, family: 4 }, callback),
+        auth: { user, pass },
+        connectionTimeout: 7000,
+        greetingTimeout: 7000,
+        socketTimeout: 10000
+      });
+    } else {
+      // Port 587 STARTTLS
+      return nodemailer.createTransport({
+        host: 'smtp.gmail.com',
+        port: 587,
+        secure: false,
+        requireTLS: true,
+        family: 4, // Force IPv4
+        lookup: (hostname, options, callback) => dns.lookup(hostname, { ...options, family: 4 }, callback),
+        auth: { user, pass },
+        connectionTimeout: 7000,
+        greetingTimeout: 7000,
+        socketTimeout: 10000
+      });
+    }
   }
 
-  // Custom / Cloud SMTP (Resend, Brevo, SES, etc.)
+  // Custom / Cloud SMTP
   if (host) {
     return nodemailer.createTransport({
       host,
       port,
       secure: port === 465,
+      family: 4,
+      lookup: (hostname, options, callback) => dns.lookup(hostname, { ...options, family: 4 }, callback),
       auth: { user, pass },
       tls: { rejectUnauthorized: false },
-      connectionTimeout: 8000,
-      greetingTimeout: 8000,
-      socketTimeout: 12000
+      connectionTimeout: 7000,
+      greetingTimeout: 7000,
+      socketTimeout: 10000
     });
   }
 
@@ -57,7 +93,181 @@ function getTransporter() {
 }
 
 function getFromAddress() {
-  return process.env.SMTP_FROM || `"MatchSpace Student Verification" <${process.env.SMTP_USER || 'matchspace89@gmail.com'}>`;
+  const { user } = getCredentials();
+  return process.env.SMTP_FROM || `"MatchSpace" <${user}>`;
+}
+
+/**
+ * Unified Mail Dispatcher:
+ * Supports:
+ * 1. Resend HTTPS API (Port 443)
+ * 2. Brevo HTTPS API (Port 443)
+ * 3. Custom Mail Webhook URL (Port 443)
+ * 4. Gmail SMTP Port 465 (IPv4)
+ * 5. Gmail SMTP Port 587 Fallback (IPv4)
+ */
+async function sendMailUnified({ to, subject, html, text }) {
+  const { brevoKey, resendKey, webhookUrl, user } = getCredentials();
+  const from = getFromAddress();
+
+  // 1. Resend HTTPS API (Port 443)
+  if (resendKey) {
+    try {
+      const resp = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${resendKey}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          from: from.includes('<') ? from : `MatchSpace <${from}>`,
+          to: [to],
+          subject,
+          html,
+          text: text || ''
+        })
+      });
+      const data = await resp.json();
+      if (resp.ok) {
+        console.log(`[Email-Resend] Sent successfully to ${to} (ID: ${data.id})`);
+        return { success: true, method: 'resend', id: data.id };
+      }
+      console.warn('[Email-Resend] API Error:', data);
+    } catch (err) {
+      console.warn('[Email-Resend] Network error:', err.message);
+    }
+  }
+
+  // 2. Brevo HTTPS API (Port 443)
+  if (brevoKey) {
+    try {
+      const resp = await fetch('https://api.brevo.com/v3/smtp/email', {
+        method: 'POST',
+        headers: {
+          'api-key': brevoKey,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          sender: { name: 'MatchSpace', email: user },
+          to: [{ email: to }],
+          subject,
+          htmlContent: html,
+          textContent: text || ''
+        })
+      });
+      const data = await resp.json();
+      if (resp.ok) {
+        console.log(`[Email-Brevo] Sent successfully to ${to} (MessageId: ${data.messageId})`);
+        return { success: true, method: 'brevo', messageId: data.messageId };
+      }
+      console.warn('[Email-Brevo] API Error:', data);
+    } catch (err) {
+      console.warn('[Email-Brevo] Network error:', err.message);
+    }
+  }
+
+  // 3. Custom Mail Webhook (Port 443)
+  if (webhookUrl) {
+    try {
+      const resp = await fetch(webhookUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ to, subject, html, text, from })
+      });
+      if (resp.ok) {
+        console.log(`[Email-Webhook] Dispatched to ${to}`);
+        return { success: true, method: 'webhook' };
+      }
+    } catch (err) {
+      console.warn('[Email-Webhook] Error:', err.message);
+    }
+  }
+
+  // 4. Nodemailer IPv4 (Port 465)
+  let lastError = null;
+  const transporter465 = getTransporter(465);
+  if (transporter465) {
+    try {
+      const info = await transporter465.sendMail({
+        from,
+        to,
+        subject,
+        html,
+        text: text || ''
+      });
+      console.log(`[Email-SMTP-465] Sent to ${to} (MessageID: ${info.messageId})`);
+      return { success: true, method: 'smtp-465', messageId: info.messageId };
+    } catch (err) {
+      lastError = err;
+      console.warn('[Email-SMTP-465] Port 465 failed:', err.message);
+    }
+  }
+
+  // 5. Nodemailer IPv4 Fallback (Port 587 STARTTLS)
+  const transporter587 = getTransporter(587);
+  if (transporter587) {
+    try {
+      const info = await transporter587.sendMail({
+        from,
+        to,
+        subject,
+        html,
+        text: text || ''
+      });
+      console.log(`[Email-SMTP-587] Sent to ${to} (MessageID: ${info.messageId})`);
+      return { success: true, method: 'smtp-587', messageId: info.messageId };
+    } catch (err) {
+      lastError = err;
+      console.warn('[Email-SMTP-587] Port 587 failed:', err.message);
+    }
+  }
+
+  return { success: false, error: lastError ? lastError.message : 'No mailer configured or all transports unreachable' };
+}
+
+/**
+ * Send OTP Verification Email
+ */
+async function sendOtpEmail({ to, otp }) {
+  const html = `
+    <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 520px; margin: auto; padding: 28px; border: 1px solid #e2e8f0; border-radius: 20px; background: #ffffff; box-shadow: 0 4px 20px rgba(0,0,0,0.05);">
+      <div style="text-align: center; margin-bottom: 24px;">
+        <div style="font-size: 2.5rem; margin-bottom: 6px;">🎓</div>
+        <h2 style="color: #4338ca; margin: 0; font-size: 1.4rem;">MatchSpace Student Verification</h2>
+        <p style="color: #64748b; font-size: 0.92rem; margin-top: 4px;">ระบบค้นหาเพื่อนและสังคมมหาวิทยาลัยขอนแก่น</p>
+      </div>
+      
+      <div style="background: #f8fafc; border-radius: 14px; padding: 18px; margin-bottom: 20px; border: 1px solid #e2e8f0;">
+        <p style="margin: 0 0 10px 0; color: #1e293b; font-weight: 600;">สวัสดีครับ/ค่ะ,</p>
+        <p style="margin: 0; color: #475569; font-size: 0.95rem; line-height: 1.6;">
+          คุณได้ทำรายการขอยืนยันสถานะนักศึกษาเพื่อรับเครื่องหมาย <strong>Verified Student (ติ๊กถูกสีฟ้า ✔️)</strong> บน MatchSpace โปรดใช้รหัส OTP ด้านล่างนี้เพื่อยืนยัน:
+        </p>
+      </div>
+
+      <div style="text-align: center; margin: 26px 0;">
+        <div style="display: inline-block; font-size: 2.5rem; font-weight: 800; letter-spacing: 10px; color: #4338ca; background: #e0e7ff; padding: 14px 32px; border-radius: 16px; border: 2px dashed #6366f1;">
+          ${otp}
+        </div>
+      </div>
+
+      <p style="color: #dc2626; font-size: 0.85rem; text-align: center; font-weight: 600;">
+        ⏳ รหัสนี้มีอายุการใช้งาน 10 นาที (เพื่อความปลอดภัยห้ามส่งต่อให้ผู้อื่น)
+      </p>
+
+      <hr style="border: none; border-top: 1px solid #f1f5f9; margin: 24px 0;" />
+      <p style="color: #94a3b8; font-size: 0.8rem; text-align: center; line-height: 1.5;">
+        หากคุณไม่ได้ส่งคำขอยืนยันตัวตนนี้ กรุณาละเว้นอีเมลฉบับนี้ บัญชีของคุณยังคงปลอดภัยตามปกติ<br />
+        © MatchSpace Community Team
+      </p>
+    </div>
+  `;
+
+  return await sendMailUnified({
+    to,
+    subject: `[MatchSpace] 🎓 รหัส OTP ยืนยันตัวตนนักศึกษา: ${otp}`,
+    html,
+    text: `รหัส OTP ยืนยันตัวตนนักศึกษาของคุณคือ: ${otp} (มีอายุ 10 นาที)`
+  });
 }
 
 /**
@@ -67,9 +277,6 @@ async function sendMatchEmailNotification(recipientUser, partnerUser) {
   try {
     const targetEmail = recipientUser?.student_email || recipientUser?.email;
     if (!targetEmail || !targetEmail.includes('@')) return;
-
-    const transporter = getTransporter();
-    if (!transporter) return;
 
     const partnerName = partnerUser?.name || 'ใครบางคน';
     const partnerMajor = partnerUser?.major || 'มหาวิทยาลัยขอนแก่น';
@@ -100,7 +307,7 @@ async function sendMatchEmailNotification(recipientUser, partnerUser) {
         </div>
 
         <div style="text-align: center; margin: 26px 0;">
-          <a href="${process.env.APP_URL || 'https://matchspace.up.railway.app'}/app" style="display: inline-block; background: linear-gradient(135deg, #e11d48 0%, #f43f5e 100%); color: #ffffff; text-decoration: none; font-weight: 700; font-size: 1rem; padding: 13px 32px; border-radius: 999px; box-shadow: 0 6px 20px rgba(225, 29, 72, 0.3);">
+          <a href="${process.env.APP_URL || 'https://matchspace-production.up.railway.app'}/app" style="display: inline-block; background: linear-gradient(135deg, #e11d48 0%, #f43f5e 100%); color: #ffffff; text-decoration: none; font-weight: 700; font-size: 1rem; padding: 13px 32px; border-radius: 999px; box-shadow: 0 6px 20px rgba(225, 29, 72, 0.3);">
             💬 เข้าสู่ MatchSpace เพื่อทักทาย ↗
           </a>
         </div>
@@ -113,14 +320,11 @@ async function sendMatchEmailNotification(recipientUser, partnerUser) {
       </div>
     `;
 
-    await transporter.sendMail({
-      from: getFromAddress(),
+    await sendMailUnified({
       to: targetEmail,
       subject: `[MatchSpace] 🎉 คุณมีคู่แมตช์ใหม่กับ ${partnerName}!`,
       html
     });
-
-    console.log(`[Email] Match notification sent to ${targetEmail} for partner ${partnerName}`);
   } catch (err) {
     console.warn('[Email] Match notification send error:', err.message);
   }
@@ -141,12 +345,8 @@ async function sendChatMessageEmailNotification(recipientUser, senderUser, messa
     const now = Date.now();
 
     if (lastSent && (now - lastSent) < THROTTLE_DURATION_MS) {
-      // Throttled: User received an email for this conversation in the last 5 minutes
       return;
     }
-
-    const transporter = getTransporter();
-    if (!transporter) return;
 
     chatEmailThrottle.set(throttleKey, now);
 
@@ -171,7 +371,7 @@ async function sendChatMessageEmailNotification(recipientUser, senderUser, messa
         </div>
 
         <div style="text-align: center; margin: 26px 0;">
-          <a href="${process.env.APP_URL || 'https://matchspace.up.railway.app'}/app" style="display: inline-block; background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%); color: #ffffff; text-decoration: none; font-weight: 700; font-size: 1rem; padding: 13px 32px; border-radius: 999px; box-shadow: 0 6px 20px rgba(99, 102, 241, 0.3);">
+          <a href="${process.env.APP_URL || 'https://matchspace-production.up.railway.app'}/app" style="display: inline-block; background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%); color: #ffffff; text-decoration: none; font-weight: 700; font-size: 1rem; padding: 13px 32px; border-radius: 999px; box-shadow: 0 6px 20px rgba(99, 102, 241, 0.3);">
             ตอบกลับข้อความ ↗
           </a>
         </div>
@@ -184,14 +384,11 @@ async function sendChatMessageEmailNotification(recipientUser, senderUser, messa
       </div>
     `;
 
-    await transporter.sendMail({
-      from: getFromAddress(),
+    await sendMailUnified({
       to: targetEmail,
       subject: `[MatchSpace] 💬 ข้อความใหม่จาก ${senderName}`,
       html
     });
-
-    console.log(`[Email] Chat message notification sent to ${targetEmail} from ${senderName}`);
   } catch (err) {
     console.warn('[Email] Chat notification send error:', err.message);
   }
@@ -208,8 +405,11 @@ function escapeHtml(str) {
 }
 
 module.exports = {
+  getCredentials,
   getTransporter,
   getFromAddress,
+  sendMailUnified,
+  sendOtpEmail,
   sendMatchEmailNotification,
   sendChatMessageEmailNotification
 };

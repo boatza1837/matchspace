@@ -5214,3 +5214,432 @@ body {
   transform: translateY(-1px);
 }
 
+/* =======================================================
+   CONVERSATION STARTERS & SMART ICEBREAKERS MODAL STYLING
+   ======================================================= */
+.icebreaker-modal-content {
+  max-width: 660px;
+  width: 92%;
+  max-height: 88vh;
+  border-radius: 26px;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  background: #ffffff;
+  box-shadow: 0 25px 50px -12px rgba(88, 28, 135, 0.25);
+  border: 1px solid rgba(216, 180, 254, 0.4);
+  position: relative;
+  overflow: hidden;
+}
+
+.icebreaker-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding-bottom: 14px;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.icebreaker-title-group {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.icebreaker-header-icon {
+  font-size: 1.8rem;
+  background: linear-gradient(135deg, #f3e8ff 0%, #ede9fe 100%);
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 14px;
+  border: 1px solid #e9d5ff;
+}
+
+.icebreaker-modal-title {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: #581c87;
+  letter-spacing: -0.01em;
+}
+
+.icebreaker-modal-desc {
+  margin: 2px 0 0 0;
+  font-size: 0.84rem;
+  color: #64748b;
+}
+
+/* Partner context banner */
+.icebreaker-partner-banner {
+  background: linear-gradient(135deg, #faf5ff 0%, #f3e8ff 100%);
+  border: 1px solid #e9d5ff;
+  border-radius: 18px;
+  padding: 14px 18px;
+  margin: 14px 0 12px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.icebreaker-partner-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.icebreaker-partner-avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid #ffffff;
+  box-shadow: 0 2px 8px rgba(124, 58, 237, 0.15);
+}
+
+.icebreaker-partner-name {
+  font-size: 0.98rem;
+  font-weight: 800;
+  color: #3b0764;
+}
+
+.icebreaker-partner-major {
+  font-size: 0.82rem;
+  color: #7e22ce;
+  font-weight: 500;
+}
+
+.icebreaker-shared-tags-wrap {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding-top: 4px;
+  border-top: 1px dashed #d8b4fe;
+}
+
+.shared-tag-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: #ffffff;
+  color: #7e22ce;
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1.5px solid #d8b4fe;
+  box-shadow: 0 1px 4px rgba(126, 34, 206, 0.06);
+}
+
+.shared-tag-pill.highlight {
+  background: linear-gradient(135deg, #7c3aed 0%, #9333ea 100%);
+  color: #ffffff;
+  border-color: #7c3aed;
+}
+
+/* Category Filter Tabs Bar */
+.icebreaker-tabs-bar {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 6px 2px 10px 2px;
+  scrollbar-width: none;
+}
+
+.icebreaker-tabs-bar::-webkit-scrollbar {
+  display: none;
+}
+
+.icebreaker-tab {
+  white-space: nowrap;
+  padding: 7px 14px;
+  border-radius: 999px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  background: #f8fafc;
+  color: #64748b;
+  border: 1px solid #e2e8f0;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.icebreaker-tab:hover {
+  background: #f1f5f9;
+  color: #334155;
+}
+
+.icebreaker-tab.active {
+  background: #7c3aed;
+  color: #ffffff;
+  border-color: #7c3aed;
+  box-shadow: 0 3px 10px rgba(124, 58, 237, 0.25);
+}
+
+/* Toolbar */
+.icebreaker-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 4px 10px 4px;
+}
+
+.icebreaker-count-label {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #64748b;
+}
+
+.icebreaker-shuffle-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #fdf4ff;
+  color: #a21caf;
+  border: 1.5px solid #f0abfc;
+  border-radius: 999px;
+  padding: 6px 14px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.icebreaker-shuffle-btn:hover {
+  background: #f0abfc;
+  color: #701a75;
+  transform: translateY(-1px);
+}
+
+.icebreaker-shuffle-btn:active .shuffle-icon {
+  transform: rotate(360deg);
+  transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Prompts List Grid */
+.icebreaker-prompts-list {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-right: 4px;
+  max-height: 48vh;
+}
+
+.icebreaker-prompt-card {
+  background: #ffffff;
+  border: 1.5px solid #f1f5f9;
+  border-radius: 16px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.icebreaker-prompt-card:hover {
+  border-color: #c084fc;
+  box-shadow: 0 4px 16px rgba(192, 132, 252, 0.12);
+  transform: translateY(-1px);
+}
+
+.icebreaker-prompt-card.shared-match {
+  background: linear-gradient(135deg, #ffffff 0%, #faf5ff 100%);
+  border-color: #d8b4fe;
+}
+
+.prompt-badge-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.prompt-badge {
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: #f1f5f9;
+  color: #475569;
+}
+
+.prompt-badge.shared {
+  background: #f3e8ff;
+  color: #7e22ce;
+  border: 1px solid #e9d5ff;
+}
+
+.prompt-text {
+  font-size: 0.95rem;
+  line-height: 1.5;
+  color: #1e293b;
+  font-weight: 600;
+  margin: 0;
+}
+
+.prompt-card-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 4px;
+  padding-top: 8px;
+  border-top: 1px solid #f8fafc;
+}
+
+.btn-prompt-send {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 12px;
+  background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%);
+  color: #ffffff;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-prompt-send:hover {
+  filter: brightness(1.1);
+  transform: translateY(-1px);
+}
+
+.btn-prompt-copy {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 10px;
+  background: #f8fafc;
+  color: #475569;
+  border: 1px solid #e2e8f0;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-prompt-copy:hover {
+  background: #ede9fe;
+  color: #6b21a8;
+  border-color: #c4b5fd;
+}
+
+/* Chat Header Action Button */
+.btn-chat-icebreaker-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  background: linear-gradient(135deg, #f3e8ff 0%, #ede9fe 100%);
+  color: #6b21a8;
+  border: 1.5px solid #d8b4fe;
+  border-radius: 999px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-chat-icebreaker-trigger:hover {
+  background: #7c3aed;
+  color: #ffffff;
+  border-color: #7c3aed;
+  box-shadow: 0 4px 12px rgba(124, 58, 237, 0.25);
+  transform: translateY(-1px);
+}
+
+/* Discover prompts column upgrades */
+.discover-prompts-header-box {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  padding: 0 4px;
+}
+
+.discover-prompts-title {
+  font-size: 0.86rem;
+  font-weight: 800;
+  color: #581c87;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.discover-prompts-shuffle-btn {
+  background: transparent;
+  border: none;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #7c3aed;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+}
+
+.discover-prompts-shuffle-btn:hover {
+  background: #f3e8ff;
+}
+
+.btn-all-icebreakers-discover {
+  margin-top: 6px;
+  width: 100%;
+  padding: 9px;
+  border-radius: 12px;
+  background: #f3e8ff;
+  color: #6b21a8;
+  border: 1px dashed #c084fc;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: center;
+}
+
+.btn-all-icebreakers-discover:hover {
+  background: #7c3aed;
+  color: #ffffff;
+  border-style: solid;
+}
+
+.btn-shuffle-chips {
+  background: #ede9fe;
+  color: #6b21a8;
+  border: 1px solid #c4b5fd;
+  border-radius: 999px;
+  padding: 2px 8px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-shuffle-chips:hover {
+  background: #7c3aed;
+  color: #ffffff;
+}
+
+.btn-all-icebreakers {
+  background: transparent;
+  color: #7c3aed;
+  border: none;
+  font-size: 0.76rem;
+  font-weight: 700;
+  cursor: pointer;
+  text-decoration: underline;
+  padding: 2px 6px;
+}
+
+.btn-all-icebreakers:hover {
+  color: #581c87;
+}
+

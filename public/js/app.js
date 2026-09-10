@@ -321,6 +321,7 @@ window.matchSpaceApp = (function () {
 
     setupStudentVerification();
     setupBlockedUsersModal();
+    setupConversationStarterModal();
     setupWebPushNotifications();
   }
 
@@ -648,6 +649,14 @@ window.matchSpaceApp = (function () {
         };
       }
 
+      const icebreakerBtn = document.getElementById('modalIcebreakerBtn');
+      if (icebreakerBtn) {
+        icebreakerBtn.onclick = () => {
+          modal.classList.add('hidden');
+          openIcebreakerModal(user.id);
+        };
+      }
+
       const blockBtn = document.getElementById('modalBlockBtn');
       if (blockBtn) {
         blockBtn.onclick = async () => {
@@ -719,6 +728,143 @@ window.matchSpaceApp = (function () {
     renderDiscoverCard();
   }
 
+  // ===================== CONVERSATION STARTERS QUESTION BANK =====================
+  const DISCOVER_PROMPTS_DATABASE = {
+    cafe: [
+      { text: 'เห็นว่าชอบคาเฟ่เหมือนกัน ปกติชอบนั่งร้านไหนรอบ มข. / แถวกังสดาลมั้ย?', badge: '☕ คาเฟ่ & ชิล', icon: '☕' },
+      { text: 'ชอบสั่งกาแฟหรือเครื่องดื่มแนวไหนมากที่สุด เมนูประจำคืออะไร?', badge: '🧋 เครื่องดื่มโปรด', icon: '🧋' },
+      { text: 'มีคาเฟ่บรรยากาศเงียบๆ ไว้นั่งอ่านหนังสือหรือทำงานแนะนำมั้ย?', badge: '📖 คาเฟ่อ่านหนังสือ', icon: '📖' },
+      { text: 'ชอบโทนร้านแบบมินิมอล หรือแบบธรรมชาติร่มรื่นมากกว่ากัน?', badge: '🌿 บรรยากาศคาเฟ่', icon: '🌿' }
+    ],
+    game: [
+      { text: 'เห็นว่าชอบเล่นเกมเหมือนกัน ปกติเล่นในคอม มือถือ หรือคอนโซลเหรอ?', badge: '🎮 เล่นเกม', icon: '🎮' },
+      { text: 'ช่วงนี้ติดเกมอะไรอยู่มั้ย เผื่อเล่นเหมือนกันจะได้ชวนมาตี้!', badge: '🕹️ ชวนเล่นเกม', icon: '🕹️' },
+      { text: 'มีบอร์ดเกมโปรดที่เล่นบ่อยๆ มั้ย ชอบแนววางแผนหรือแนวปาร์ตี้ฮาๆ?', badge: '🎲 บอร์ดเกม', icon: '🎲' }
+    ],
+    music: [
+      { text: 'เห็นว่าชอบฟังเพลงเหมือนกัน ช่วงนี้เพลงที่ฟังวนบ่อยสุดคือเพลงอะไร?', badge: '🎵 เพลงโปรด', icon: '🎵' },
+      { text: 'ชอบฟังเพลงแนวไหน มีศิลปินคนโปรดที่อยากป้ายยาให้ฟังตามมั้ย?', badge: '🎧 ศิลปินในดวงใจ', icon: '🎧' },
+      { text: 'ชอบฟังเพลงแบบใส่หูฟังคนเดียว หรือชอบไปฟังดนตรีสด/คอนเสิร์ต?', badge: '🎤 คอนเสิร์ต & ดนตรี', icon: '🎤' }
+    ],
+    movie: [
+      { text: 'เห็นว่าชอบดูหนังเหมือนกัน ช่วงนี้มีซีรีส์อะไรบน Netflix หรือสตรีมมิ่งแนะนำมั้ย?', badge: '🍿 ซีรีส์น่าดู', icon: '🍿' },
+      { text: 'ถ้าให้แนะนำหนังหรืออนิเมะ 1 เรื่องที่ต้องดูในชีวิต จะแนะนำเรื่องอะไร?', badge: '🎬 หนังในดวงใจ', icon: '🎬' },
+      { text: 'ชอบดูแนวระทึกขวัญ ไซไฟ สืบสวน ฟีลกู๊ด หรือคอมเมดี้มากกว่ากัน?', badge: '🎞️ แนวหนังที่ชอบ', icon: '🎞️' }
+    ],
+    pet: [
+      { text: 'เห็นว่าชอบสัตว์เหมือนกัน เป็นทาสแมวหรือทาสหมามากกว่ากันเนี่ย?', badge: '🐱 ทาสสัตว์เลี้ยง', icon: '🐱' },
+      { text: 'มีน้องเป็นของตัวเองมั้ย หรือชอบดูคลิปน้องในเน็ต?', badge: '🐾 คนรักสัตว์', icon: '🐾' },
+      { text: 'เคยไปคาเฟ่สัตว์เลี้ยงแถวมอมั้ย มีร้านไหนที่น้องน่ารักเป็นมิตรแนะนำมั้ย?', badge: '🤍 คาเฟ่สัตว์เลี้ยง', icon: '🤍' }
+    ],
+    sports: [
+      { text: 'เห็นว่าชอบออกกำลังกายเหมือนกัน ปกติไปออกกำลังกายที่ไหนเหรอ?', badge: '🏃‍♂️ ออกกำลังกาย', icon: '🏃‍♂️' },
+      { text: 'หาเพื่อนตีแบด/วิ่งรอบบึงสีฐานอยู่พอดีเลย ไว้ถ้าว่างชวนกันได้นะ!', badge: '🏸 ตีแบด & วิ่ง', icon: '🏸' }
+    ],
+    art: [
+      { text: 'ชอบถ่ายรูปเหมือนกัน ใช้กล้องรุ่นไหนหรือเน้นใช้มือถือหามุมสวยๆ?', badge: '📸 ถ่ายรูป', icon: '📸' },
+      { text: 'รอบ มข. หรือในขอนแก่น มีมุมถ่ายรูปสวยๆ แสงดีๆ ที่ชอบไปมั้ย?', badge: '🎨 โลเคชั่นสวย', icon: '🎨' }
+    ],
+    food: [
+      { text: 'ชอบทำอาหาร/กินเหมือนกัน เมนูเด็ดที่ชอบที่สุดคืออะไร?', badge: '🍳 ของกิน', icon: '🍳' },
+      { text: 'รอบ ม. มีร้านของกินเด็ดๆ หรือร้านลับที่ชอบไปกินมั้ย?', badge: '🍜 ร้านเด็ดรอบ ม.', icon: '🍜' },
+      { text: 'สายชาบู หมูกระทะ หรือของหวานแก้ง่วงมากกว่ากัน?', badge: '🥓 ชาบู/หมูกระทะ', icon: '🥓' }
+    ],
+    campus: [
+      { text: 'เรียนคณะอะไรเหรอ เทอมนี้ตารางเรียนหนักมั้ย?', badge: '🎓 ชีวิตมหาลัย', icon: '🎓' },
+      { text: 'เวลาก่อนสอบ มีเคล็ดลับอ่านหนังสือหรือพึ่งสิ่งศักดิ์สิทธิ์อะไรบ้างมั้ย?', badge: '😆 เตรียมสอบ', icon: '😆' },
+      { text: 'ชอบลงเรียนเซคเช้าหรือเซคบ่ายมากกว่ากัน?', badge: '⏰ ตารางเรียน', icon: '⏰' },
+      { text: 'มีวิชาไหนในมอที่รู้สึกว่าเรียนแล้วสนุกหรือประทับใจอาจารย์บ้างมั้ย?', badge: '📝 วิชาโปรด', icon: '📝' }
+    ],
+    fun: [
+      { text: 'ถ้าถูกลอตเตอรี่รางวัลที่ 1 สิ่งแรกที่จะทำในวันรุ่งขึ้นคืออะไร?', badge: '💸 ถ้าถูกหวย', icon: '💸' },
+      { text: 'ถ้าต้องกินอาหารเมนูเดิมทุกวันตลอด 1 เดือน จะเลือกกินเมนูอะไร?', badge: '🍜 เมนูตลอดกาล', icon: '🍜' },
+      { text: 'ถ้าเลือกมีพลังวิเศษได้ 1 อย่าง (เช่น วาร์ปได้, ย้อนเวลาได้) อยากได้อะไร?', badge: '🦸 พลังวิเศษ', icon: '🦸' },
+      { text: 'ถ้าวันหยุดว่างทั้งวันแบบไม่ต้องทำอะไรเลย กิจกรรมในฝันคืออะไร?', badge: '🏖️ วันหยุดในฝัน', icon: '🏖️' }
+    ]
+  };
+
+  function getPromptKeyForTag(tag) {
+    const t = String(tag || '').toLowerCase();
+    if (t.includes('กาแฟ') || t.includes('คาเฟ่') || t.includes('ชา') || t.includes('coffee')) return 'cafe';
+    if (t.includes('เกม') || t.includes('game') || t.includes('บอร์ดเกม')) return 'game';
+    if (t.includes('เพลง') || t.includes('ดนตรี') || t.includes('music')) return 'music';
+    if (t.includes('หนัง') || t.includes('ซีรีส์') || t.includes('อนิเมะ') || t.includes('movie')) return 'movie';
+    if (t.includes('แมว') || t.includes('สุนัข') || t.includes('หมา') || t.includes('สัตว์')) return 'pet';
+    if (t.includes('ฟิตเนส') || t.includes('วิ่ง') || t.includes('กีฬา') || t.includes('แบด') || t.includes('โยคะ') || t.includes('ปีนเขา')) return 'sports';
+    if (t.includes('รูป') || t.includes('ภาพถ่าย') || t.includes('ศิลปะ') || t.includes('ออกแบบ') || t.includes('photo')) return 'art';
+    if (t.includes('อาหาร') || t.includes('ปรุง') || t.includes('เบเกอรี่') || t.includes('กิน') || t.includes('ชาบู')) return 'food';
+    return null;
+  }
+
+  function generateDiscoverPrompts(currUser, targetUser) {
+    const myInterests = (currUser?.interests || '').split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
+    const targetInterests = (targetUser?.interests || '').split(',').map(s => s.trim()).filter(Boolean);
+    const sharedTags = targetInterests.filter(t => myInterests.some(m => m === t.toLowerCase() || m.includes(t.toLowerCase()) || t.toLowerCase().includes(m)));
+
+    const prompts = [];
+    const usedTexts = new Set();
+
+    // 1. Shared interests priority
+    sharedTags.forEach(tag => {
+      const key = getPromptKeyForTag(tag);
+      if (key && DISCOVER_PROMPTS_DATABASE[key]) {
+        const pool = DISCOVER_PROMPTS_DATABASE[key];
+        const pick = pool[Math.floor(Math.random() * pool.length)];
+        if (pick && !usedTexts.has(pick.text)) {
+          usedTexts.add(pick.text);
+          prompts.push({
+            text: pick.text,
+            badge: `🎯 ตรงใจ: ${tag}`,
+            icon: pick.icon,
+            isShared: true
+          });
+        }
+      }
+    });
+
+    // 2. Target user's individual interests
+    if (prompts.length < 2) {
+      targetInterests.forEach(tag => {
+        const key = getPromptKeyForTag(tag);
+        if (key && DISCOVER_PROMPTS_DATABASE[key] && prompts.length < 2) {
+          const pool = DISCOVER_PROMPTS_DATABASE[key];
+          const pick = pool[Math.floor(Math.random() * pool.length)];
+          if (pick && !usedTexts.has(pick.text)) {
+            usedTexts.add(pick.text);
+            prompts.push({
+              text: pick.text,
+              badge: `💡 เรื่อง ${tag}`,
+              icon: pick.icon,
+              isShared: false
+            });
+          }
+        }
+      });
+    }
+
+    // 3. Fill up to 4 with campus, food, fun
+    const generalPool = [
+      ...DISCOVER_PROMPTS_DATABASE.campus,
+      ...DISCOVER_PROMPTS_DATABASE.food,
+      ...DISCOVER_PROMPTS_DATABASE.fun
+    ].sort(() => 0.5 - Math.random());
+
+    for (const p of generalPool) {
+      if (prompts.length >= 4) break;
+      if (!usedTexts.has(p.text)) {
+        usedTexts.add(p.text);
+        prompts.push({
+          text: p.text,
+          badge: p.badge,
+          icon: p.icon,
+          isShared: false
+        });
+      }
+    }
+
+    return { prompts, sharedTags };
+  }
+
   function renderDiscoverCard() {
     const discoverUserCard = document.getElementById('discoverUserCard');
     if (!discoverUserCard) return;
@@ -778,6 +924,8 @@ window.matchSpaceApp = (function () {
       sharedPercent = 86;
     }
 
+    const { prompts: dynamicPrompts, sharedTags } = generateDiscoverPrompts(sessionUser, user);
+
     discoverUserCard.innerHTML = `
       <div class="discover-match-card">
         <div class="discover-match-header" style="cursor:pointer;" title="กดเพื่อดูรูปภาพและโปรไฟล์เต็ม">
@@ -822,22 +970,34 @@ window.matchSpaceApp = (function () {
       </div>
 
       <div class="discover-prompts-col">
-        <div class="discover-prompt-card" data-prompt="ถ้ามีเวลาว่างเย็นนี้ อยากไปทำอะไร">
-          <span>ถ้ามีเวลาว่างเย็นนี้ อยากไปทำอะไร</span>
-          <span>💬</span>
+        <div class="discover-prompts-header-box">
+          <span class="discover-prompts-title">
+            💡 คำแนะนำเริ่มต้นคุย
+          </span>
+          <button type="button" class="discover-prompts-shuffle-btn" id="btnShuffleDiscoverPrompts" title="สุ่มคำถามชุดใหม่">
+            🎲 สุ่มใหม่
+          </button>
         </div>
-        <div class="discover-prompt-card" data-prompt="เพลงที่ฟังช่วงนี้คืออะไร">
-          <span>เพลงที่ฟังช่วงนี้คืออะไร</span>
-          <span>🎵</span>
+        ${sharedTags.length > 0 ? `
+          <div style="margin-bottom:8px; display:flex; align-items:center; gap:4px; flex-wrap:wrap;">
+            <span style="font-size:0.75rem; font-weight:700; color:#7e22ce;">🎯 สนใจตรงกัน:</span>
+            ${sharedTags.map(t => `<span class="shared-tag-pill" style="font-size:0.72rem; padding:2px 8px;">✨ ${escapeHtml(t)}</span>`).join('')}
+          </div>
+        ` : ''}
+        <div id="discoverPromptsListInner" style="display:flex; flex-direction:column; gap:8px;">
+          ${dynamicPrompts.map(p => `
+            <div class="discover-prompt-card ${p.isShared ? 'shared-match' : ''}" data-prompt="${escapeHtml(p.text)}">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                <span class="prompt-badge ${p.isShared ? 'shared' : ''}" style="font-size:0.7rem; padding:2px 7px;">${p.badge}</span>
+                <span style="font-size:0.88rem;">${p.icon}</span>
+              </div>
+              <span style="font-weight:600; font-size:0.86rem; color:#1e293b; line-height:1.4;">${escapeHtml(p.text)}</span>
+            </div>
+          `).join('')}
         </div>
-        <div class="discover-prompt-card" data-prompt="คาเฟ่โปรดในมหาวิทยาลัยคือที่ไหน">
-          <span>คาเฟ่โปรดในมหาวิทยาลัยคือที่ไหน</span>
-          <span>☕</span>
-        </div>
-        <div class="discover-prompt-card" data-prompt="วิชาที่ชอบที่สุดในเทอมนี้คืออะไร">
-          <span>วิชาที่ชอบที่สุดในเทอมนี้คืออะไร</span>
-          <span>📚</span>
-        </div>
+        <button type="button" class="btn-all-icebreakers-discover" id="btnOpenAllIcebreakersDiscover">
+          ✨ ดูคำแนะนำทั้งหมดสำหรับเริ่มคุย ↗
+        </button>
       </div>
     `;
 
@@ -852,14 +1012,40 @@ window.matchSpaceApp = (function () {
     });
 
     // Prompt cards click to copy
-    discoverUserCard.querySelectorAll('.discover-prompt-card').forEach(card => {
-      card.addEventListener('click', () => {
-        const promptText = card.dataset.prompt;
-        if (navigator.clipboard && navigator.clipboard.writeText) {
-          navigator.clipboard.writeText(promptText).catch(() => {});
-        }
-        showMatchToast(`💡 คัดลอกคำถามชวนคุย: "${promptText}"`);
+    function attachDiscoverPromptClickListeners() {
+      discoverUserCard.querySelectorAll('.discover-prompt-card').forEach(card => {
+        card.onclick = () => {
+          const promptText = card.dataset.prompt;
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(promptText).catch(() => {});
+          }
+          showMatchToast(`💡 คัดลอกคำถามชวนคุย: "${promptText}"`);
+        };
       });
+    }
+    attachDiscoverPromptClickListeners();
+
+    // Shuffle discover prompts
+    discoverUserCard.querySelector('#btnShuffleDiscoverPrompts')?.addEventListener('click', () => {
+      const { prompts: newPrompts } = generateDiscoverPrompts(sessionUser, user);
+      const innerList = discoverUserCard.querySelector('#discoverPromptsListInner');
+      if (innerList) {
+        innerList.innerHTML = newPrompts.map(p => `
+          <div class="discover-prompt-card ${p.isShared ? 'shared-match' : ''}" data-prompt="${escapeHtml(p.text)}">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+              <span class="prompt-badge ${p.isShared ? 'shared' : ''}" style="font-size:0.7rem; padding:2px 7px;">${p.badge}</span>
+              <span style="font-size:0.88rem;">${p.icon}</span>
+            </div>
+            <span style="font-weight:600; font-size:0.86rem; color:#1e293b; line-height:1.4;">${escapeHtml(p.text)}</span>
+          </div>
+        `).join('');
+        attachDiscoverPromptClickListeners();
+      }
+    });
+
+    // Open full Icebreakers modal
+    discoverUserCard.querySelector('#btnOpenAllIcebreakersDiscover')?.addEventListener('click', () => {
+      openIcebreakerModal(user.id);
     });
 
     // Action buttons (like, skip, rewind)
@@ -1491,7 +1677,7 @@ window.matchSpaceApp = (function () {
         if (res.email_sent) {
           alert(`✉️ ส่งรหัส OTP ไปยังอีเมล ${res.target_email || email} แล้ว\nกรุณาเปิดตรวจสอบในกล่องจดหมายของคุณ (หรือโฟลเดอร์ Junk/Spam)`);
         } else if (res.dev_otp) {
-          alert(`[โหมดทดสอบ / ยังไม่ได้ตั้งค่า SMTP จริง]\nรหัส OTP สำหรับทดสอบคือ: ${res.dev_otp}`);
+          alert(`ℹ️ ระบบได้สร้างรหัส OTP สำหรับยืนยันตัวตนของคุณเรียบร้อยแล้ว:\n\n🔑 รหัส OTP คือ: ${res.dev_otp}\n\n(คุณสามารถนำรหัสด้านบนไปกรอกในช่อง OTP เพื่อรับเครื่องหมาย Verified Student ได้ทันที)`);
         } else {
           alert(res.message || 'ส่งรหัส OTP เรียบร้อยแล้ว');
         }
@@ -1602,6 +1788,235 @@ window.matchSpaceApp = (function () {
     }
   }
 
+  // ===================== CONVERSATION STARTERS (SMART ICEBREAKERS) =====================
+  let currentIcebreakerPartnerId = null;
+  let currentIcebreakerData = null;
+  let currentIcebreakerCategory = 'mix';
+
+  async function openIcebreakerModal(partnerId) {
+    const modal = document.getElementById('conversationStarterModal');
+    if (!modal) return;
+
+    currentIcebreakerPartnerId = partnerId || null;
+    currentIcebreakerCategory = 'mix';
+
+    // Reset tabs UI
+    document.querySelectorAll('.icebreaker-tab').forEach(tab => {
+      tab.classList.toggle('active', tab.dataset.category === 'mix');
+    });
+
+    modal.classList.remove('hidden');
+    await loadIcebreakerPrompts();
+  }
+
+  async function loadIcebreakerPrompts() {
+    const listEl = document.getElementById('icebreakerPromptsList');
+    const bannerEl = document.getElementById('icebreakerPartnerBanner');
+    const avatarEl = document.getElementById('icebreakerPartnerAvatar');
+    const nameEl = document.getElementById('icebreakerPartnerName');
+    const majorEl = document.getElementById('icebreakerPartnerMajor');
+    const tagsWrap = document.getElementById('icebreakerSharedTagsWrap');
+    const countLabel = document.getElementById('icebreakerCountLabel');
+    const tabShared = document.getElementById('tabIcebreakerShared');
+
+    if (!listEl) return;
+    listEl.innerHTML = '<div style="text-align:center; padding:32px; color:#94a3b8;">⏳ กำลังสุ่มไอเดียเปิดบทสนทนา...</div>';
+
+    try {
+      const url = currentIcebreakerPartnerId 
+        ? `/api/conversation-starters?target_user_id=${currentIcebreakerPartnerId}` 
+        : '/api/conversation-starters';
+      
+      const data = await apiRequest(url);
+      currentIcebreakerData = data;
+
+      if (data.partner) {
+        if (bannerEl) bannerEl.style.display = 'flex';
+        if (avatarEl) avatarEl.src = data.partner.profile_image || 'uploads/avatars/default.png';
+        if (nameEl) nameEl.textContent = data.partner.name + (data.partner.nickname ? ` (${data.partner.nickname})` : '');
+        if (majorEl) majorEl.textContent = data.partner.major || 'มหาวิทยาลัยขอนแก่น';
+
+        const shared = data.shared_interests || [];
+        if (shared.length > 0) {
+          if (tabShared) tabShared.style.display = 'inline-block';
+          if (tagsWrap) {
+            tagsWrap.innerHTML = `
+              <span style="font-size:0.78rem; font-weight:700; color:#6b21a8; display:flex; align-items:center; gap:4px;">
+                🎯 สนใจตรงกัน:
+              </span>
+              ${shared.map(t => `<span class="shared-tag-pill highlight">✨ ${escapeHtml(t)}</span>`).join('')}
+            `;
+          }
+        } else {
+          if (tabShared) tabShared.style.display = 'none';
+          if (tagsWrap) {
+            tagsWrap.innerHTML = `
+              <span style="font-size:0.78rem; color:#64748b;">
+                💡 สุ่มหัวข้อหลากหลายที่คัดสรรมาสำหรับเริ่มคุยกับ ${escapeHtml(data.partner.name)}
+              </span>
+            `;
+          }
+        }
+      } else {
+        if (bannerEl) bannerEl.style.display = 'none';
+        if (tabShared) tabShared.style.display = 'none';
+      }
+
+      renderIcebreakerPromptsList();
+    } catch (err) {
+      if (listEl) {
+        listEl.innerHTML = `<div style="text-align:center; padding:20px; color:#e11d48;">⚠️ ${err.message || 'ไม่สามารถโหลดคำแนะนำคุยได้'}</div>`;
+      }
+    }
+  }
+
+  function renderIcebreakerPromptsList() {
+    const listEl = document.getElementById('icebreakerPromptsList');
+    const countLabel = document.getElementById('icebreakerCountLabel');
+    if (!listEl || !currentIcebreakerData) return;
+
+    let items = [];
+    const cat = currentIcebreakerCategory;
+
+    if (cat === 'mix') {
+      items = currentIcebreakerData.mixed_prompts || [];
+    } else if (cat === 'shared') {
+      items = currentIcebreakerData.categories?.shared || [];
+    } else if (currentIcebreakerData.categories?.[cat]) {
+      items = currentIcebreakerData.categories[cat];
+    } else {
+      items = currentIcebreakerData.mixed_prompts || [];
+    }
+
+    if (countLabel) {
+      countLabel.textContent = `แสดง ${items.length} ไอเดียชวนคุย (${getCategoryTitle(cat)})`;
+    }
+
+    if (items.length === 0) {
+      listEl.innerHTML = `
+        <div style="text-align:center; padding:32px; color:#94a3b8;">
+          <div style="font-size:2rem; margin-bottom:6px;">💭</div>
+          <div>ยังไม่มีคำถามในหมวดนี้ ลองเลือก "สุ่มผสมทุกเรื่อง" หรือสุ่มใหม่ดูนะ!</div>
+        </div>
+      `;
+      return;
+    }
+
+    listEl.innerHTML = items.map((p, idx) => `
+      <div class="icebreaker-prompt-card ${p.badge?.includes('ตรงกัน') || p.badge?.includes('ร่วมกัน') ? 'shared-match' : ''}">
+        <div class="prompt-badge-row">
+          <span class="prompt-badge ${p.badge?.includes('ตรงกัน') || p.badge?.includes('ร่วมกัน') ? 'shared' : ''}">
+            ${p.badge || '💡 ชวนคุย'}
+          </span>
+          <span style="font-size:0.75rem; color:#94a3b8; font-weight:600;">#${idx + 1}</span>
+        </div>
+        <p class="prompt-text">${escapeHtml(p.text)}</p>
+        <div class="prompt-card-actions">
+          <button type="button" class="btn-prompt-copy" data-copy-text="${escapeHtml(p.text)}">
+            📋 คัดลอก
+          </button>
+          <button type="button" class="btn-prompt-send" data-send-text="${escapeHtml(p.text)}">
+            💬 ส่งเข้าแชท
+          </button>
+        </div>
+      </div>
+    `).join('');
+
+    listEl.querySelectorAll('[data-copy-text]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const text = btn.dataset.copyText;
+        if (navigator.clipboard?.writeText) {
+          navigator.clipboard.writeText(text).catch(() => {});
+        }
+        btn.textContent = '✓ คัดลอกแล้ว';
+        setTimeout(() => { btn.textContent = '📋 คัดลอก'; }, 2000);
+        showMatchToast(`📋 คัดลอกคำถาม: "${text}"`);
+      });
+    });
+
+    listEl.querySelectorAll('[data-send-text]').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const text = btn.dataset.sendText;
+        document.getElementById('conversationStarterModal')?.classList.add('hidden');
+
+        try {
+          if (currentIcebreakerPartnerId) {
+            const res = await apiRequest('/api/chats', {
+              method: 'POST',
+              body: JSON.stringify({ user_id: currentIcebreakerPartnerId })
+            });
+            if (res.chat?.id && window.matchSpaceChat) {
+              await window.matchSpaceChat.openChatTabAndLoad(res.chat.id);
+            } else {
+              triggerTabSwitch('chat', 'slide-right');
+            }
+          } else {
+            triggerTabSwitch('chat', 'slide-right');
+          }
+        } catch (e) {
+          triggerTabSwitch('chat', 'slide-right');
+        }
+
+        setTimeout(() => {
+          const msgInput = document.getElementById('messageInput');
+          if (msgInput) {
+            msgInput.value = text;
+            msgInput.focus();
+          }
+        }, 250);
+
+        showMatchToast(`💬 นำข้อความใส่ลงในช่องแชทแล้ว: "${text}"`);
+      });
+    });
+  }
+
+  function getCategoryTitle(cat) {
+    const map = {
+      mix: 'สุ่มผสมทุกเรื่อง',
+      shared: 'ตรงกับความสนใจร่วมกัน',
+      food: 'คาเฟ่ & อาหาร',
+      campus: 'ชีวิตมหาลัย & เรียน',
+      hobbies: 'กิจกรรม & เกม',
+      entertainment: 'หนัง & เพลง',
+      fun: 'ชวนคิด & สนุกๆ'
+    };
+    return map[cat] || 'ไอเดียชวนคุย';
+  }
+
+  function setupConversationStarterModal() {
+    const modal = document.getElementById('conversationStarterModal');
+    const btnClose = document.getElementById('closeConversationStarterModal');
+    const btnShuffle = document.getElementById('btnShuffleIcebreakers');
+    const tabsBar = document.getElementById('icebreakerTabsBar');
+
+    if (btnClose && modal) {
+      btnClose.addEventListener('click', () => modal.classList.add('hidden'));
+      modal.addEventListener('click', (e) => {
+        if (e.target.id === 'conversationStarterModal') modal.classList.add('hidden');
+      });
+    }
+
+    if (btnShuffle) {
+      btnShuffle.addEventListener('click', async () => {
+        const icon = btnShuffle.querySelector('.shuffle-icon');
+        if (icon) icon.style.transform = 'rotate(360deg)';
+        await loadIcebreakerPrompts();
+        setTimeout(() => { if (icon) icon.style.transform = ''; }, 400);
+      });
+    }
+
+    if (tabsBar) {
+      tabsBar.querySelectorAll('.icebreaker-tab').forEach(tab => {
+        tab.addEventListener('click', () => {
+          tabsBar.querySelectorAll('.icebreaker-tab').forEach(t => t.classList.remove('active'));
+          tab.classList.add('active');
+          currentIcebreakerCategory = tab.dataset.category || 'mix';
+          renderIcebreakerPromptsList();
+        });
+      });
+    }
+  }
+
   // ===================== WEB PUSH NOTIFICATIONS =====================
   function urlBase64ToUint8Array(base64String) {
     const padding = '='.repeat((4 - base64String.length % 4) % 4);
@@ -1675,6 +2090,7 @@ window.matchSpaceApp = (function () {
     switchTab,
     triggerTabSwitch,
     openProfileModal,
+    openIcebreakerModal,
     updateHomeStats,
     loadDiscoverUsers,
     loadLikedUsers,
