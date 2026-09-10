@@ -5,6 +5,22 @@ if (dns && dns.setDefaultResultOrder) {
 
 const nodemailer = require('nodemailer');
 
+// Patch Nodemailer's shared network interface list to eliminate IPv6 on cloud containers (e.g. Railway)
+try {
+  const shared = require('nodemailer/lib/shared');
+  if (shared && shared.networkInterfaces) {
+    const filtered = {};
+    for (const [k, v] of Object.entries(shared.networkInterfaces)) {
+      if (Array.isArray(v)) {
+        filtered[k] = v.filter(i => i.family === 'IPv4' || i.family === 4);
+      }
+    }
+    shared.networkInterfaces = filtered;
+  }
+} catch (e) {
+  console.warn('[Email-IPv4-Patch] Notice:', e.message);
+}
+
 // Anti-spam throttling map: key = `${chatId}:${recipientId}`, value = timestamp
 const chatEmailThrottle = new Map();
 const THROTTLE_DURATION_MS = 5 * 60 * 1000; // 5 minutes
@@ -22,7 +38,7 @@ setInterval(() => {
 function getCredentials() {
   const service = (process.env.SMTP_SERVICE || 'gmail').toLowerCase();
   const host = process.env.SMTP_HOST || 'smtp.gmail.com';
-  const port = Number(process.env.SMTP_PORT) || 465;
+  const port = Number(process.env.SMTP_PORT) || 587;
   const user = process.env.SMTP_USER || 'matchspace89@gmail.com';
   const pass = (process.env.SMTP_PASS || 'hyawmdgqbfyinxxy').replace(/\s+/g, '');
   const brevoKey = process.env.BREVO_API_KEY || '';
@@ -32,11 +48,32 @@ function getCredentials() {
   return { service, host, port, user, pass, brevoKey, resendKey, webhookUrl };
 }
 
+let cachedGmailIp = null;
+let lastLookupTime = 0;
+
+async function resolveGmailIpv4() {
+  const now = Date.now();
+  if (cachedGmailIp && now - lastLookupTime < 10 * 60 * 1000) {
+    return cachedGmailIp;
+  }
+  return new Promise((resolve) => {
+    dns.lookup('smtp.gmail.com', { family: 4 }, (err, address) => {
+      if (!err && address) {
+        cachedGmailIp = address;
+        lastLookupTime = now;
+        resolve(address);
+      } else {
+        resolve('smtp.gmail.com');
+      }
+    });
+  });
+}
+
 /**
  * Initialize mailer transporter (Gmail App Password or Custom SMTP)
  * Explicitly forces IPv4 (family: 4) to avoid ENETUNREACH in containers
  */
-function getTransporter(customPort = null) {
+function getTransporter(customPort = null, overrideHost = null) {
   const { service, host, port: defaultPort, user, pass } = getCredentials();
   if (!user || !pass) return null;
 
@@ -44,31 +81,34 @@ function getTransporter(customPort = null) {
 
   // Gmail SMTP
   if (service === 'gmail' || (host && host.toLowerCase().includes('gmail'))) {
+    const targetHost = overrideHost || host;
     if (port === 465) {
       return nodemailer.createTransport({
-        host: 'smtp.gmail.com',
+        host: targetHost,
         port: 465,
         secure: true,
         family: 4, // Force IPv4
         lookup: (hostname, options, callback) => dns.lookup(hostname, { ...options, family: 4 }, callback),
         auth: { user, pass },
-        connectionTimeout: 7000,
-        greetingTimeout: 7000,
-        socketTimeout: 10000
+        tls: { servername: 'smtp.gmail.com', rejectUnauthorized: false },
+        connectionTimeout: 5000,
+        greetingTimeout: 5000,
+        socketTimeout: 8000
       });
     } else {
-      // Port 587 STARTTLS
+      // Port 587 STARTTLS (Default for Cloud / Railway)
       return nodemailer.createTransport({
-        host: 'smtp.gmail.com',
+        host: targetHost,
         port: 587,
         secure: false,
         requireTLS: true,
         family: 4, // Force IPv4
         lookup: (hostname, options, callback) => dns.lookup(hostname, { ...options, family: 4 }, callback),
         auth: { user, pass },
-        connectionTimeout: 7000,
-        greetingTimeout: 7000,
-        socketTimeout: 10000
+        tls: { servername: 'smtp.gmail.com', rejectUnauthorized: false },
+        connectionTimeout: 5000,
+        greetingTimeout: 5000,
+        socketTimeout: 8000
       });
     }
   }
@@ -76,16 +116,16 @@ function getTransporter(customPort = null) {
   // Custom / Cloud SMTP
   if (host) {
     return nodemailer.createTransport({
-      host,
+      host: overrideHost || host,
       port,
       secure: port === 465,
       family: 4,
       lookup: (hostname, options, callback) => dns.lookup(hostname, { ...options, family: 4 }, callback),
       auth: { user, pass },
       tls: { rejectUnauthorized: false },
-      connectionTimeout: 7000,
-      greetingTimeout: 7000,
-      socketTimeout: 10000
+      connectionTimeout: 5000,
+      greetingTimeout: 5000,
+      socketTimeout: 8000
     });
   }
 
@@ -183,28 +223,11 @@ async function sendMailUnified({ to, subject, html, text }) {
     }
   }
 
-  // 4. Nodemailer IPv4 (Port 465)
+  // 4. Nodemailer IPv4 via Port 587 (Preferred for Railway & Cloud)
   let lastError = null;
-  const transporter465 = getTransporter(465);
-  if (transporter465) {
-    try {
-      const info = await transporter465.sendMail({
-        from,
-        to,
-        subject,
-        html,
-        text: text || ''
-      });
-      console.log(`[Email-SMTP-465] Sent to ${to} (MessageID: ${info.messageId})`);
-      return { success: true, method: 'smtp-465', messageId: info.messageId };
-    } catch (err) {
-      lastError = err;
-      console.warn('[Email-SMTP-465] Port 465 failed:', err.message);
-    }
-  }
+  const gmailIp = await resolveGmailIpv4();
 
-  // 5. Nodemailer IPv4 Fallback (Port 587 STARTTLS)
-  const transporter587 = getTransporter(587);
+  const transporter587 = getTransporter(587, gmailIp);
   if (transporter587) {
     try {
       const info = await transporter587.sendMail({
@@ -219,6 +242,25 @@ async function sendMailUnified({ to, subject, html, text }) {
     } catch (err) {
       lastError = err;
       console.warn('[Email-SMTP-587] Port 587 failed:', err.message);
+    }
+  }
+
+  // 5. Nodemailer IPv4 Fallback (Port 465 SSL)
+  const transporter465 = getTransporter(465, gmailIp);
+  if (transporter465) {
+    try {
+      const info = await transporter465.sendMail({
+        from,
+        to,
+        subject,
+        html,
+        text: text || ''
+      });
+      console.log(`[Email-SMTP-465] Sent to ${to} (MessageID: ${info.messageId})`);
+      return { success: true, method: 'smtp-465', messageId: info.messageId };
+    } catch (err) {
+      lastError = err;
+      console.warn('[Email-SMTP-465] Port 465 failed:', err.message);
     }
   }
 
@@ -408,6 +450,7 @@ module.exports = {
   getCredentials,
   getTransporter,
   getFromAddress,
+  resolveGmailIpv4,
   sendMailUnified,
   sendOtpEmail,
   sendMatchEmailNotification,

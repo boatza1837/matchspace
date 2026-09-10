@@ -43,30 +43,13 @@ router.get('/api/verify/smtp-status', async (req, res) => {
     });
   }
 
-  const transporter = getTransporter(465);
-  if (!transporter) {
-    return res.json({
-      configured: false,
-      service,
-      message: 'การตั้งค่า SMTP ไม่สมบูรณ์ กรุณาตรวจสอบ SMTP_USER และ SMTP_PASS'
-    });
-  }
+  const { resolveGmailIpv4 } = require('../services/email');
+  const gmailIp = await resolveGmailIpv4();
 
-  try {
-    await transporter.verify();
-    return res.json({
-      configured: true,
-      service,
-      verified: true,
-      sender: user,
-      port: 465,
-      ipv4: true,
-      message: 'ระบบเชื่อมต่อ Mail Server สำเร็จ พร้อมส่งอีเมลจริงไปยังนักศึกษา'
-    });
-  } catch (err) {
-    console.error('[SMTP 465 Verify Error]', err.message);
+  // Try Port 587 STARTTLS first (Recommended for Railway and cloud containers)
+  const transporter587 = getTransporter(587, gmailIp);
+  if (transporter587) {
     try {
-      const transporter587 = getTransporter(587);
       await transporter587.verify();
       return res.json({
         configured: true,
@@ -75,20 +58,47 @@ router.get('/api/verify/smtp-status', async (req, res) => {
         sender: user,
         port: 587,
         ipv4: true,
-        message: 'ระบบเชื่อมต่อ Mail Server ผ่าน Port 587 (STARTTLS) สำเร็จ'
+        host_ip: gmailIp,
+        message: 'ระบบเชื่อมต่อ Mail Server ผ่าน Port 587 (STARTTLS IPv4) สำเร็จ พร้อมส่งอีเมลจริง'
       });
     } catch (err587) {
-      console.error('[SMTP 587 Verify Error]', err587.message);
+      console.warn('[SMTP 587 Verify Warning]', err587.message);
+    }
+  }
+
+  // Fallback to Port 465 SSL
+  const transporter465 = getTransporter(465, gmailIp);
+  if (transporter465) {
+    try {
+      await transporter465.verify();
+      return res.json({
+        configured: true,
+        service,
+        verified: true,
+        sender: user,
+        port: 465,
+        ipv4: true,
+        host_ip: gmailIp,
+        message: 'ระบบเชื่อมต่อ Mail Server ผ่าน Port 465 (SSL IPv4) สำเร็จ'
+      });
+    } catch (err465) {
+      console.error('[SMTP 465 Verify Error]', err465.message);
       return res.json({
         configured: true,
         service,
         verified: false,
         sender: user,
-        error: `465: ${err.message} | 587: ${err587.message}`,
-        message: `ไม่สามารถเชื่อมต่อ Mail Server: ${err.message}`
+        error: `587: failed | 465: ${err465.message}`,
+        message: `ไม่สามารถเชื่อมต่อ Mail Server: ${err465.message}`
       });
     }
   }
+
+  return res.json({
+    configured: false,
+    service,
+    message: 'การตั้งค่า SMTP ไม่สมบูรณ์ กรุณาตรวจสอบ SMTP_USER และ SMTP_PASS'
+  });
 });
 
 // Request OTP for Student Verification

@@ -788,6 +788,69 @@
             </button>
           </div>
         </div>
+
+        <!-- Step 3: Celebration Animation (Success) -->
+        <div id="verifyStepSuccess" class="hidden verify-celebrate-wrap">
+          <div id="verifyConfettiContainer" class="verify-confetti-container" aria-hidden="true"></div>
+          
+          <div class="celebrate-badge-pulse-wrap">
+            <div class="celebrate-pulse-ring ring-1"></div>
+            <div class="celebrate-pulse-ring ring-2"></div>
+            <div class="celebrate-badge-stamp">
+              <svg class="celebrate-check-icon" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
+              </svg>
+            </div>
+          </div>
+
+          <h3 class="celebrate-title">🎉 ยืนยันตัวตนนักศึกษาสำเร็จ!</h3>
+          <p class="celebrate-subtitle">
+            ยินดีด้วย! บัญชีของคุณได้รับตรา <strong>Verified Student (ติ๊กถูกสีฟ้า ✔️)</strong> เรียบร้อยแล้ว<br />
+            สมาชิกทุกคนบน MatchSpace จะเห็นความน่าเชื่อถือของคุณทันที
+          </p>
+
+          <!-- Verified User Preview Card -->
+          <div class="celebrate-preview-card">
+            <img id="celebrateUserAvatar" src="uploads/avatars/default.png" alt="Avatar" class="celebrate-user-avatar" />
+            <div class="celebrate-user-info">
+              <div class="celebrate-user-name-row">
+                <strong id="celebrateUserName">ชื่อของคุณ</strong>
+                <span class="student-verified-badge"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg> นักศึกษา มข.</span>
+              </div>
+              <div id="celebrateUserEmail" class="celebrate-user-email">email@kkumail.com</div>
+            </div>
+          </div>
+
+          <button id="btnDoneStudentVerify" type="button" class="button primary btn-celebrate-finish" style="width:100%; border-radius:999px; padding:12px 24px; font-weight:800; font-size:1rem; margin-top:16px;">
+            ✨ เริ่มต้นค้นหาเพื่อนเลย
+          </button>
+        </div>
+
+        <!-- Already Verified View -->
+        <div id="verifyStepAlreadyVerified" class="hidden verify-celebrate-wrap">
+          <div class="celebrate-badge-stamp static-badge">
+            <svg class="celebrate-check-icon" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
+            </svg>
+          </div>
+          <h3 class="celebrate-title" style="color:#0369a1;">บัญชีได้รับการยืนยันแล้ว</h3>
+          <p class="celebrate-subtitle" id="alreadyVerifiedDesc">
+            คุณได้รับเครื่องหมาย Verified Student เรียบร้อยแล้ว
+          </p>
+          <div class="celebrate-preview-card">
+            <img id="alreadyVerifiedAvatar" src="uploads/avatars/default.png" alt="Avatar" class="celebrate-user-avatar" />
+            <div class="celebrate-user-info">
+              <div class="celebrate-user-name-row">
+                <strong id="alreadyVerifiedName">ชื่อของคุณ</strong>
+                <span class="student-verified-badge"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg> นักศึกษา มข.</span>
+              </div>
+              <div id="alreadyVerifiedEmail" class="celebrate-user-email">email@kkumail.com</div>
+            </div>
+          </div>
+          <button id="btnCloseAlreadyVerified" type="button" class="button primary" style="width:100%; border-radius:999px; padding:12px; font-weight:700; margin-top:16px;">
+            รับทราบและปิดหน้าต่าง
+          </button>
+        </div>
       </div>
     </div>
 

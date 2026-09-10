@@ -1614,16 +1614,64 @@ window.matchSpaceApp = (function () {
     const otpInput = document.getElementById('studentOtpInput');
     const step1 = document.getElementById('verifyStep1');
     const step2 = document.getElementById('verifyStep2');
+    const stepSuccess = document.getElementById('verifyStepSuccess');
+    const stepAlready = document.getElementById('verifyStepAlreadyVerified');
     const notice = document.getElementById('studentOtpNotice');
     const targetDisplay = document.getElementById('displayTargetEmail');
+    const btnDone = document.getElementById('btnDoneStudentVerify');
+    const btnCloseAlready = document.getElementById('btnCloseAlreadyVerified');
 
     let pendingEmail = '';
 
+    function launchConfetti() {
+      const container = document.getElementById('verifyConfettiContainer');
+      if (!container) return;
+      container.innerHTML = '';
+      const colors = ['#3b82f6', '#2563eb', '#60a5fa', '#f59e0b', '#ec4899', '#8b5cf6', '#10b981', '#f43f5e'];
+      const count = 42;
+      for (let i = 0; i < count; i++) {
+        const piece = document.createElement('div');
+        piece.className = 'confetti-piece';
+        const startX = Math.random() * 90 + 5; // percentage
+        const destX = (Math.random() - 0.5) * 220; // px
+        const destY = 220 + Math.random() * 120; // px
+        const rot = (Math.random() - 0.5) * 720;
+        const color = colors[Math.floor(Math.random() * colors.length)];
+        const delay = Math.random() * 0.4;
+        const size = 6 + Math.random() * 6;
+
+        piece.style.left = `${startX}%`;
+        piece.style.top = '10px';
+        piece.style.width = `${size}px`;
+        piece.style.height = `${size * 1.2}px`;
+        piece.style.backgroundColor = color;
+        piece.style.setProperty('--confetti-x', `${destX}px`);
+        piece.style.setProperty('--confetti-y', `${destY}px`);
+        piece.style.setProperty('--confetti-rot', `${rot}deg`);
+        piece.style.animationDelay = `${delay}s`;
+        container.appendChild(piece);
+      }
+    }
+
     function openVerifyModal() {
+      // If already verified, show elegant status view instead of rigid alert
       if (sessionUser && Number(sessionUser.is_student_verified) === 1) {
-        alert('🎉 บัญชีของคุณได้รับการยืนยันตัวตนนักศึกษาแล้ว (Verified Student มีติ๊กถูกสีฟ้า ✔️)');
+        step1?.classList.add('hidden');
+        step2?.classList.add('hidden');
+        stepSuccess?.classList.add('hidden');
+        stepAlready?.classList.remove('hidden');
+
+        const av = document.getElementById('alreadyVerifiedAvatar');
+        const nm = document.getElementById('alreadyVerifiedName');
+        const em = document.getElementById('alreadyVerifiedEmail');
+        if (av) av.src = sessionUser.profile_image || DEFAULT_AVATAR;
+        if (nm) nm.textContent = sessionUser.name + (sessionUser.nickname ? ` (${sessionUser.nickname})` : '');
+        if (em) em.textContent = sessionUser.student_email || sessionUser.email || 'นักศึกษามหาวิทยาลัยขอนแก่น';
+
+        modal?.classList.remove('hidden');
         return;
       }
+
       if (emailInput && !emailInput.value && sessionUser?.email) {
         if (sessionUser.email.includes('@')) {
           emailInput.value = sessionUser.email;
@@ -1631,6 +1679,8 @@ window.matchSpaceApp = (function () {
       }
       step1?.classList.remove('hidden');
       step2?.classList.add('hidden');
+      stepSuccess?.classList.add('hidden');
+      stepAlready?.classList.add('hidden');
       if (notice) notice.textContent = '';
       modal?.classList.remove('hidden');
     }
@@ -1640,6 +1690,12 @@ window.matchSpaceApp = (function () {
     btnOpenHome?.addEventListener('click', openVerifyModal);
 
     btnClose?.addEventListener('click', () => modal?.classList.add('hidden'));
+    btnCloseAlready?.addEventListener('click', () => modal?.classList.add('hidden'));
+    btnDone?.addEventListener('click', () => {
+      modal?.classList.add('hidden');
+      showMatchToast('✨ บัญชีของคุณเปิดใช้งาน Verified Student เรียบร้อยแล้ว!');
+    });
+
     modal?.addEventListener('click', (e) => {
       if (e.target.id === 'studentVerificationModal') modal?.classList.add('hidden');
     });
@@ -1675,11 +1731,10 @@ window.matchSpaceApp = (function () {
         }
 
         if (res.email_sent) {
-          alert(`✉️ ส่งรหัส OTP ไปยังอีเมล ${res.target_email || email} แล้ว\nกรุณาเปิดตรวจสอบในกล่องจดหมายของคุณ (หรือโฟลเดอร์ Junk/Spam)`);
+          showMatchToast(`✉️ ส่งรหัส OTP ไปยัง ${res.target_email || email} แล้ว (ตรวจสอบกล่องจดหมาย/Junk)`);
         } else if (res.dev_otp) {
-          alert(`ℹ️ ระบบได้สร้างรหัส OTP สำหรับยืนยันตัวตนของคุณเรียบร้อยแล้ว:\n\n🔑 รหัส OTP คือ: ${res.dev_otp}\n\n(คุณสามารถนำรหัสด้านบนไปกรอกในช่อง OTP เพื่อรับเครื่องหมาย Verified Student ได้ทันที)`);
-        } else {
-          alert(res.message || 'ส่งรหัส OTP เรียบร้อยแล้ว');
+          showMatchToast(`🔑 รหัส OTP คือ: ${res.dev_otp}`);
+          if (otpInput) otpInput.value = res.dev_otp;
         }
       } catch (err) {
         alert(err.message || 'เกิดข้อผิดพลาดในการส่ง OTP');
@@ -1704,8 +1759,23 @@ window.matchSpaceApp = (function () {
           body: JSON.stringify({ email: pendingEmail, otp })
         });
 
-        alert(res.message || '🎉 ยืนยันตัวตนนักศึกษาสำเร็จ! คุณได้รับตรา Verified Student เรียบร้อยแล้ว');
-        modal?.classList.add('hidden');
+        // SUCCESS ANIMATION TRANSITION (Replaces rigid alert!)
+        step1?.classList.add('hidden');
+        step2?.classList.add('hidden');
+        stepAlready?.classList.add('hidden');
+        stepSuccess?.classList.remove('hidden');
+
+        // Populate user details in celebration card
+        const celAvatar = document.getElementById('celebrateUserAvatar');
+        const celName = document.getElementById('celebrateUserName');
+        const celEmail = document.getElementById('celebrateUserEmail');
+        if (celAvatar) celAvatar.src = sessionUser?.profile_image || DEFAULT_AVATAR;
+        if (celName) celName.textContent = sessionUser?.name || 'นักศึกษา';
+        if (celEmail) celEmail.textContent = pendingEmail;
+
+        launchConfetti();
+
+        // Refresh app state in background
         await loadProfile();
         await loadDiscoverUsers();
       } catch (err) {
