@@ -150,7 +150,35 @@ async function sendMailUnified({ to, subject, html, text }) {
   const { brevoKey, resendKey, webhookUrl, user } = getCredentials();
   const from = getFromAddress();
 
-  // 1. Google Apps Script / Custom Mail Webhook (Port 443 HTTPS - Direct Gmail Delivery)
+  // 1. Brevo HTTPS API (Port 443 - Verified & Reliable)
+  if (brevoKey) {
+    try {
+      const resp = await fetch('https://api.brevo.com/v3/smtp/email', {
+        method: 'POST',
+        headers: {
+          'api-key': brevoKey,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          sender: { name: 'MatchSpace Student Verification', email: user },
+          to: [{ email: to }],
+          subject,
+          htmlContent: html,
+          textContent: text || ''
+        })
+      });
+      const data = await resp.json();
+      if (resp.ok) {
+        console.log(`[Email-Brevo] Sent successfully to ${to} (MessageId: ${data.messageId})`);
+        return { success: true, method: 'brevo', messageId: data.messageId };
+      }
+      console.warn('[Email-Brevo] API Error:', data);
+    } catch (err) {
+      console.warn('[Email-Brevo] Network error:', err.message);
+    }
+  }
+
+  // 2. Google Apps Script / Custom Mail Webhook (Port 443 HTTPS)
   if (webhookUrl) {
     try {
       const resp = await fetch(webhookUrl, {
@@ -170,7 +198,7 @@ async function sendMailUnified({ to, subject, html, text }) {
     }
   }
 
-  // 2. Resend HTTPS API (Port 443)
+  // 3. Resend HTTPS API (Port 443)
   if (resendKey) {
     try {
       // Resend strictly requires a verified custom domain or 'onboarding@resend.dev'
@@ -203,34 +231,6 @@ async function sendMailUnified({ to, subject, html, text }) {
       console.warn('[Email-Resend] API Error:', data);
     } catch (err) {
       console.warn('[Email-Resend] Network error:', err.message);
-    }
-  }
-
-  // 3. Brevo HTTPS API (Port 443)
-  if (brevoKey) {
-    try {
-      const resp = await fetch('https://api.brevo.com/v3/smtp/email', {
-        method: 'POST',
-        headers: {
-          'api-key': brevoKey,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          sender: { name: 'MatchSpace', email: user },
-          to: [{ email: to }],
-          subject,
-          htmlContent: html,
-          textContent: text || ''
-        })
-      });
-      const data = await resp.json();
-      if (resp.ok) {
-        console.log(`[Email-Brevo] Sent successfully to ${to} (MessageId: ${data.messageId})`);
-        return { success: true, method: 'brevo', messageId: data.messageId };
-      }
-      console.warn('[Email-Brevo] API Error:', data);
-    } catch (err) {
-      console.warn('[Email-Brevo] Network error:', err.message);
     }
   }
 

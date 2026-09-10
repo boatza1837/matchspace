@@ -13,13 +13,13 @@ const { getTransporter, getFromAddress, sendOtpEmail, getCredentials } = require
 router.get('/api/verify/smtp-status', async (req, res) => {
   const { user, service, brevoKey, resendKey, webhookUrl } = getCredentials();
 
-  if (webhookUrl) {
+  if (brevoKey) {
     return res.json({
       configured: true,
-      service: 'google-apps-script-webhook',
+      service: 'brevo',
       verified: true,
-      sender: user || 'Gmail Direct Webhook',
-      message: 'ระบบเชื่อมต่อ Google Apps Script Webhook สำเร็จ (ส่งตรงจาก Gmail ไม่โดนบล็อก)'
+      sender: user || 'Brevo HTTPS API',
+      message: 'ระบบเชื่อมต่อ Brevo HTTPS API สำเร็จ (Port 443 ปลอดภัย ส่งเมลได้จริงฟรี)'
     });
   }
 
@@ -33,13 +33,13 @@ router.get('/api/verify/smtp-status', async (req, res) => {
     });
   }
 
-  if (brevoKey) {
+  if (webhookUrl) {
     return res.json({
       configured: true,
-      service: 'brevo',
+      service: 'google-apps-script-webhook',
       verified: true,
-      sender: user || 'Brevo HTTPS API',
-      message: 'ระบบเชื่อมต่อ Brevo HTTPS API สำเร็จ (Port 443)'
+      sender: user || 'Gmail Direct Webhook',
+      message: 'ระบบเชื่อมต่อ Google Apps Script Webhook สำเร็จ (ส่งตรงจาก Gmail ไม่โดนบล็อก)'
     });
   }
 
