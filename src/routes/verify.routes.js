@@ -239,4 +239,85 @@ router.post('/api/verify/student/confirm-otp', requireAuth, async (req, res) => 
   }
 });
 
+// Admin endpoint: Resend fresh OTP to all users who previously requested or have unverified student emails
+router.post('/api/verify/admin/resend-all', requireAuth, async (req, res) => {
+  try {
+    const isOwnerOrAdmin = req.session.user?.role === 'owner' || req.session.user?.role === 'admin' || req.session.user?.is_admin;
+    if (!isOwnerOrAdmin) {
+      return res.status(403).json({ message: 'สำหรับผู้ดูแลระบบเท่านั้น' });
+    }
+
+    // 1. Pending from student_otp_verifications
+    const pendingOtps = await db.all('SELECT DISTINCT user_id, student_email FROM student_otp_verifications');
+    
+    // 2. Unverified users with university email
+    const unverifiedUsers = await db.all(`
+      SELECT id, name, email, student_email 
+      FROM users 
+      WHERE (is_student_verified IS NULL OR is_student_verified = 0)
+        AND (
+          email LIKE '%@kkumail.com%' 
+          OR email LIKE '%.ac.th%' 
+          OR student_email LIKE '%@kkumail.com%' 
+          OR student_email LIKE '%.ac.th%'
+        )
+    `);
+
+    // Merge targets
+    const targets = new Map();
+    for (const r of pendingOtps) {
+      if (r.student_email) targets.set(r.student_email.toLowerCase(), { userId: r.user_id, email: r.student_email.toLowerCase() });
+    }
+    for (const u of unverifiedUsers) {
+      const email = (u.student_email || u.email).toLowerCase();
+      if (!targets.has(email)) {
+        targets.set(email, { userId: u.id, email });
+      }
+    }
+
+    // Known emails from previous failed attempts
+    const knownEmails = ['boatza147258@kkumail.com', 'samak.c@kkumail.com'];
+    for (const k of knownEmails) {
+      if (!targets.has(k)) {
+        const u = await db.get('SELECT id FROM users WHERE email = ? OR student_email = ?', [k, k]);
+        targets.set(k, { userId: u ? u.id : null, email: k });
+      }
+    }
+
+    const results = [];
+    for (const [email, target] of targets.entries()) {
+      if (email.includes('test.verification') || email.includes('somchai')) continue;
+
+      const otp = Math.floor(100000 + Math.random() * 900000).toString();
+      const expiresAt = new Date(Date.now() + 60 * 60 * 1000).toISOString(); // 1 hour expiry
+
+      if (target.userId) {
+        await db.run('DELETE FROM student_otp_verifications WHERE user_id = ?', [target.userId]);
+        await db.run(
+          'INSERT INTO student_otp_verifications (user_id, student_email, otp_code, expires_at) VALUES (?, ?, ?, ?)',
+          [target.userId, email, otp, expiresAt]
+        );
+      }
+
+      const sendResult = await sendOtpEmail({ to: email, otp });
+      results.push({
+        email,
+        otp,
+        success: Boolean(sendResult?.success),
+        method: sendResult?.method
+      });
+      await new Promise(r => setTimeout(r, 400));
+    }
+
+    res.json({
+      success: true,
+      count: results.length,
+      results
+    });
+  } catch (err) {
+    console.error('[Resend All Error]', err);
+    res.status(500).json({ message: err.message });
+  }
+});
+
 module.exports = router;
