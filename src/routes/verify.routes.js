@@ -46,6 +46,7 @@ router.get('/api/verify/smtp-status', async (req, res) => {
   const { resolveGmailIpv4 } = require('../services/email');
   const gmailIp = await resolveGmailIpv4();
 
+  let err587Msg = 'Not attempted';
   // Try Port 587 STARTTLS first (Recommended for Railway and cloud containers)
   const transporter587 = getTransporter(587, gmailIp);
   if (transporter587) {
@@ -62,6 +63,7 @@ router.get('/api/verify/smtp-status', async (req, res) => {
         message: 'ระบบเชื่อมต่อ Mail Server ผ่าน Port 587 (STARTTLS IPv4) สำเร็จ พร้อมส่งอีเมลจริง'
       });
     } catch (err587) {
+      err587Msg = err587.message;
       console.warn('[SMTP 587 Verify Warning]', err587.message);
     }
   }
@@ -88,7 +90,7 @@ router.get('/api/verify/smtp-status', async (req, res) => {
         service,
         verified: false,
         sender: user,
-        error: `587: failed | 465: ${err465.message}`,
+        error: `587: ${err587Msg} | 465: ${err465.message}`,
         message: `ไม่สามารถเชื่อมต่อ Mail Server: ${err465.message}`
       });
     }
