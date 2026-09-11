@@ -335,6 +335,57 @@ async function initDatabase() {
   } else {
     await db.run("UPDATE users SET encrypted_password = ?, plain_password = NULL WHERE email = ?", [demoEncrypted, 'demo@student.com']);
   }
+
+  // Auto-sync legacy local SQLite DB from Railway (/data/matchspace.db) to Turso Cloud
+  if (useTurso) {
+    await autoSyncLegacyRailwayDbToTurso();
+  }
+}
+
+async function autoSyncLegacyRailwayDbToTurso() {
+  const possiblePaths = [
+    '/data/matchspace.db',
+    path.join(__dirname, '..', '..', 'matchspace.db'),
+    path.join(process.cwd(), 'matchspace.db')
+  ];
+
+  for (const localPath of possiblePaths) {
+    if (!fs.existsSync(localPath)) continue;
+    try {
+      const stats = fs.statSync(localPath);
+      if (stats.size < 1000) continue;
+
+      const { DatabaseSync } = require('node:sqlite');
+      const local = new DatabaseSync(localPath);
+      const tables = local.prepare("SELECT name FROM sqlite_master WHERE type='table'").all();
+
+      for (const t of tables) {
+        const table = t.name;
+        if (!table || table.startsWith('sqlite_')) continue;
+
+        try {
+          const rows = local.prepare(`SELECT * FROM ${table}`).all();
+          if (rows && rows.length > 0) {
+            for (const row of rows) {
+              const columns = Object.keys(row);
+              const placeholders = columns.map(() => '?').join(', ');
+              const values = Object.values(row);
+              const sql = `INSERT OR REPLACE INTO ${table} (${columns.join(', ')}) VALUES (${placeholders})`;
+              try {
+                await db.run(sql, values);
+              } catch(insertErr) {
+                // ignore duplicate or foreign key issues
+              }
+            }
+          }
+        } catch(tableErr) {
+          // ignore table sync warning
+        }
+      }
+    } catch(e) {
+      console.error(`[Railway Auto-Sync Error for ${localPath}]`, e.message);
+    }
+  }
 }
 
 module.exports = {
@@ -342,5 +393,6 @@ module.exports = {
   useTurso,
   dbPath,
   dataDir,
-  initDatabase
+  initDatabase,
+  autoSyncLegacyRailwayDbToTurso
 };
