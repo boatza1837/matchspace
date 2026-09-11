@@ -88,37 +88,68 @@ app.get('/api/health', (req, res) => {
   res.json({ ok: true, message: 'MatchSpace API is running', timestamp: new Date() });
 });
 
-// Trigger sync of local Railway Volume SQLite into Turso Cloud
-app.all('/api/system/sync-railway', async (req, res) => {
-  const token = req.query.token || req.headers['x-sync-token'];
-  const isOwnerSession = Boolean(req.session?.user && (req.session.user.role === 'owner' || req.session.user.is_admin));
-  if (token !== 'matchspace_owner_sync_2026' && !isOwnerSession) {
+// System Railway Inspection & Recovery endpoints
+app.get('/api/system/inspect-railway', async (req, res) => {
+  const token = req.query.token;
+  if (token !== 'matchspace_owner_sync_2026') {
     return res.status(403).json({ error: 'Unauthorized' });
   }
 
-  const report = {
-    timestamp: new Date().toISOString(),
-    isRailwayVolume: fs.existsSync('/data'),
+  const result = {
+    cwd: process.cwd(),
+    hasDataDir: fs.existsSync('/data'),
     dataFiles: [],
-    syncResults: []
+    uploadsFiles: [],
+    dbCandidates: []
   };
 
   if (fs.existsSync('/data')) {
-    try { report.dataFiles = fs.readdirSync('/data'); } catch (e) { report.dataFiles = [e.message]; }
+    try {
+      result.dataFiles = fs.readdirSync('/data');
+    } catch (e) {
+      result.dataFilesError = e.message;
+    }
+    const dataUploads = '/data/uploads';
+    if (fs.existsSync(dataUploads)) {
+      try {
+        result.uploadsFiles = fs.readdirSync(dataUploads);
+      } catch (e) {
+        result.uploadsFilesError = e.message;
+      }
+    }
   }
 
-  try {
-    const { autoSyncLegacyRailwayDbToTurso } = require('./src/config/db');
-    await autoSyncLegacyRailwayDbToTurso();
-    report.status = 'success';
-    report.message = 'Synchronized Railway SQLite database into Turso Cloud successfully';
-  } catch (e) {
-    report.status = 'error';
-    report.error = e.message;
+  const searchDirs = ['/data', process.cwd(), path.join(process.cwd(), 'public', 'uploads')];
+  for (const d of searchDirs) {
+    if (fs.existsSync(d)) {
+      try {
+        const files = fs.readdirSync(d);
+        for (const f of files) {
+          if (f.endsWith('.db') || f.endsWith('.sqlite') || f.endsWith('.bak')) {
+            const full = path.join(d, f);
+            const st = fs.statSync(full);
+            result.dbCandidates.push({ path: full, size: st.size, modified: st.mtime });
+          }
+        }
+      } catch (e) {}
+    }
   }
 
-  res.json(report);
+  res.json(result);
 });
+
+app.get('/api/system/download-railway-file', (req, res) => {
+  const token = req.query.token;
+  if (token !== 'matchspace_owner_sync_2026') {
+    return res.status(403).json({ error: 'Unauthorized' });
+  }
+  const filePath = req.query.path;
+  if (!filePath || !fs.existsSync(filePath)) {
+    return res.status(404).json({ error: 'File not found' });
+  }
+  res.download(filePath);
+});
+
 
 // Mount modular API routes
 app.use(authRoutes);
