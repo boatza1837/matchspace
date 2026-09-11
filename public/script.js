@@ -2949,20 +2949,32 @@ window.matchSpaceApp = (function () {
 
       <div class="discover-prompts-col">
         <div class="discover-prompt-card" data-prompt="ถ้ามีเวลาว่างเย็นนี้ อยากไปทำอะไร">
-          <span>ถ้ามีเวลาว่างเย็นนี้ อยากไปทำอะไร</span>
-          <span>💬</span>
+          <div class="discover-prompt-top">
+            <span class="prompt-badge">💭 ไลฟ์สไตล์</span>
+            <span class="discover-prompt-action"><span class="discover-prompt-copy-label">แตะเพื่อคัดลอก</span> 📋</span>
+          </div>
+          <p class="discover-prompt-text">ถ้ามีเวลาว่างเย็นนี้ อยากไปทำอะไร?</p>
         </div>
         <div class="discover-prompt-card" data-prompt="เพลงที่ฟังช่วงนี้คืออะไร">
-          <span>เพลงที่ฟังช่วงนี้คืออะไร</span>
-          <span>🎵</span>
+          <div class="discover-prompt-top">
+            <span class="prompt-badge">🎵 ดนตรี &amp; เพลง</span>
+            <span class="discover-prompt-action"><span class="discover-prompt-copy-label">แตะเพื่อคัดลอก</span> 📋</span>
+          </div>
+          <p class="discover-prompt-text">เพลงที่ฟังบ่อยช่วงนี้คือเพลงอะไร?</p>
         </div>
         <div class="discover-prompt-card" data-prompt="คาเฟ่โปรดในมหาวิทยาลัยคือที่ไหน">
-          <span>คาเฟ่โปรดในมหาวิทยาลัยคือที่ไหน</span>
-          <span>☕</span>
+          <div class="discover-prompt-top">
+            <span class="prompt-badge">☕ คาเฟ่ &amp; ชิล</span>
+            <span class="discover-prompt-action"><span class="discover-prompt-copy-label">แตะเพื่อคัดลอก</span> 📋</span>
+          </div>
+          <p class="discover-prompt-text">คาเฟ่โปรดในมหาวิทยาลัยคือที่ไหน?</p>
         </div>
         <div class="discover-prompt-card" data-prompt="วิชาที่ชอบที่สุดในเทอมนี้คืออะไร">
-          <span>วิชาที่ชอบที่สุดในเทอมนี้คืออะไร</span>
-          <span>📚</span>
+          <div class="discover-prompt-top">
+            <span class="prompt-badge">🎓 ชีวิตมหาลัย</span>
+            <span class="discover-prompt-action"><span class="discover-prompt-copy-label">แตะเพื่อคัดลอก</span> 📋</span>
+          </div>
+          <p class="discover-prompt-text">วิชาที่ชอบที่สุดในเทอมนี้คือวิชาอะไร?</p>
         </div>
       </div>
     `;

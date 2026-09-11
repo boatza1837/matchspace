@@ -181,7 +181,7 @@ window.matchSpaceApp = (function () {
 
     if (nameEl) nameEl.textContent = user.nickname || user.name || 'ผู้ใช้งาน';
     if (majorEl) majorEl.textContent = `${user.year ? user.year + ' · ' : ''}${user.major || 'มหาวิทยาลัยขอนแก่น'}`;
-    if (avatarEl && user.profile_image) avatarEl.src = user.profile_image;
+    if (avatarEl) setAvatarWithFallback(avatarEl, user.profile_image, user.nickname || user.name);
     if (verifyPill) {
       if (Number(user.is_student_verified) === 1) {
         verifyPill.textContent = '✔️ ยืนยันแล้ว';
@@ -864,7 +864,7 @@ window.matchSpaceApp = (function () {
     document.getElementById('giveBadgeTargetUserId').value = targetUser.id;
     document.getElementById('giveBadgeTargetName').textContent = targetUser.nickname ? `${targetUser.name} (${targetUser.nickname})` : targetUser.name;
     const avatarEl = document.getElementById('giveBadgeTargetAvatar');
-    if (avatarEl) avatarEl.src = targetUser.profile_image || DEFAULT_AVATAR;
+    if (avatarEl) setAvatarWithFallback(avatarEl, targetUser.profile_image, targetUser.nickname || targetUser.name);
 
     const commentInput = document.getElementById('giveBadgeComment');
     if (commentInput) commentInput.value = '';
@@ -1246,11 +1246,14 @@ window.matchSpaceApp = (function () {
         <div id="discoverPromptsListInner" style="display:flex; flex-direction:column; gap:8px;">
           ${dynamicPrompts.map(p => `
             <div class="discover-prompt-card ${p.isShared ? 'shared-match' : ''}" data-prompt="${escapeHtml(p.text)}">
-              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
-                <span class="prompt-badge ${p.isShared ? 'shared' : ''}" style="font-size:0.7rem; padding:2px 7px;">${p.badge}</span>
-                <span style="font-size:0.88rem;">${p.icon}</span>
+              <div class="discover-prompt-top">
+                <span class="prompt-badge ${p.isShared ? 'shared' : ''}">${escapeHtml(p.badge)}</span>
+                <span class="discover-prompt-action">
+                  <span class="discover-prompt-copy-label">แตะเพื่อคัดลอก</span>
+                  <span class="discover-prompt-copy-icon">📋</span>
+                </span>
               </div>
-              <span style="font-weight:600; font-size:0.86rem; color:#1e293b; line-height:1.4;">${escapeHtml(p.text)}</span>
+              <p class="discover-prompt-text">${escapeHtml(p.text)}</p>
             </div>
           `).join('')}
         </div>
@@ -1280,13 +1283,23 @@ window.matchSpaceApp = (function () {
       openIcebreakerModal(user.id);
     });
 
-    // Prompt cards click to copy
+    // Prompt cards click to copy with visual feedback
     function attachDiscoverPromptClickListeners() {
       discoverUserCard.querySelectorAll('.discover-prompt-card').forEach(card => {
         card.onclick = () => {
           const promptText = card.dataset.prompt;
           if (navigator.clipboard && navigator.clipboard.writeText) {
             navigator.clipboard.writeText(promptText).catch(() => {});
+          }
+          const actionLabel = card.querySelector('.discover-prompt-copy-label');
+          if (actionLabel) {
+            const orig = actionLabel.textContent;
+            actionLabel.textContent = 'คัดลอกแล้ว! ✔️';
+            card.classList.add('copied-highlight');
+            setTimeout(() => {
+              actionLabel.textContent = orig;
+              card.classList.remove('copied-highlight');
+            }, 1500);
           }
           showMatchToast(`💡 คัดลอกคำถามชวนคุย: "${promptText}"`);
         };
@@ -1301,11 +1314,14 @@ window.matchSpaceApp = (function () {
       if (innerList) {
         innerList.innerHTML = newPrompts.map(p => `
           <div class="discover-prompt-card ${p.isShared ? 'shared-match' : ''}" data-prompt="${escapeHtml(p.text)}">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
-              <span class="prompt-badge ${p.isShared ? 'shared' : ''}" style="font-size:0.7rem; padding:2px 7px;">${p.badge}</span>
-              <span style="font-size:0.88rem;">${p.icon}</span>
+            <div class="discover-prompt-top">
+              <span class="prompt-badge ${p.isShared ? 'shared' : ''}">${escapeHtml(p.badge)}</span>
+              <span class="discover-prompt-action">
+                <span class="discover-prompt-copy-label">แตะเพื่อคัดลอก</span>
+                <span class="discover-prompt-copy-icon">📋</span>
+              </span>
             </div>
-            <span style="font-weight:600; font-size:0.86rem; color:#1e293b; line-height:1.4;">${escapeHtml(p.text)}</span>
+            <p class="discover-prompt-text">${escapeHtml(p.text)}</p>
           </div>
         `).join('');
         attachDiscoverPromptClickListeners();
@@ -2131,7 +2147,7 @@ window.matchSpaceApp = (function () {
         const av = document.getElementById('alreadyVerifiedAvatar');
         const nm = document.getElementById('alreadyVerifiedName');
         const em = document.getElementById('alreadyVerifiedEmail');
-        if (av) av.src = sessionUser.profile_image || DEFAULT_AVATAR;
+        if (av) setAvatarWithFallback(av, sessionUser.profile_image, sessionUser.nickname || sessionUser.name);
         if (nm) nm.textContent = sessionUser.name + (sessionUser.nickname ? ` (${sessionUser.nickname})` : '');
         if (em) em.textContent = sessionUser.student_email || sessionUser.email || 'นักศึกษามหาวิทยาลัยขอนแก่น';
 
@@ -2231,7 +2247,7 @@ window.matchSpaceApp = (function () {
         const celAvatar = document.getElementById('celebrateUserAvatar');
         const celName = document.getElementById('celebrateUserName');
         const celEmail = document.getElementById('celebrateUserEmail');
-        if (celAvatar) celAvatar.src = sessionUser?.profile_image || DEFAULT_AVATAR;
+        if (celAvatar) setAvatarWithFallback(celAvatar, sessionUser?.profile_image, sessionUser?.nickname || sessionUser?.name);
         if (celName) celName.textContent = sessionUser?.name || 'นักศึกษา';
         if (celEmail) celEmail.textContent = pendingEmail;
 
@@ -2364,7 +2380,7 @@ window.matchSpaceApp = (function () {
 
       if (data.partner) {
         if (bannerEl) bannerEl.style.display = 'flex';
-        if (avatarEl) avatarEl.src = data.partner.profile_image || 'uploads/avatars/default.png';
+        if (avatarEl) setAvatarWithFallback(avatarEl, data.partner.profile_image, data.partner.nickname || data.partner.name);
         if (nameEl) nameEl.textContent = data.partner.name + (data.partner.nickname ? ` (${data.partner.nickname})` : '');
         if (majorEl) majorEl.textContent = data.partner.major || 'มหาวิทยาลัยขอนแก่น';
 

@@ -3719,29 +3719,7 @@ body {
   gap: 12px;
 }
 
-.discover-prompt-card {
-  background: #ffffff;
-  border-radius: 18px;
-  padding: 16px 20px;
-  border: 1.5px solid rgba(230, 225, 245, 0.85);
-  box-shadow: 0 4px 16px rgba(45, 35, 80, 0.03);
-  font-size: 0.92rem;
-  font-weight: 600;
-  color: #1e1b4b;
-  cursor: pointer;
-  transition: all 0.22s cubic-bezier(0.2, 0.8, 0.2, 1);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-}
-
-.discover-prompt-card:hover {
-  transform: translateX(4px);
-  border-color: rgba(124, 92, 233, 0.4);
-  box-shadow: 0 6px 20px rgba(124, 92, 233, 0.1);
-  color: #6946ed;
-}
+/* Prompt card styles defined in conversation starters section */
 
 /* Activity Schedule Badges (Date & Time) */
 .activity-schedule-row {
@@ -4119,6 +4097,95 @@ body {
   justify-content: space-between;
   gap: 16px;
   margin-top: 14px;
+}
+
+.discover-prompt-card {
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 12px 14px;
+  border: 1.5px solid rgba(230, 225, 245, 0.95);
+  box-shadow: 0 2px 10px rgba(45, 35, 80, 0.04);
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: stretch !important;
+  gap: 7px !important;
+  text-align: left;
+  position: relative;
+  overflow: hidden;
+}
+
+.discover-prompt-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(124, 92, 233, 0.45);
+  box-shadow: 0 6px 20px rgba(124, 92, 233, 0.12);
+  background: #fdfcff;
+}
+
+.discover-prompt-card:active {
+  transform: scale(0.985);
+}
+
+.discover-prompt-card.copied-highlight {
+  border-color: #10b981 !important;
+  background: #f0fdf4 !important;
+  box-shadow: 0 4px 16px rgba(16, 185, 129, 0.15) !important;
+}
+
+.discover-prompt-card.shared-match {
+  background: linear-gradient(135deg, #ffffff 0%, #faf5ff 100%);
+  border-color: #d8b4fe;
+}
+
+.discover-prompt-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  gap: 8px;
+}
+
+.discover-prompt-card .prompt-badge {
+  white-space: nowrap !important;
+  flex-shrink: 0;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 3px 9px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  line-height: 1.3;
+}
+
+.discover-prompt-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #8b5cf6;
+  opacity: 0.85;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.discover-prompt-card:hover .discover-prompt-action {
+  opacity: 1;
+  color: #6d28d9;
+}
+
+.discover-prompt-card.copied-highlight .discover-prompt-action {
+  color: #059669;
+}
+
+.discover-prompt-text {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: #1e293b;
+  line-height: 1.45;
+  margin: 0;
+  word-break: break-word;
 }
 
 .student-verification-card.verified {
@@ -5557,12 +5624,15 @@ body {
 }
 
 .icebreaker-partner-avatar {
-  width: 44px;
-  height: 44px;
+  width: 48px;
+  height: 48px;
   border-radius: 50%;
   object-fit: cover;
   border: 2px solid #ffffff;
-  box-shadow: 0 2px 8px rgba(124, 58, 237, 0.15);
+  box-shadow: 0 2px 8px rgba(124, 58, 237, 0.18);
+  background: #ede9fe;
+  flex-shrink: 0;
+  display: block;
 }
 
 .icebreaker-partner-name {
@@ -5731,6 +5801,10 @@ body {
   border-radius: 999px;
   background: #f1f5f9;
   color: #475569;
+  white-space: nowrap;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
 }
 
 .prompt-badge.shared {
@@ -5859,22 +5933,29 @@ body {
 .btn-all-icebreakers-discover {
   margin-top: 6px;
   width: 100%;
-  padding: 9px;
-  border-radius: 12px;
-  background: #f3e8ff;
+  padding: 10px 14px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #f5f3ff 0%, #faf5ff 100%);
   color: #6b21a8;
-  border: 1px dashed #c084fc;
-  font-size: 0.82rem;
+  border: 1.5px dashed #c084fc;
+  font-size: 0.85rem;
   font-weight: 700;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
   text-align: center;
+  box-shadow: 0 2px 8px rgba(124, 58, 237, 0.05);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
 }
 
 .btn-all-icebreakers-discover:hover {
-  background: #7c3aed;
+  background: linear-gradient(135deg, #7c3aed 0%, #6366f1 100%);
   color: #ffffff;
-  border-style: solid;
+  border: 1.5px solid #7c3aed;
+  box-shadow: 0 4px 16px rgba(124, 58, 237, 0.25);
+  transform: translateY(-1px);
 }
 
 .btn-shuffle-chips {
@@ -6929,12 +7010,30 @@ body {
   }
 
   .discover-prompt-card {
-    padding: 9px 12px !important;
+    padding: 10px 12px !important;
     border-radius: 14px !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 6px !important;
   }
 
-  .discover-prompt-card span {
-    font-size: 0.8rem !important;
+  .discover-prompt-top {
+    gap: 6px !important;
+  }
+
+  .discover-prompt-card .prompt-badge {
+    font-size: 0.68rem !important;
+    padding: 2px 7px !important;
+    white-space: nowrap !important;
+  }
+
+  .discover-prompt-action {
+    font-size: 0.68rem !important;
+  }
+
+  .discover-prompt-text {
+    font-size: 0.82rem !important;
+    line-height: 1.4 !important;
   }
 
   .btn-all-icebreakers-discover {

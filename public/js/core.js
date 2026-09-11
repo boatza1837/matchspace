@@ -177,3 +177,63 @@ if (document.readyState === 'loading') {
   checkAdminNavVisibility();
 }
 
+/**
+ * Generates an SVG Data URI for an initial/letter avatar with vibrant gradient
+ */
+function generateLetterAvatar(name = 'User') {
+  const clean = (name || 'U').trim();
+  const initial = (clean.charAt(0) || 'U').toUpperCase();
+
+  const gradients = [
+    ['#7c3aed', '#ec4899'], // Purple - Pink
+    ['#6366f1', '#a855f7'], // Indigo - Violet
+    ['#3b82f6', '#06b6d4'], // Blue - Cyan
+    ['#10b981', '#059669'], // Emerald - Green
+    ['#f59e0b', '#d97706'], // Amber - Orange
+    ['#ec4899', '#f43f5e'], // Pink - Rose
+    ['#8b5cf6', '#3b82f6']  // Violet - Blue
+  ];
+
+  let hash = 0;
+  for (let i = 0; i < clean.length; i++) {
+    hash = clean.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  const [c1, c2] = gradients[Math.abs(hash) % gradients.length];
+
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100">
+    <defs>
+      <linearGradient id="g_${Math.abs(hash)}" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stop-color="${c1}"/>
+        <stop offset="100%" stop-color="${c2}"/>
+      </linearGradient>
+    </defs>
+    <rect width="100" height="100" rx="50" fill="url(#g_${Math.abs(hash)})"/>
+    <text x="50" y="55" text-anchor="middle" dominant-baseline="central" fill="#ffffff" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-weight="700" font-size="46">${initial}</text>
+  </svg>`;
+
+  return 'data:image/svg+xml;utf8,' + encodeURIComponent(svg);
+}
+
+/**
+ * Sets avatar src with automatic fallback to dynamic letter avatar if empty, default, or fails
+ */
+function setAvatarWithFallback(imgEl, src, name = 'User') {
+  if (!imgEl) return;
+  const fallback = generateLetterAvatar(name);
+
+  imgEl.onerror = function() {
+    this.onerror = null;
+    this.src = fallback;
+  };
+
+  if (!src || src === 'uploads/avatars/default.png' || src === '/uploads/avatars/default.png' || src.includes('default.png') || src.includes('default.svg')) {
+    imgEl.src = fallback;
+  } else {
+    const finalSrc = src.startsWith('uploads/') ? '/' + src : src;
+    imgEl.src = finalSrc;
+  }
+}
+
+window.generateLetterAvatar = generateLetterAvatar;
+window.setAvatarWithFallback = setAvatarWithFallback;
+

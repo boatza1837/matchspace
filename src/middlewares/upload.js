@@ -11,6 +11,15 @@ const uploadsDir = (process.env.DATA_DIR || isRailwayVolume)
 if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
 }
+const avatarsDir = path.join(uploadsDir, 'avatars');
+if (!fs.existsSync(avatarsDir)) {
+  fs.mkdirSync(avatarsDir, { recursive: true });
+}
+const defaultIconSrc = path.join(__dirname, '..', '..', 'public', 'icons', 'default-avatar.svg');
+const defaultSvgTarget = path.join(avatarsDir, 'default.svg');
+if (fs.existsSync(defaultIconSrc) && !fs.existsSync(defaultSvgTarget)) {
+  try { fs.copyFileSync(defaultIconSrc, defaultSvgTarget); } catch (e) {}
+}
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, uploadsDir),

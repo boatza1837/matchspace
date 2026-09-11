@@ -711,7 +711,7 @@ window.matchSpaceChat = (function () {
     const nameEl = document.getElementById('reportPartnerName');
     if (nameEl) nameEl.textContent = chat.partner_name || 'ผู้ใช้งาน';
     const avatarEl = document.getElementById('reportPartnerAvatar');
-    if (avatarEl) avatarEl.src = chat.partner_profile_image || 'uploads/avatars/default.png';
+    if (avatarEl) setAvatarWithFallback(avatarEl, chat.partner_profile_image, chat.partner_name);
 
     const categorySelect = document.getElementById('reportCategorySelect');
     if (categorySelect) categorySelect.value = '';

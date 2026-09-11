@@ -10,6 +10,9 @@ node_modules/
 # Uploads (keep folder, ignore files)
 public/uploads/*
 !public/uploads/.gitkeep
+!public/uploads/avatars/
+!public/uploads/avatars/default.png
+!public/uploads/avatars/default.svg
 
 # Environment secrets
 .env
