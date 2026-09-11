@@ -335,13 +335,6 @@ async function initDatabase() {
   } else {
     await db.run("UPDATE users SET encrypted_password = ?, plain_password = NULL WHERE email = ?", [demoEncrypted, 'demo@student.com']);
   }
-
-  // Auto-sync legacy local SQLite DB from Railway in background without blocking server boot
-  if (useTurso) {
-    setTimeout(() => {
-      autoSyncLegacyRailwayDbToTurso().catch(err => console.error('[Railway Auto-Sync Error]', err.message));
-    }, 2000);
-  }
 }
 
 async function autoSyncLegacyRailwayDbToTurso() {

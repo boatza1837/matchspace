@@ -7,6 +7,7 @@ const http = require('http');
 const express = require('express');
 const session = require('express-session');
 const path = require('path');
+const fs = require('fs');
 
 // Core configurations
 const { SESSION_SECRET } = require('./src/config/security');
@@ -65,7 +66,7 @@ app.use('/uploads', express.static(uploadsDir));
 app.use('/uploads', async (req, res, next) => {
   if (req.method !== 'GET') return next();
   const filename = req.path;
-  const railwayUrl = `https://matchspace-production.up.railway.app/uploads${filename}`;
+  const railwayUrl = `https://matchspace-production-b035.up.railway.app/uploads${filename}`;
   try {
     const upstream = await fetch(railwayUrl);
     if (upstream.ok) {
@@ -95,47 +96,76 @@ app.get('/api/system/inspect-railway', async (req, res) => {
     return res.status(403).json({ error: 'Unauthorized' });
   }
 
-  const result = {
-    cwd: process.cwd(),
-    hasDataDir: fs.existsSync('/data'),
-    dataFiles: [],
-    uploadsFiles: [],
-    dbCandidates: []
-  };
+  try {
+    const result = {
+      cwd: process.cwd(),
+      hasDataDir: fs.existsSync('/data'),
+      dataFiles: [],
+      uploadsFiles: [],
+      dbCandidates: []
+    };
 
-  if (fs.existsSync('/data')) {
-    try {
-      result.dataFiles = fs.readdirSync('/data');
-    } catch (e) {
-      result.dataFilesError = e.message;
-    }
-    const dataUploads = '/data/uploads';
-    if (fs.existsSync(dataUploads)) {
+    if (fs.existsSync('/data')) {
       try {
-        result.uploadsFiles = fs.readdirSync(dataUploads);
+        result.dataFiles = fs.readdirSync('/data');
       } catch (e) {
-        result.uploadsFilesError = e.message;
+        result.dataFilesError = e.message;
+      }
+      const dataUploads = '/data/uploads';
+      if (fs.existsSync(dataUploads)) {
+        try {
+          result.uploadsFiles = fs.readdirSync(dataUploads);
+        } catch (e) {
+          result.uploadsFilesError = e.message;
+        }
       }
     }
-  }
 
-  const searchDirs = ['/data', process.cwd(), path.join(process.cwd(), 'public', 'uploads')];
-  for (const d of searchDirs) {
-    if (fs.existsSync(d)) {
-      try {
-        const files = fs.readdirSync(d);
-        for (const f of files) {
-          if (f.endsWith('.db') || f.endsWith('.sqlite') || f.endsWith('.bak')) {
-            const full = path.join(d, f);
-            const st = fs.statSync(full);
-            result.dbCandidates.push({ path: full, size: st.size, modified: st.mtime });
+    const searchDirs = ['/data', process.cwd(), path.join(process.cwd(), 'public', 'uploads')];
+    for (const d of searchDirs) {
+      if (fs.existsSync(d)) {
+        try {
+          const files = fs.readdirSync(d);
+          for (const f of files) {
+            if (f.endsWith('.db') || f.endsWith('.sqlite') || f.endsWith('.bak')) {
+              const full = path.join(d, f);
+              const st = fs.statSync(full);
+              result.dbCandidates.push({ path: full, size: st.size, modified: st.mtime });
+            }
           }
-        }
-      } catch (e) {}
+        } catch (e) {}
+      }
     }
-  }
 
-  res.json(result);
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: err.message, stack: err.stack });
+  }
+});
+
+app.get('/api/system/dump-railway-db', (req, res) => {
+  const token = req.query.token;
+  if (token !== 'matchspace_owner_sync_2026') {
+    return res.status(403).json({ error: 'Unauthorized' });
+  }
+  const targetPath = req.query.path || '/data/matchspace.db';
+  if (!fs.existsSync(targetPath)) {
+    return res.status(404).json({ error: `File not found: ${targetPath}` });
+  }
+  try {
+    const { DatabaseSync } = require('node:sqlite');
+    const localDb = new DatabaseSync(targetPath);
+    const tables = localDb.prepare("SELECT name FROM sqlite_master WHERE type='table'").all();
+    const data = {};
+    for (const t of tables) {
+      if (!t.name.startsWith('sqlite_')) {
+        data[t.name] = localDb.prepare(`SELECT * FROM ${t.name}`).all();
+      }
+    }
+    res.json({ ok: true, file: targetPath, tables: Object.keys(data), data });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message, stack: err.stack });
+  }
 });
 
 app.get('/api/system/download-railway-file', (req, res) => {
