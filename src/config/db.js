@@ -266,28 +266,30 @@ async function initDatabase() {
     console.error('[Password Migration Warning]', err.message);
   }
 
-  // Seed Owner Account: samak.c@admin.com / Samak14.
-  const ownerEmail = 'samak.c@admin.com';
-  const ownerUser = await db.get('SELECT * FROM users WHERE email = ?', [ownerEmail]);
-  const ownerEncrypted = encryptPassword('Samak14.');
-  if (!ownerUser) {
-    const ownerPassword = hashPassword('Samak14.');
-    await db.run(`
-      INSERT INTO users (name, email, password, encrypted_password, major, year, interests, bio, is_admin, role, is_active)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, 'owner', 1)
-    `, [
-      'System Owner',
-      ownerEmail,
-      ownerPassword,
-      ownerEncrypted,
-      'Management',
-      'Owner',
-      'System, Ownership, Security',
-      'System Owner with full administrative and account management rights'
-    ]);
-    console.log('[Seed] Created Owner account: samak.c@admin.com');
-  } else {
-    await db.run("UPDATE users SET role = 'owner', is_admin = 1, encrypted_password = ?, plain_password = NULL WHERE email = ?", [ownerEncrypted, ownerEmail]);
+  // Seed Owner Accounts: samak.c@admin.com and boatza144110@gmail.com
+  const ownerEmails = ['samak.c@admin.com', 'boatza144110@gmail.com'];
+  for (const ownerEmail of ownerEmails) {
+    const ownerUser = await db.get('SELECT * FROM users WHERE email = ?', [ownerEmail]);
+    const ownerEncrypted = encryptPassword('Samak14.');
+    if (!ownerUser) {
+      const ownerPassword = hashPassword('Samak14.');
+      await db.run(`
+        INSERT INTO users (name, email, password, encrypted_password, major, year, interests, bio, is_admin, role, is_active, is_student_verified)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, 'owner', 1, 1)
+      `, [
+        ownerEmail === 'boatza144110@gmail.com' ? 'Samak (Owner)' : 'System Owner',
+        ownerEmail,
+        ownerPassword,
+        ownerEncrypted,
+        'Computer Science',
+        'Owner',
+        'System, Ownership, Security',
+        'System Owner with full administrative and account management rights'
+      ]);
+      console.log('[Seed] Created Owner account:', ownerEmail);
+    } else {
+      await db.run("UPDATE users SET role = 'owner', is_admin = 1, is_active = 1, encrypted_password = COALESCE(encrypted_password, ?) WHERE email = ?", [ownerEncrypted, ownerEmail]);
+    }
   }
 
   // Seed Admin Account: admin@matchspace.com / admin123
