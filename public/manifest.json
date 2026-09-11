@@ -1,0 +1,55 @@
+{
+  "name": "MatchSpace | สังคมเพื่อนและกิจกรรม มข.",
+  "short_name": "MatchSpace",
+  "description": "จับคู่จากแท็กและความสนใจร่วมกัน สังคมเพื่อนและกิจกรรมรอบรั้วมหาวิทยาลัยขอนแก่น",
+  "start_url": "/app.html",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f7f1ff",
+  "theme_color": "#785dfa",
+  "categories": ["social", "lifestyle", "education"],
+  "icons": [
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "ค้นหาเพื่อน (Discover)",
+      "url": "/app.html#discover",
+      "description": "เปิดหน้าค้นหาเพื่อนที่สนใจตรงกัน"
+    },
+    {
+      "name": "ห้องแชท (Chats)",
+      "url": "/app.html#chat",
+      "description": "เปิดห้องแชทและข้อความล่าสุด"
+    },
+    {
+      "name": "บอร์ดกิจกรรม (Activities)",
+      "url": "/app.html#activity",
+      "description": "เปิดดูกิจกรรมใกล้ตัวในมหาวิทยาลัย"
+    }
+  ]
+}

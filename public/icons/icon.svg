@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#3b2d71" />
+      <stop offset="50%" stop-color="#271c52" />
+      <stop offset="100%" stop-color="#181035" />
+    </linearGradient>
+    <linearGradient id="heartGrad1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ff6b6b" />
+      <stop offset="50%" stop-color="#f06595" />
+      <stop offset="100%" stop-color="#cc5de8" />
+    </linearGradient>
+    <linearGradient id="heartGrad2" x1="100%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#845ef7" />
+      <stop offset="50%" stop-color="#b197fc" />
+      <stop offset="100%" stop-color="#ff8787" />
+    </linearGradient>
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="14" result="blur" />
+      <feMerge>
+        <feMergeNode in="blur" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Background Squircle -->
+  <rect width="512" height="512" rx="115" fill="url(#bgGrad)" />
+
+  <!-- Outer Ambient Glow -->
+  <path d="M256 390 C160 300 110 240 110 175 C110 120 150 85 205 85 C236 85 266 102 280 128 C294 102 324 85 355 85 C410 85 450 120 450 175 C450 240 400 300 256 390 Z" 
+        fill="none" stroke="url(#heartGrad1)" stroke-width="32" stroke-linecap="round" stroke-linejoin="round" opacity="0.4" filter="url(#glow)" />
+
+  <!-- Primary Heart Outer Loop -->
+  <path d="M256 405 C150 310 95 245 95 175 C95 115 140 75 200 75 C234 75 268 95 284 125 C300 95 334 75 368 75 C428 75 473 115 473 175 C473 245 418 310 256 405 Z" 
+        fill="none" stroke="url(#heartGrad1)" stroke-width="28" stroke-linecap="round" stroke-linejoin="round" />
+
+  <!-- Secondary Intertwined Heart Loop -->
+  <path d="M240 375 C160 295 125 245 125 190 C125 145 158 115 205 115 C232 115 258 130 272 154 C286 130 312 115 339 115 C386 115 419 145 419 190 C419 245 384 295 240 375 Z" 
+        fill="none" stroke="url(#heartGrad2)" stroke-width="22" stroke-linecap="round" stroke-linejoin="round" opacity="0.9" />
+
+  <!-- Center Accent Heart -->
+  <path d="M256 320 C205 270 175 235 175 200 C175 172 195 152 225 152 C242 152 258 162 267 178 C276 162 292 152 309 152 C339 152 359 172 359 200 C359 235 329 270 256 320 Z" 
+        fill="url(#heartGrad1)" opacity="0.2" />
+
+  <!-- Glass Highlight -->
+  <path d="M60 60 Q 256 120 452 60" stroke="rgba(255,255,255,0.15)" stroke-width="4" fill="none" />
+</svg>

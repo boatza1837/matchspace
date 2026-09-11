@@ -88,6 +88,15 @@ window.matchSpaceChat = (function () {
         });
       }
     });
+
+    // Real-time student badge received
+    ws.on('badge_received', (data) => {
+      if (window.matchSpaceApp?.showToast) {
+        window.matchSpaceApp.showToast(`🎉 คุณได้รับป้าย "${data.badge?.icon} ${data.badge?.label}" จาก ${data.giver?.name || 'เพื่อน'}!`);
+      } else {
+        alert(`🎉 ได้รับป้ายความประทับใจใหม่!\n${data.message || ''}`);
+      }
+    });
   }
 
   function showTypingIndicator(userName) {
@@ -307,6 +316,7 @@ window.matchSpaceChat = (function () {
         const blockedByMe = !!data.chat.blocked_by_me;
         const blockLabel = blockedByMe ? 'ปลดบล็อก' : 'บล็อก';
         const blockIcon = blockedByMe ? '🔓' : '🚫';
+        const blockBtnAction = blockedByMe ? 'unblock' : 'block';
 
         headerActions.innerHTML = `
           <button type="button" class="btn-chat-icebreaker-trigger" id="btnChatIcebreakerTrigger" title="คำแนะนำเริ่มต้นคุย" aria-label="คำแนะนำเริ่มต้นคุย">
@@ -314,6 +324,12 @@ window.matchSpaceChat = (function () {
           </button>
           <button type="button" class="btn-chat-view-profile" data-open-profile-id="${data.chat.partner_id}" title="ดูโปรไฟล์" aria-label="ดูโปรไฟล์">
             <span class="btn-chat-icon">🔍</span><span class="btn-chat-label">ดูโปรไฟล์</span>
+          </button>
+          <button type="button" class="btn-chat-badge-trigger" id="btnChatBadgeTrigger" title="มอบป้ายความประทับใจ" aria-label="มอบป้ายชื่นชม">
+            <span class="btn-chat-icon">🌟</span><span class="btn-chat-label">มอบป้าย</span>
+          </button>
+          <button type="button" class="btn-chat-report-trigger" id="btnChatReportTrigger" title="รายงานความปลอดภัยในแชท" aria-label="รายงานความปลอดภัย">
+            <span class="btn-chat-icon">🚩</span><span class="btn-chat-label">รายงาน</span>
           </button>
           <button type="button" class="btn-chat-block" data-chat-block-action="${blockBtnAction}" data-partner-id="${data.chat.partner_id}" title="${blockIcon} ${blockLabel}" aria-label="${blockLabel}">
             <span class="btn-chat-icon">${blockIcon}</span><span class="btn-chat-label">${blockLabel}</span>
@@ -330,6 +346,20 @@ window.matchSpaceChat = (function () {
           if (window.matchSpaceApp?.openProfileModal) {
             window.matchSpaceApp.openProfileModal(Number(data.chat.partner_id));
           }
+        });
+
+        headerActions.querySelector('#btnChatBadgeTrigger')?.addEventListener('click', () => {
+          if (window.matchSpaceApp?.openGiveBadgeModal) {
+            window.matchSpaceApp.openGiveBadgeModal({
+              id: data.chat.partner_id,
+              name: data.chat.partner_name,
+              profile_image: data.chat.partner_profile_image
+            });
+          }
+        });
+
+        headerActions.querySelector('#btnChatReportTrigger')?.addEventListener('click', () => {
+          openInChatReportModal(data.chat, data.messages || []);
         });
 
         headerActions.querySelector('[data-chat-block-action]')?.addEventListener('click', async () => {
@@ -668,6 +698,122 @@ window.matchSpaceChat = (function () {
         }
       });
     }
+
+    setupInChatReportModal();
+  }
+
+  // ===================== IN-CHAT SAFETY REPORT MODAL =====================
+  function openInChatReportModal(chat, messages) {
+    const modal = document.getElementById('inChatReportModal');
+    if (!modal) return;
+
+    document.getElementById('reportTargetUserId').value = chat.partner_id;
+    const nameEl = document.getElementById('reportPartnerName');
+    if (nameEl) nameEl.textContent = chat.partner_name || 'ผู้ใช้งาน';
+    const avatarEl = document.getElementById('reportPartnerAvatar');
+    if (avatarEl) avatarEl.src = chat.partner_profile_image || 'uploads/avatars/default.png';
+
+    const categorySelect = document.getElementById('reportCategorySelect');
+    if (categorySelect) categorySelect.value = '';
+    const detailText = document.getElementById('reportDetailText');
+    if (detailText) detailText.value = '';
+
+    const snippetPreview = document.getElementById('reportSnippetPreview');
+    const recentMsgs = (messages || []).slice(-5);
+    if (snippetPreview) {
+      if (recentMsgs.length > 0) {
+        snippetPreview.innerHTML = recentMsgs.map(m => `
+          <div class="snippet-msg-line">
+            <strong>${escapeHtml(m.sender_name)}:</strong> <span>${escapeHtml(m.content)}</span>
+          </div>
+        `).join('');
+      } else {
+        snippetPreview.innerHTML = '<div style="color:var(--muted); font-size:0.8rem;">(ยังไม่มีประวัติการส่งข้อความในห้องนี้)</div>';
+      }
+    }
+
+    modal.classList.remove('hidden');
+  }
+
+  function setupInChatReportModal() {
+    const modal = document.getElementById('inChatReportModal');
+    const btnClose = document.getElementById('closeInChatReportModal');
+    const btnCancel = document.getElementById('btnCancelInChatReport');
+    const form = document.getElementById('inChatReportForm');
+
+    const closeModal = () => modal?.classList.add('hidden');
+    btnClose?.addEventListener('click', closeModal);
+    btnCancel?.addEventListener('click', closeModal);
+    modal?.addEventListener('click', (e) => {
+      if (e.target.id === 'inChatReportModal') closeModal();
+    });
+
+    form?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const targetUserId = document.getElementById('reportTargetUserId')?.value;
+      const category = document.getElementById('reportCategorySelect')?.value;
+      const detail = document.getElementById('reportDetailText')?.value;
+      const attachSnippet = document.getElementById('reportAttachChatSnippet')?.checked;
+      const autoBlock = document.getElementById('reportAutoBlockCheck')?.checked;
+      const submitBtn = document.getElementById('btnSubmitInChatReport');
+
+      if (!targetUserId || !category || !detail) {
+        alert('กรุณากรอกข้อมูลรายงานให้ครบถ้วน');
+        return;
+      }
+
+      let evidenceText = '';
+      if (attachSnippet) {
+        const snippetLines = [];
+        document.querySelectorAll('#reportSnippetPreview .snippet-msg-line').forEach(el => {
+          snippetLines.push(el.textContent.trim());
+        });
+        if (snippetLines.length) {
+          evidenceText = `\n\n[หลักฐานข้อความแชทล่าสุด]:\n` + snippetLines.join('\n');
+        }
+      }
+
+      try {
+        if (submitBtn) {
+          submitBtn.disabled = true;
+          submitBtn.textContent = '⏳ กำลังส่งรายงาน...';
+        }
+
+        const payload = {
+          reporter_name: currentUser?.name || 'ผู้ใช้งาน',
+          reporter_email: currentUser?.student_email || currentUser?.email || 'user@matchspace.local',
+          reported_user: targetUserId,
+          report_type: category,
+          description: detail + evidenceText
+        };
+
+        await apiRequest('/api/reports', {
+          method: 'POST',
+          body: JSON.stringify(payload)
+        });
+
+        if (autoBlock) {
+          try {
+            await apiRequest(`/api/users/${targetUserId}/block`, { method: 'POST' });
+          } catch(e) {}
+        }
+
+        closeModal();
+        alert('🛡️ ส่งรายงานความปลอดภัยให้ผู้ดูแลระบบเรียบร้อยแล้ว\nทีมงานจะตรวจสอบพฤติกรรมอย่างเข้มงวดเพื่อความปลอดภัยของสมาชิก');
+
+        if (currentChatId) {
+          await loadChats();
+          await loadMessages(currentChatId);
+        }
+      } catch (err) {
+        alert(err.message || 'เกิดข้อผิดพลาดในการส่งรายงาน');
+      } finally {
+        if (submitBtn) {
+          submitBtn.disabled = false;
+          submitBtn.textContent = 'ส่งรายงานให้แอดมิน';
+        }
+      }
+    });
   }
 
   return {

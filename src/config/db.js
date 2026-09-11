@@ -220,6 +220,17 @@ async function initDatabase() {
       created_at TEXT DEFAULT CURRENT_TIMESTAMP
     );
 
+    CREATE TABLE IF NOT EXISTS user_badges (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      recipient_id INTEGER NOT NULL,
+      giver_id INTEGER NOT NULL,
+      badge_key TEXT NOT NULL,
+      activity_id INTEGER,
+      comment TEXT,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(recipient_id, giver_id, badge_key)
+    );
+
     CREATE TABLE IF NOT EXISTS user_sessions (
       sid TEXT PRIMARY KEY,
       sess TEXT NOT NULL,

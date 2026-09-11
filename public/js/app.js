@@ -52,6 +52,8 @@ window.matchSpaceApp = (function () {
       setupMobileDrawer();
       setupHomeInteractions();
       setupProfile();
+      setupGiveBadgeModal();
+      setupWebPushNotifications();
       setupCategoryFilterChips();
 
       await Promise.all([
@@ -136,6 +138,22 @@ window.matchSpaceApp = (function () {
     document.getElementById('drawerBtnSkipped')?.addEventListener('click', () => {
       closeDrawer();
       switchTab('skipped');
+    });
+
+    document.getElementById('drawerBtnInstallPwa')?.addEventListener('click', () => {
+      closeDrawer();
+      if (window.matchSpacePWA?.promptInstall) {
+        window.matchSpacePWA.promptInstall();
+      }
+    });
+
+    document.getElementById('drawerBtnPushNotify')?.addEventListener('click', () => {
+      closeDrawer();
+      if (window.matchSpacePWA?.subscribePush) {
+        window.matchSpacePWA.subscribePush();
+      } else {
+        document.getElementById('btnSubscribePush')?.click();
+      }
     });
 
     document.getElementById('drawerBtnVerify')?.addEventListener('click', () => {
@@ -621,7 +639,31 @@ window.matchSpaceApp = (function () {
     sessionUser = result.user;
     renderProfile(result.user);
     renderUserPhotos(result.photos || []);
+    await loadMyBadges();
     updateHomeStats();
+  }
+
+  async function loadMyBadges() {
+    if (!sessionUser) return;
+    try {
+      const data = await apiRequest(`/api/users/${sessionUser.id}/badges`);
+      const listEl = document.getElementById('myBadgesList');
+      const totalEl = document.getElementById('myBadgesTotalBadge');
+      if (totalEl) totalEl.textContent = `${data.total_badges || 0} ป้าย`;
+      if (listEl) {
+        if (data.badges && data.badges.length) {
+          listEl.innerHTML = data.badges.map(b => `
+            <div class="student-badge-pill ${b.count > 0 ? 'active' : 'empty'}" title="${escapeHtml(b.desc)}">
+              <span class="badge-pill-icon">${b.icon}</span>
+              <span class="badge-pill-label">${escapeHtml(b.label)}</span>
+              <span class="badge-pill-count">${b.count || 0}</span>
+            </div>
+          `).join('');
+        } else {
+          listEl.innerHTML = '<span style="font-size:0.82rem; color:var(--muted);">ยังไม่มีป้ายความประทับใจ</span>';
+        }
+      }
+    } catch(e) {}
   }
 
   function renderUserPhotos(photos) {
@@ -780,10 +822,107 @@ window.matchSpaceApp = (function () {
         };
       }
 
+      // Render Student Badges in Profile Modal
+      const badgesContainer = document.getElementById('modalProfileBadgesContainer');
+      const openGiveBadgeBtn = document.getElementById('modalOpenGiveBadgeBtn');
+      
+      if (badgesContainer) {
+        const badgesList = data.badges || [];
+        if (badgesList.length) {
+          badgesContainer.innerHTML = badgesList.map(b => `
+            <div class="student-badge-pill ${b.count > 0 ? 'active' : 'empty'}" title="${escapeHtml(b.desc)}">
+              <span class="badge-pill-icon">${b.icon}</span>
+              <span class="badge-pill-label">${escapeHtml(b.label)}</span>
+              <span class="badge-pill-count">${b.count || 0}</span>
+            </div>
+          `).join('');
+        } else {
+          badgesContainer.innerHTML = '<span style="font-size:0.82rem; color:var(--muted);">ยังไม่มีป้ายความประทับใจ</span>';
+        }
+      }
+
+      if (openGiveBadgeBtn) {
+        const isMe = Number(user.id) === Number(sessionUser?.id);
+        openGiveBadgeBtn.style.display = isMe ? 'none' : 'inline-flex';
+        openGiveBadgeBtn.onclick = () => {
+          modal.classList.add('hidden');
+          openGiveBadgeModal(user);
+        };
+      }
+
       modal.classList.remove('hidden');
     } catch(e) {
       alert(e.message || 'ไม่สามารถโหลดข้อมูลโปรไฟล์ได้');
     }
+  }
+
+  // ===================== STUDENT BADGES / ENDORSEMENT =====================
+  function openGiveBadgeModal(targetUser) {
+    const modal = document.getElementById('giveBadgeModal');
+    if (!modal || !targetUser) return;
+
+    document.getElementById('giveBadgeTargetUserId').value = targetUser.id;
+    document.getElementById('giveBadgeTargetName').textContent = targetUser.nickname ? `${targetUser.name} (${targetUser.nickname})` : targetUser.name;
+    const avatarEl = document.getElementById('giveBadgeTargetAvatar');
+    if (avatarEl) avatarEl.src = targetUser.profile_image || DEFAULT_AVATAR;
+
+    const commentInput = document.getElementById('giveBadgeComment');
+    if (commentInput) commentInput.value = '';
+
+    modal.classList.remove('hidden');
+  }
+
+  function setupGiveBadgeModal() {
+    const modal = document.getElementById('giveBadgeModal');
+    const btnClose = document.getElementById('closeGiveBadgeModal');
+    const btnCancel = document.getElementById('btnCancelGiveBadge');
+    const form = document.getElementById('giveBadgeForm');
+
+    const closeModal = () => modal?.classList.add('hidden');
+    btnClose?.addEventListener('click', closeModal);
+    btnCancel?.addEventListener('click', closeModal);
+    modal?.addEventListener('click', (e) => {
+      if (e.target.id === 'giveBadgeModal') closeModal();
+    });
+
+    form?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const targetUserId = document.getElementById('giveBadgeTargetUserId')?.value;
+      const selectedBadge = form.querySelector('input[name="badge_choice"]:checked')?.value;
+      const comment = document.getElementById('giveBadgeComment')?.value;
+      const submitBtn = document.getElementById('btnSubmitGiveBadge');
+
+      if (!targetUserId || !selectedBadge) {
+        alert('กรุณาเลือกป้ายความประทับใจ');
+        return;
+      }
+
+      try {
+        if (submitBtn) {
+          submitBtn.disabled = true;
+          submitBtn.textContent = '⏳ กำลังส่งป้าย...';
+        }
+        const res = await apiRequest(`/api/users/${targetUserId}/badges`, {
+          method: 'POST',
+          body: JSON.stringify({ badge_key: selectedBadge, comment })
+        });
+        showMatchToast(res.message || 'มอบป้ายความประทับใจสำเร็จแล้ว! ✨');
+        closeModal();
+
+        // Refresh badges in profile modal if currently open
+        const profileModal = document.getElementById('profileModal');
+        if (profileModal && !profileModal.classList.contains('hidden')) {
+          await openProfileModal(Number(targetUserId));
+        }
+      } catch (err) {
+        alert(err.message || 'เกิดข้อผิดพลาดในการมอบป้าย');
+      } finally {
+        if (submitBtn) {
+          submitBtn.disabled = false;
+          submitBtn.textContent = 'ส่งป้ายชื่นชม ✨';
+        }
+      }
+    });
   }
 
   // ===================== DISCOVER SUBSYSTEM =====================
@@ -2483,6 +2622,8 @@ window.matchSpaceApp = (function () {
     switchTab,
     triggerTabSwitch,
     openProfileModal,
+    openGiveBadgeModal,
+    showToast: showMatchToast,
     openIcebreakerModal,
     updateHomeStats,
     loadDiscoverUsers,

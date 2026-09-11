@@ -4,6 +4,13 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     <title>MatchSpace | App</title>
+    <meta name="theme-color" content="#785dfa" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="MatchSpace" />
+    <link rel="manifest" href="/manifest.json" />
+    <link rel="icon" type="image/svg+xml" href="/icons/icon.svg" />
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
@@ -490,6 +497,21 @@
               <button id="btnOpenStudentVerify" type="button" class="btn-verify-student-cta">ยืนยันอีเมล</button>
             </div>
 
+            <!-- My Student Badges Card -->
+            <div id="myBadgesCard" class="my-badges-card" style="margin-top:14px; background:#ffffff; border:1.5px solid var(--line); border-radius:18px; padding:18px;">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                <h4 style="margin:0; font-size:0.95rem; color:var(--text); font-weight:700; display:flex; align-items:center; gap:6px;">
+                  🛡️ ป้ายความประทับใจที่คุณได้รับ <span id="myBadgesTotalBadge" class="badge alt">0 ป้าย</span>
+                </h4>
+              </div>
+              <p style="margin:0 0 12px 0; font-size:0.84rem; color:var(--muted);">
+                ป้ายชื่นชมจากเพื่อนที่เคยร่วมกิจกรรมหรือพูดคุยด้วย ช่วยเสริมสร้างความน่าเชื่อถือในโปรไฟล์
+              </p>
+              <div id="myBadgesList" class="modal-badges-container">
+                <!-- Badges populated dynamically -->
+              </div>
+            </div>
+
             <!-- Account Privacy & Notifications Card -->
             <div style="margin-top:14px; background:#ffffff; border:1.5px solid var(--line); border-radius:18px; padding:18px; display:flex; flex-direction:column; gap:12px;">
               <h4 style="margin:0; font-size:0.95rem; color:var(--text); font-weight:700;">🔒 ความเป็นส่วนตัว & การแจ้งเตือน</h4>
@@ -747,7 +769,20 @@
             <div id="modalProfileInterests" class="modal-chips-container"></div>
           </div>
 
-          <div class="profile-modal-actions" style="display:flex; gap:10px; flex-wrap:wrap;">
+          <!-- Student Badges in Profile Modal -->
+          <div class="modal-student-badges-section" style="margin-top:14px; padding-top:14px; border-top:1px solid var(--line);">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+              <div class="modal-section-label" style="margin:0;">🛡️ ป้ายความประทับใจ (Student Badges)</div>
+              <button id="modalOpenGiveBadgeBtn" type="button" class="btn-give-badge-link" style="display:none; background:transparent; border:none; color:var(--purple); font-weight:700; font-size:0.8rem; cursor:pointer; padding:4px 8px; border-radius:8px;">
+                + มอบป้ายชื่นชม ✨
+              </button>
+            </div>
+            <div id="modalProfileBadgesContainer" class="modal-badges-container">
+              <!-- Dynamically populated badges -->
+            </div>
+          </div>
+
+          <div class="profile-modal-actions" style="display:flex; gap:10px; flex-wrap:wrap; margin-top:16px;">
             <button id="modalActionBtn" class="modal-action-submit" type="button" style="flex:1;">💕 ส่งความสนใจ</button>
             <button id="modalIcebreakerBtn" type="button" class="button" style="background:#f5f3ff; color:#7c3aed; border:1.5px solid #ddd6fe; border-radius:14px; font-weight:700; padding:12px 16px; display:inline-flex; align-items:center; gap:6px;" title="ดูคำแนะนำเริ่มต้นคุยกับคนนี้">
               💡 ไอเดียคุย
@@ -949,6 +984,181 @@
       </div>
     </div>
 
+    <!-- In-Chat Safety Report Modal -->
+    <div id="inChatReportModal" class="modal hidden">
+      <div class="modal-content safety-report-modal-box">
+        <div class="safety-report-modal-header">
+          <div class="safety-icon-stamp">🛡️</div>
+          <div>
+            <h3 class="safety-report-title">รายงานความปลอดภัยในแชท</h3>
+            <p class="safety-report-sub">แจ้งผู้ดูแลระบบเพื่อตรวจสอบพฤติกรรมไม่เหมาะสม พร้อมหลักฐานข้อความ</p>
+          </div>
+          <button id="closeInChatReportModal" class="modal-close-btn" type="button" title="ปิดหน้าต่าง">✕</button>
+        </div>
+
+        <form id="inChatReportForm" class="safety-report-form">
+          <input type="hidden" id="reportTargetUserId" />
+          
+          <div class="report-partner-preview">
+            <img id="reportPartnerAvatar" src="uploads/avatars/default.png" alt="Avatar" class="report-partner-avatar" />
+            <div class="report-partner-details">
+              <div class="report-partner-label">ผู้ที่คุณกำลังรายงาน:</div>
+              <strong id="reportPartnerName" class="report-partner-name">ผู้ใช้งาน</strong>
+            </div>
+          </div>
+
+          <div class="form-group" style="text-align:left; margin-bottom:12px;">
+            <label for="reportCategorySelect" style="font-size:0.88rem; font-weight:700; color:var(--text); margin-bottom:6px; display:block;">หัวข้อปัญหา / พฤติกรรมที่ไม่เหมาะสม</label>
+            <select id="reportCategorySelect" required style="width:100%; padding:10px 14px; border-radius:12px; border:1.5px solid var(--line); font-size:0.9rem; font-family:inherit;">
+              <option value="">-- กรุณาเลือกหัวข้อ --</option>
+              <option value="คำหยาบคาย / คุกคามทางเพศ">🤬 คำหยาบคาย / คุกคามทางเพศ</option>
+              <option value="หลอกลวง / มิจฉาชีพ / ขอเงิน">💸 หลอกลวง / มิจฉาชีพ / ขอเงิน</option>
+              <option value="แอบอ้างตัวตน / โปรไฟล์ปลอม">🎭 แอบอ้างตัวตน / โปรไฟล์ปลอม</option>
+              <option value="สแปม / ขายของ / โฆษณา">📢 สแปม / ชวนขายของ / โฆษณา</option>
+              <option value="แสดงพฤติกรรมไม่ปลอดภัย / คุกคามชีวิตจริง">⚠️ แสดงพฤติกรรมไม่ปลอดภัย / คุกคาม</option>
+              <option value="อื่นๆ">📝 อื่นๆ</option>
+            </select>
+          </div>
+
+          <div class="form-group" style="text-align:left; margin-bottom:12px;">
+            <label for="reportDetailText" style="font-size:0.88rem; font-weight:700; color:var(--text); margin-bottom:6px; display:block;">รายละเอียดเพิ่มเติม</label>
+            <textarea id="reportDetailText" rows="3" placeholder="อธิบายเหตุการณ์หรือข้อความที่ไม่เหมาะสมที่เกิดขึ้น..." required style="width:100%; box-sizing:border-box; padding:10px 14px; border-radius:12px; border:1.5px solid var(--line); font-family:inherit; font-size:0.9rem;"></textarea>
+          </div>
+
+          <!-- Chat snippet evidence attachment -->
+          <div class="report-evidence-box">
+            <label class="report-checkbox-label">
+              <input type="checkbox" id="reportAttachChatSnippet" checked />
+              <span>แนบประวัติการสนทนา 5 ข้อความล่าสุดเป็นหลักฐานให้แอดมิน</span>
+            </label>
+            <div id="reportSnippetPreview" class="report-snippet-preview">
+              <!-- Dynamically shows snippet preview -->
+            </div>
+          </div>
+
+          <!-- Auto-block checkbox option -->
+          <div class="report-block-option">
+            <label class="report-checkbox-label block-label">
+              <input type="checkbox" id="reportAutoBlockCheck" checked />
+              <span>🚫 บล็อกผู้ใช้นี้ทันทีหลังส่งรายงาน (จะไม่สามารถส่งข้อความหาคุณได้อีก)</span>
+            </label>
+          </div>
+
+          <div class="safety-report-actions">
+            <button type="button" id="btnCancelInChatReport" class="button secondary-action" style="flex:1; border-radius:999px; padding:11px;">ยกเลิก</button>
+            <button type="submit" id="btnSubmitInChatReport" class="button primary" style="flex:1.5; border-radius:999px; padding:11px; background:#e11d48; border-color:#e11d48; font-weight:700;">ส่งรายงานให้แอดมิน</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Give Student Badge Modal -->
+    <div id="giveBadgeModal" class="modal hidden">
+      <div class="modal-content give-badge-modal-box">
+        <div class="give-badge-header">
+          <div class="give-badge-stamp">🌟</div>
+          <div>
+            <h3 class="give-badge-title">มอบป้ายความประทับใจ</h3>
+            <p class="give-badge-sub">เลือกป้ายชื่นชมเพื่อเพิ่มคะแนนความน่าเชื่อถือให้เพื่อน</p>
+          </div>
+          <button id="closeGiveBadgeModal" class="modal-close-btn" type="button" title="ปิดหน้าต่าง">✕</button>
+        </div>
+
+        <form id="giveBadgeForm" class="give-badge-form">
+          <input type="hidden" id="giveBadgeTargetUserId" />
+
+          <div class="give-badge-target-preview">
+            <img id="giveBadgeTargetAvatar" src="uploads/avatars/default.png" alt="Avatar" class="give-badge-avatar" />
+            <div>
+              <div style="font-size:0.8rem; color:var(--muted);">มอบป้ายชื่นชมให้:</div>
+              <strong id="giveBadgeTargetName" style="font-size:1.05rem; color:var(--text);">ชื่อเพื่อน</strong>
+            </div>
+          </div>
+
+          <div class="form-group" style="text-align:left; margin-bottom:12px;">
+            <label style="font-size:0.88rem; font-weight:700; color:var(--text); margin-bottom:8px; display:block;">เลือกป้ายความประทับใจ (เลือก 1 ป้าย)</label>
+            <div class="badge-select-grid" id="badgeSelectGrid">
+              <label class="badge-radio-item">
+                <input type="radio" name="badge_choice" value="punctual" checked />
+                <div class="badge-radio-card">
+                  <span class="badge-choice-icon">⏰</span>
+                  <div class="badge-choice-text">
+                    <strong class="badge-choice-title">ตรงต่อเวลา</strong>
+                    <span class="badge-choice-desc">นัดหมายตรงเวลา ไม่ปล่อยให้รอ</span>
+                  </div>
+                </div>
+              </label>
+
+              <label class="badge-radio-item">
+                <input type="radio" name="badge_choice" value="friendly" />
+                <div class="badge-radio-card">
+                  <span class="badge-choice-icon">😊</span>
+                  <div class="badge-choice-text">
+                    <strong class="badge-choice-title">คุยเก่งเป็นมิตร</strong>
+                    <span class="badge-choice-desc">คุยง่าย สุภาพ สดใส เป็นกันเอง</span>
+                  </div>
+                </div>
+              </label>
+
+              <label class="badge-radio-item">
+                <input type="radio" name="badge_choice" value="guide" />
+                <div class="badge-radio-card">
+                  <span class="badge-choice-icon">🗺️</span>
+                  <div class="badge-choice-text">
+                    <strong class="badge-choice-title">เจ้าถิ่นพาเที่ยว</strong>
+                    <span class="badge-choice-desc">รู้ทาง รู้ร้านอร่อย พาเที่ยวสนุก</span>
+                  </div>
+                </div>
+              </label>
+
+              <label class="badge-radio-item">
+                <input type="radio" name="badge_choice" value="listener" />
+                <div class="badge-radio-card">
+                  <span class="badge-choice-icon">🎧</span>
+                  <div class="badge-choice-text">
+                    <strong class="badge-choice-title">นักฟังที่ดี</strong>
+                    <span class="badge-choice-desc">ตั้งใจฟัง ใส่ใจ ให้คำปรึกษาดี</span>
+                  </div>
+                </div>
+              </label>
+
+              <label class="badge-radio-item">
+                <input type="radio" name="badge_choice" value="helpful" />
+                <div class="badge-radio-card">
+                  <span class="badge-choice-icon">🤝</span>
+                  <div class="badge-choice-text">
+                    <strong class="badge-choice-title">ช่วยเหลือดีเยี่ยม</strong>
+                    <span class="badge-choice-desc">มีน้ำใจ คอยช่วยเหลือเพื่อนๆ</span>
+                  </div>
+                </div>
+              </label>
+
+              <label class="badge-radio-item">
+                <input type="radio" name="badge_choice" value="positive" />
+                <div class="badge-radio-card">
+                  <span class="badge-choice-icon">🌟</span>
+                  <div class="badge-choice-text">
+                    <strong class="badge-choice-title">พลังบวกสดใส</strong>
+                    <span class="badge-choice-desc">สร้างบรรยากาศรื่นเริง เพิ่มพลังใจ</span>
+                  </div>
+                </div>
+              </label>
+            </div>
+          </div>
+
+          <div class="form-group" style="text-align:left; margin-bottom:16px;">
+            <label for="giveBadgeComment" style="font-size:0.88rem; font-weight:700; color:var(--text); margin-bottom:6px; display:block;">ข้อความชื่นชมสั้นๆ (ไม่บังคับ)</label>
+            <input type="text" id="giveBadgeComment" placeholder="เช่น ไปกินข้าวด้วยกันสนุกมาก ขอบคุณที่พาเที่ยวนะ!" maxlength="120" style="width:100%; box-sizing:border-box; padding:10px 14px; border-radius:12px; border:1.5px solid var(--line); font-size:0.9rem;" />
+          </div>
+
+          <div class="give-badge-actions">
+            <button type="button" id="btnCancelGiveBadge" class="button secondary-action" style="flex:1; border-radius:999px; padding:11px;">ยกเลิก</button>
+            <button type="submit" id="btnSubmitGiveBadge" class="button primary" style="flex:1.5; border-radius:999px; padding:11px; font-weight:700;">ส่งป้ายชื่นชม ✨</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
     <!-- Mobile Slide-over Menu Drawer & Backdrop -->
     <div id="mobileDrawerBackdrop" class="mobile-drawer-backdrop hidden"></div>
     <aside id="mobileMenuDrawer" class="mobile-menu-drawer hidden" aria-label="เมนูการใช้งาน MatchSpace">
@@ -989,7 +1199,19 @@
           <span class="drawer-external-arrow">›</span>
         </a>
 
-        <div class="drawer-section-title">ความปลอดภัย & การยืนยัน</div>
+        <div class="drawer-section-title">แอปพลิเคชัน &amp; การแจ้งเตือน</div>
+        <button id="drawerBtnInstallPwa" class="drawer-item" type="button">
+          <span class="drawer-item-icon">📱</span>
+          <span class="drawer-item-text">ติดตั้งแอป MatchSpace (PWA)</span>
+          <span id="drawerInstallPill" class="drawer-status-pill verified">ติดตั้งได้</span>
+        </button>
+        <button id="drawerBtnPushNotify" class="drawer-item" type="button">
+          <span class="drawer-item-icon">🔔</span>
+          <span class="drawer-item-text">การแจ้งเตือนพุช (Push Alert)</span>
+          <span id="drawerPushPill" class="drawer-status-pill">เปิดใช้งาน</span>
+        </button>
+
+        <div class="drawer-section-title">ความปลอดภัย &amp; การยืนยัน</div>
         <button id="drawerBtnVerify" class="drawer-item" type="button">
           <span class="drawer-item-icon">🎓</span>
           <span class="drawer-item-text">ยืนยันตัวตนนักศึกษา</span>
@@ -1012,6 +1234,7 @@
     <script src="js/core.js"></script>
     <script src="js/ws-client.js"></script>
     <script src="js/chat.js"></script>
+    <script src="js/pwa-push.js"></script>
     <script src="js/app.js"></script>
   </body>
 </html>
