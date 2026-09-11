@@ -480,20 +480,10 @@ window.matchSpaceApp = (function () {
 
     if (discoverBanner) {
       if (Number(user.is_student_verified) === 1) {
-        discoverBanner.classList.add('verified');
-        if (discoverTitle) discoverTitle.innerHTML = '🎓 ยืนยันตัวตนแล้ว (Verified Student)';
-        if (discoverDesc) discoverDesc.textContent = `ยืนยันสถานะนักศึกษาผ่าน ${user.student_email || user.email} เรียบร้อยแล้ว (มีติ๊กถูกสีฟ้า ✔️)`;
-        if (discoverPill) {
-          discoverPill.className = 'badge-verified-preview verified';
-          discoverPill.innerHTML = '✓ รับรองแล้ว';
-        }
-        if (discoverBtn) {
-          discoverBtn.textContent = '✓ ยืนยันแล้ว';
-          discoverBtn.disabled = true;
-          discoverBtn.style.opacity = '0.7';
-          discoverBtn.style.cursor = 'default';
-        }
+        // When user is verified, hide the banner completely to give full viewport to candidate cards
+        discoverBanner.style.display = 'none';
       } else {
+        discoverBanner.style.display = '';
         discoverBanner.classList.remove('verified');
         if (discoverTitle) discoverTitle.innerHTML = '🎓 ยืนยันตัวตนนักศึกษา (Verified Student)';
         if (discoverDesc) discoverDesc.textContent = 'รับเครื่องหมายติ๊กถูกสีฟ้า ยืนยันผ่านอีเมลมหาวิทยาลัย (@kkumail.com หรือสถาบัน) เพื่อเพิ่มความน่าเชื่อถือ';
@@ -519,20 +509,19 @@ window.matchSpaceApp = (function () {
 
     if (homeBanner) {
       if (Number(user.is_student_verified) === 1) {
+        homeBanner.style.display = '';
         homeBanner.classList.add('verified');
-        if (homeTitle) homeTitle.innerHTML = '🎓 ยืนยันตัวตนแล้ว (Verified Student)';
-        if (homeDesc) homeDesc.textContent = `ยืนยันสถานะนักศึกษาผ่าน ${user.student_email || user.email} เรียบร้อยแล้ว (มีติ๊กถูกสีฟ้า ✔️)`;
+        if (homeTitle) homeTitle.innerHTML = '🎓 ยืนยันสถานะนักศึกษาแล้ว';
+        if (homeDesc) homeDesc.textContent = `${user.student_email || user.email || 'kkumail.com'}`;
         if (homePill) {
           homePill.className = 'badge-verified-preview verified';
           homePill.innerHTML = '✓ รับรองแล้ว';
         }
         if (homeBtn) {
-          homeBtn.textContent = '✓ ยืนยันแล้ว';
-          homeBtn.disabled = true;
-          homeBtn.style.opacity = '0.7';
-          homeBtn.style.cursor = 'default';
+          homeBtn.style.display = 'none';
         }
       } else {
+        homeBanner.style.display = '';
         homeBanner.classList.remove('verified');
         if (homeTitle) homeTitle.innerHTML = '🎓 ยืนยันตัวตนนักศึกษา (Verified Student)';
         if (homeDesc) homeDesc.textContent = 'รับเครื่องหมายติ๊กถูกสีฟ้า ยืนยันผ่านอีเมลมหาวิทยาลัย (@kkumail.com หรือสถาบัน) เพื่อเพิ่มความน่าเชื่อถือ';
@@ -541,6 +530,7 @@ window.matchSpaceApp = (function () {
           homePill.innerHTML = '✔️ มีติ๊กถูกสีฟ้า';
         }
         if (homeBtn) {
+          homeBtn.style.display = '';
           homeBtn.textContent = 'ยืนยันทันที';
           homeBtn.disabled = false;
           homeBtn.style.opacity = '1';

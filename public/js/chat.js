@@ -305,18 +305,18 @@ window.matchSpaceChat = (function () {
       if (!isGroup && data.chat.partner_id) {
         const isBlocked = !!data.chat.is_blocked;
         const blockedByMe = !!data.chat.blocked_by_me;
-        const blockBtnText = blockedByMe ? '🔓 ปลดบล็อก' : '🚫 บล็อก';
-        const blockBtnAction = blockedByMe ? 'unblock' : 'block';
+        const blockLabel = blockedByMe ? 'ปลดบล็อก' : 'บล็อก';
+        const blockIcon = blockedByMe ? '🔓' : '🚫';
 
         headerActions.innerHTML = `
-          <button type="button" class="btn-chat-icebreaker-trigger" id="btnChatIcebreakerTrigger" title="คำแนะนำเริ่มต้นคุย">
-            💡 <span>ไอเดียคุย</span>
+          <button type="button" class="btn-chat-icebreaker-trigger" id="btnChatIcebreakerTrigger" title="คำแนะนำเริ่มต้นคุย" aria-label="คำแนะนำเริ่มต้นคุย">
+            <span class="btn-chat-icon">💡</span><span class="btn-chat-label">ไอเดียคุย</span>
           </button>
-          <button type="button" class="btn-chat-view-profile" data-open-profile-id="${data.chat.partner_id}">
-            🔍 ดูโปรไฟล์
+          <button type="button" class="btn-chat-view-profile" data-open-profile-id="${data.chat.partner_id}" title="ดูโปรไฟล์" aria-label="ดูโปรไฟล์">
+            <span class="btn-chat-icon">🔍</span><span class="btn-chat-label">ดูโปรไฟล์</span>
           </button>
-          <button type="button" class="btn-chat-block" data-chat-block-action="${blockBtnAction}" data-partner-id="${data.chat.partner_id}">
-            ${blockBtnText}
+          <button type="button" class="btn-chat-block" data-chat-block-action="${blockBtnAction}" data-partner-id="${data.chat.partner_id}" title="${blockIcon} ${blockLabel}" aria-label="${blockLabel}">
+            <span class="btn-chat-icon">${blockIcon}</span><span class="btn-chat-label">${blockLabel}</span>
           </button>
         `;
 
@@ -551,7 +551,7 @@ window.matchSpaceChat = (function () {
       const url = pid ? `/api/greetings?target_user_id=${pid}` : '/api/greetings';
       const greetings = await apiRequest(url);
       const shuffled = greetings.sort(() => 0.5 - Math.random()).slice(0, 4);
-      chipsEl.innerHTML = shuffled.map(g => `<div class="greeting-chip">${escapeHtml(g)}</div>`).join('');
+      chipsEl.innerHTML = shuffled.map(g => `<div class="greeting-chip" title="${escapeHtml(g)}">${escapeHtml(g)}</div>`).join('');
       container.classList.remove('hidden');
 
       chipsEl.querySelectorAll('.greeting-chip').forEach(chip => {

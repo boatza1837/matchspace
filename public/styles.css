@@ -755,7 +755,7 @@ th {
   }
 
   .app-shell {
-    padding: 12px 12px 88px;
+    padding: 8px 12px calc(130px + env(safe-area-inset-bottom, 24px)) !important;
   }
 
   .summary-row {
@@ -2953,7 +2953,7 @@ body {
 
 @media (max-width: 480px) {
   body {
-    padding-bottom: calc(84px + env(safe-area-inset-bottom, 0px)) !important;
+    padding-bottom: calc(110px + env(safe-area-inset-bottom, 24px)) !important;
   }
   .bottom-nav-bar {
     bottom: calc(10px + env(safe-area-inset-bottom, 0px));
@@ -5951,14 +5951,13 @@ body {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 10px 0;
-    margin-bottom: 14px !important;
+    padding: 8px 0;
+    margin-bottom: 10px !important;
     position: sticky;
     top: 0;
     z-index: 100;
-    background: rgba(247, 241, 255, 0.92);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
+    background: #f7f1ff !important;
+    border-bottom: 1px solid rgba(230, 222, 245, 0.85);
   }
 
   .topbar .nav {
@@ -6322,7 +6321,21 @@ body {
     border: none !important;
     height: 100dvh !important;
     max-height: 100dvh !important;
-    padding: 12px 14px calc(12px + env(safe-area-inset-bottom, 0px)) !important;
+    padding: 8px 12px calc(8px + env(safe-area-inset-bottom, 0px)) !important;
+    display: flex !important;
+    flex-direction: column !important;
+    overflow: hidden !important;
+    box-sizing: border-box !important;
+  }
+
+  body.in-chat-mobile .chat-box {
+    flex: 1 1 auto !important;
+    height: auto !important;
+    max-height: none !important;
+    min-height: 80px !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch;
+    padding: 8px 4px !important;
   }
 
   .chat-layout.chat-open .chat-room-panel {
@@ -6331,17 +6344,30 @@ body {
   }
 
   .chat-room-header {
-    padding-bottom: 10px;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 8px !important;
+    padding: 4px 0 8px 0 !important;
     border-bottom: 1px solid var(--line);
-    margin-bottom: 10px;
+    margin-bottom: 6px !important;
+    flex-shrink: 0 !important;
+  }
+
+  .chat-room-header-left {
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
   }
 
   .chat-mobile-back-btn {
-    width: 40px;
-    height: 40px;
-    min-width: 40px;
-    border-radius: 12px;
-    font-size: 1.5rem;
+    width: 36px !important;
+    height: 36px !important;
+    min-width: 36px !important;
+    border-radius: 10px !important;
+    font-size: 1.35rem !important;
     font-weight: 800;
     background: #f1edff;
     color: var(--purple);
@@ -6350,12 +6376,138 @@ body {
     justify-content: center;
     cursor: pointer;
     border: none;
+    flex-shrink: 0 !important;
+  }
+
+  .chat-room-header-avatar {
+    width: 38px !important;
+    height: 38px !important;
+    min-width: 38px !important;
+    flex-shrink: 0 !important;
+  }
+
+  .chat-header-text-col {
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
+  }
+
+  .chat-room-title {
+    font-size: 1rem !important;
+    font-weight: 800 !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    line-height: 1.25 !important;
+  }
+
+  .chat-room-subtitle {
+    font-size: 0.72rem !important;
+    margin-top: 1px !important;
+  }
+
+  .chat-room-header-right,
+  #chatHeaderActions {
+    display: flex !important;
+    align-items: center !important;
+    gap: 5px !important;
+    flex-shrink: 0 !important;
+  }
+
+  .btn-chat-label {
+    display: none !important;
+  }
+
+  #chatHeaderActions button,
+  .btn-chat-icebreaker-trigger,
+  .btn-chat-view-profile,
+  .btn-chat-block {
+    width: 34px !important;
+    height: 34px !important;
+    min-width: 34px !important;
+    max-width: 34px !important;
+    padding: 0 !important;
+    border-radius: 50% !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    font-size: 0.95rem !important;
+    box-sizing: border-box !important;
+  }
+
+  /* Compact Horizontal Greeting Chips */
+  .greeting-suggestions {
+    padding: 6px 10px !important;
+    margin-top: 4px !important;
+    margin-bottom: 4px !important;
+    border-radius: 14px !important;
+    flex-shrink: 0 !important;
+  }
+
+  .greeting-header {
+    margin-bottom: 4px !important;
+  }
+
+  .greeting-label {
+    font-size: 0.76rem !important;
+  }
+
+  .btn-shuffle-chips,
+  .btn-all-icebreakers,
+  .btn-hide-greetings {
+    font-size: 0.72rem !important;
+    padding: 2px 6px !important;
+  }
+
+  .greeting-chips {
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    overflow-x: auto !important;
+    gap: 6px !important;
+    padding-bottom: 2px !important;
+    -webkit-overflow-scrolling: touch !important;
+    scrollbar-width: none !important;
+  }
+
+  .greeting-chips::-webkit-scrollbar {
+    display: none !important;
+  }
+
+  .greeting-chip {
+    flex-shrink: 0 !important;
+    max-width: 250px !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    padding: 5px 12px !important;
+    font-size: 0.78rem !important;
+    border-radius: 999px !important;
+  }
+
+  /* Compact Chat Placeholder */
+  .chat-empty-placeholder {
+    padding: 16px 12px !important;
+  }
+
+  .chat-empty-icon {
+    font-size: 2.2rem !important;
+    margin-bottom: 6px !important;
+  }
+
+  .chat-empty-title {
+    font-size: 1rem !important;
+    margin-bottom: 4px !important;
+  }
+
+  .chat-empty-desc {
+    font-size: 0.8rem !important;
+    max-width: 260px !important;
   }
 
   .chat-composer-card {
     margin-top: auto;
     background: #ffffff;
-    padding-top: 8px;
+    padding-top: 6px;
+    flex-shrink: 0 !important;
   }
 }
 
@@ -6483,6 +6635,313 @@ body {
   border: 1.5px solid #fde68a;
   color: #d97706;
   font-size: 1.15rem;
+}
+
+/* 7. Dedicated Mobile Phone Tuning (<= 600px) */
+@media (max-width: 600px) {
+  /* Global Layout on Mobile */
+  .app-shell {
+    padding: 6px 12px calc(130px + env(safe-area-inset-bottom, 24px)) !important;
+  }
+
+  /* Solid sticky topbar to prevent text bleed-through when scrolling */
+  .topbar {
+    background: #f7f1ff !important;
+    padding: 8px 0 !important;
+    margin-bottom: 8px !important;
+    border-bottom: 1px solid rgba(230, 222, 245, 0.85) !important;
+  }
+
+  /* --- HOME TAB MOBILE TUNING --- */
+  .home-screen-container {
+    gap: 12px !important;
+    display: flex !important;
+    flex-direction: column !important;
+  }
+
+  .home-top-row {
+    padding: 0 2px !important;
+  }
+
+  .home-greeting-sub {
+    font-size: 0.8rem !important;
+  }
+
+  .home-user-title {
+    font-size: 1.35rem !important;
+    line-height: 1.2 !important;
+  }
+
+  .home-bell-btn {
+    width: 36px !important;
+    height: 36px !important;
+    min-width: 36px !important;
+  }
+
+  /* Compact Home Banner */
+  .home-featured-card {
+    padding: 16px 18px 16px !important;
+    border-radius: 20px !important;
+  }
+
+  .home-banner-subtitle {
+    font-size: 0.76rem !important;
+    margin-bottom: 2px !important;
+  }
+
+  .home-banner-title {
+    font-size: 1.15rem !important;
+    line-height: 1.28 !important;
+    margin: 0 0 4px 0 !important;
+  }
+
+  .home-banner-desc {
+    font-size: 0.78rem !important;
+    line-height: 1.4 !important;
+    margin: 0 0 12px 0 !important;
+  }
+
+  .home-banner-btn {
+    font-size: 0.84rem !important;
+    padding: 6px 16px !important;
+  }
+
+  .home-card-watermark {
+    width: 85px !important;
+    height: 85px !important;
+    right: -4px !important;
+    bottom: -4px !important;
+    opacity: 0.2 !important;
+  }
+
+  /* Sleek Verified Banner in Home Tab */
+  .student-verification-card.home-variant.verified {
+    padding: 8px 14px !important;
+    margin: 0 !important;
+    border-radius: 14px !important;
+  }
+
+  .student-verification-card.home-variant.verified .student-verify-info {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    width: 100% !important;
+  }
+
+  .student-verification-card.home-variant.verified .student-verify-badge-row {
+    margin-bottom: 0 !important;
+    gap: 6px !important;
+  }
+
+  .student-verification-card.home-variant.verified #studentVerifyHomeTitle {
+    font-size: 0.84rem !important;
+    margin: 0 !important;
+  }
+
+  .student-verification-card.home-variant.verified #studentVerifyHomeDesc {
+    font-size: 0.74rem !important;
+    margin: 0 !important;
+  }
+
+  /* 3 Stat Cards */
+  .home-section-header {
+    margin-top: 0 !important;
+  }
+
+  .home-section-header h2 {
+    font-size: 1.12rem !important;
+    margin: 0 !important;
+  }
+
+  .home-stats-grid {
+    gap: 8px !important;
+  }
+
+  .home-stat-card {
+    padding: 10px 4px !important;
+    border-radius: 16px !important;
+    gap: 2px !important;
+  }
+
+  .home-stat-icon {
+    width: 32px !important;
+    height: 32px !important;
+  }
+
+  .home-stat-icon svg {
+    width: 18px !important;
+    height: 18px !important;
+  }
+
+  .home-stat-num {
+    font-size: 1.25rem !important;
+  }
+
+  .home-stat-label {
+    font-size: 0.7rem !important;
+  }
+
+  .home-tip-card {
+    padding: 10px 14px !important;
+    gap: 10px !important;
+    border-radius: 16px !important;
+  }
+
+  .home-tip-avatar {
+    width: 32px !important;
+    height: 32px !important;
+    min-width: 32px !important;
+    font-size: 0.78rem !important;
+  }
+
+  .home-tip-text {
+    font-size: 0.78rem !important;
+    line-height: 1.4 !important;
+  }
+
+  /* --- DISCOVER TAB MOBILE TUNING --- */
+  .discover-title-area {
+    margin-bottom: 2px !important;
+  }
+
+  .discover-main-title {
+    font-size: 1.2rem !important;
+    margin: 0 !important;
+  }
+
+  .discover-subtitle {
+    display: none !important;
+  }
+
+  .matching-mode-segmented-bar {
+    margin: 4px 0 6px 0 !important;
+    padding: 3px !important;
+    gap: 3px !important;
+  }
+
+  .matching-seg-btn {
+    padding: 6px 3px !important;
+    font-size: 0.75rem !important;
+    gap: 3px !important;
+  }
+
+  .category-chips-scroll {
+    margin: 2px 0 8px 0 !important;
+    gap: 6px !important;
+  }
+
+  .category-chip {
+    padding: 4px 11px !important;
+    font-size: 0.76rem !important;
+  }
+
+  /* Candidate Card */
+  .discover-match-card {
+    padding: 13px 13px 11px !important;
+    border-radius: 20px !important;
+    gap: 9px !important;
+  }
+
+  .discover-match-header {
+    gap: 10px !important;
+  }
+
+  .discover-match-avatar,
+  .discover-match-avatar-fallback {
+    width: 50px !important;
+    height: 50px !important;
+    min-width: 50px !important;
+    font-size: 1.3rem !important;
+  }
+
+  .discover-match-name {
+    font-size: 1.12rem !important;
+    gap: 4px !important;
+  }
+
+  .discover-match-sub {
+    font-size: 0.76rem !important;
+  }
+
+  .discover-match-tags {
+    gap: 4px !important;
+    margin-top: 1px !important;
+  }
+
+  .discover-tag-chip {
+    font-size: 0.7rem !important;
+    padding: 2px 7px !important;
+  }
+
+  .discover-album-pill {
+    padding: 3px 8px !important;
+    font-size: 0.72rem !important;
+    gap: 5px !important;
+    margin-top: 0 !important;
+  }
+
+  .discover-shared-box {
+    padding: 6px 12px !important;
+    border-radius: 12px !important;
+  }
+
+  .discover-shared-label {
+    font-size: 0.8rem !important;
+  }
+
+  .discover-shared-percent {
+    font-size: 1.05rem !important;
+  }
+
+  /* Action Buttons on Card */
+  .discover-match-actions {
+    gap: 12px !important;
+    margin-top: 2px !important;
+  }
+
+  .btn-discover-round.skip {
+    width: 48px !important;
+    height: 48px !important;
+    font-size: 1.15rem !important;
+  }
+
+  .btn-discover-round.like {
+    width: 56px !important;
+    height: 56px !important;
+    font-size: 1.45rem !important;
+  }
+
+  .btn-discover-round.rewind,
+  .btn-discover-round.starters {
+    width: 38px !important;
+    height: 38px !important;
+    font-size: 1.05rem !important;
+  }
+
+  /* Prompts list on mobile */
+  .discover-prompts-col {
+    margin-top: 8px !important;
+    gap: 7px !important;
+  }
+
+  .discover-prompts-title {
+    font-size: 0.84rem !important;
+  }
+
+  .discover-prompt-card {
+    padding: 9px 12px !important;
+    border-radius: 14px !important;
+  }
+
+  .discover-prompt-card span {
+    font-size: 0.8rem !important;
+  }
+
+  .btn-all-icebreakers-discover {
+    font-size: 0.82rem !important;
+    padding: 10px 14px !important;
+    margin-top: 4px !important;
+  }
 }
 
 /* 7. Modals on Mobile - Bottom Sheet Transition */
