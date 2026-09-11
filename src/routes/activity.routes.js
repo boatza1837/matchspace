@@ -58,6 +58,34 @@ router.post('/api/activities', requireAuth, async (req, res) => {
       return res.status(400).json({ message: 'กรุณากรอกสถานที่จัดกิจกรรม' });
     }
 
+    if (!event_date || !String(event_date).trim()) {
+      return res.status(400).json({ message: 'กรุณาระบุวันที่จัดกิจกรรม' });
+    }
+
+    const cleanDate = String(event_date).trim();
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(cleanDate)) {
+      return res.status(400).json({ message: 'รูปแบบวันที่จัดกิจกรรมไม่ถูกต้อง (ต้องเป็น YYYY-MM-DD)' });
+    }
+
+    const cleanTime = event_time && String(event_time).trim() ? String(event_time).trim().slice(0, 5) : null;
+    if (cleanTime && !/^\d{2}:\d{2}$/.test(cleanTime)) {
+      return res.status(400).json({ message: 'รูปแบบเวลาจัดกิจกรรมไม่ถูกต้อง (ต้องเป็น HH:mm)' });
+    }
+
+    // Combine date and time in Bangkok/Thailand timezone (UTC+7) to verify it is not in the past
+    const eventIsoStr = cleanTime ? `${cleanDate}T${cleanTime}:00+07:00` : `${cleanDate}T23:59:59+07:00`;
+    const eventTimestamp = new Date(eventIsoStr).getTime();
+
+    if (isNaN(eventTimestamp)) {
+      return res.status(400).json({ message: 'วันหรือเวลาที่ระบุไม่ถูกต้อง' });
+    }
+
+    // Allow 2-minute grace buffer for form submission latency
+    const GRACE_BUFFER_MS = 2 * 60 * 1000;
+    if (eventTimestamp < Date.now() - GRACE_BUFFER_MS) {
+      return res.status(400).json({ message: 'ไม่สามารถเพิ่มคำขอที่มีวันหรือเวลาย้อนอดีตได้ กรุณาเลือกวันและเวลาที่เป็นปัจจุบันหรือในอนาคต' });
+    }
+
     const result = await db.run(`
       INSERT INTO activities (name, description, location, event_date, event_time, created_by, creator_name, creator_major, member_count, status)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')
@@ -65,8 +93,8 @@ router.post('/api/activities', requireAuth, async (req, res) => {
       String(name).trim(),
       description || '',
       String(location).trim(),
-      event_date ? String(event_date).trim() : null,
-      event_time ? String(event_time).trim() : null,
+      cleanDate,
+      cleanTime,
       user.id,
       user.name || 'ไม่ระบุ',
       user.major || '-',
@@ -167,6 +195,14 @@ router.patch('/api/admin/activities/:id', requireAdmin, async (req, res) => {
   const activity = await db.get('SELECT * FROM activities WHERE id = ?', [actId]);
   if (!activity) {
     return res.status(404).json({ message: 'ไม่พบกิจกรรมนี้' });
+  }
+
+  if (status === 'approved' && activity.event_date) {
+    const timeStr = activity.event_time ? String(activity.event_time).slice(0, 5) : '23:59';
+    const eventMs = new Date(`${activity.event_date}T${timeStr}:00+07:00`).getTime();
+    if (!isNaN(eventMs) && eventMs < Date.now() - (2 * 60 * 1000)) {
+      return res.status(400).json({ message: 'ไม่สามารถอนุมัติกิจกรรมนี้ได้ เนื่องจากวันและเวลาจัดกิจกรรมได้ผ่านพ้นไปแล้ว' });
+    }
   }
 
   await db.run('UPDATE activities SET status = ? WHERE id = ?', [status, actId]);

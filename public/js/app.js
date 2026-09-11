@@ -1714,8 +1714,15 @@ window.matchSpaceApp = (function () {
             const canAccessChat = activity.has_joined || isCreator || isOwnerOrAdmin;
             const canDeleteActivity = isCreator || isOwnerOrAdmin;
 
+            // Check if activity date and time has passed
+            const isPast = activity.event_date && (() => {
+              const timeStr = activity.event_time ? String(activity.event_time).slice(0, 5) : '23:59';
+              const eventMs = new Date(`${activity.event_date}T${timeStr}:00+07:00`).getTime();
+              return !isNaN(eventMs) && eventMs < Date.now();
+            })();
+
             return `
-              <div class="activity-card">
+              <div class="activity-card ${isPast ? 'past-activity' : ''}">
                 <h3>${escapeHtml(activity.name)}</h3>
                 <p>${escapeHtml(activity.description || 'ไม่มีรายละเอียด')}</p>
                 <div class="activity-location">${escapeHtml(activity.location || 'ไม่ระบุสถานที่')}</div>
@@ -1723,6 +1730,7 @@ window.matchSpaceApp = (function () {
                   <div class="activity-schedule-row">
                     ${activity.event_date ? `<span class="activity-schedule-pill date">📅 ${formatActivityDate(activity.event_date)}</span>` : ''}
                     ${activity.event_time ? `<span class="activity-schedule-pill time">⏰ ${escapeHtml(activity.event_time)} น.</span>` : ''}
+                    ${isPast ? `<span class="activity-schedule-pill expired" style="background:#fee2e2; color:#b91c1c; font-weight:700;">⌛ สิ้นสุดแล้ว</span>` : ''}
                   </div>
                 ` : ''}
                 <div class="meta">
@@ -1736,10 +1744,16 @@ window.matchSpaceApp = (function () {
                   <span>🌈 LGBTQ+: ${activity.lgbtq_count || 0} คน</span>
                 </div>
                 <div class="activity-actions" style="margin-top:12px; display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
-                  <button class="btn-join-activity ${activity.has_joined ? 'joined' : ''}" 
-                    data-join-activity-id="${activity.id}" type="button">
-                    ${activity.has_joined ? '✓ เข้าร่วมแล้ว' : '🙋 สนใจเข้าร่วม'}
-                  </button>
+                  ${isPast && !activity.has_joined ? `
+                    <button class="button disabled" disabled type="button" style="opacity:0.65; cursor:not-allowed; background:#f1f5f9; color:#64748b; padding:9px 14px; font-size:0.84rem; border:1px solid #cbd5e1;">
+                      ⌛ กิจกรรมสิ้นสุดแล้ว
+                    </button>
+                  ` : `
+                    <button class="btn-join-activity ${activity.has_joined ? 'joined' : ''}" 
+                      data-join-activity-id="${activity.id}" type="button">
+                      ${activity.has_joined ? '✓ เข้าร่วมแล้ว' : '🙋 สนใจเข้าร่วม'}
+                    </button>
+                  `}
                   ${canAccessChat && activity.chat_id ? `
                     <button class="button secondary-action btn-open-group-chat" data-chat-id="${activity.chat_id}" type="button" style="padding:10px 16px; font-size:0.85rem;">
                       💬 เข้าแชทกลุ่ม
@@ -1808,18 +1822,81 @@ window.matchSpaceApp = (function () {
   // Setup Activity Form
   const newActivityBtn = document.getElementById('newActivityBtn');
   const activityForm = document.getElementById('activityForm');
+  const activityDateInput = document.getElementById('activityDate');
+  const activityTimeInput = document.getElementById('activityTime');
+
+  function updateActivityDateTimeLimits() {
+    if (!activityDateInput) return;
+    const now = new Date();
+    const todayStr = now.toLocaleDateString('en-CA'); // 'YYYY-MM-DD'
+    activityDateInput.min = todayStr;
+
+    if (!activityDateInput.value || activityDateInput.value < todayStr) {
+      activityDateInput.value = todayStr;
+    }
+
+    if (activityTimeInput) {
+      if (activityDateInput.value === todayStr) {
+        const hh = String(now.getHours()).padStart(2, '0');
+        const mm = String(now.getMinutes()).padStart(2, '0');
+        activityTimeInput.min = `${hh}:${mm}`;
+        if (!activityTimeInput.value || activityTimeInput.value < `${hh}:${mm}`) {
+          // Default to next hour
+          const nextHour = new Date(now.getTime() + 60 * 60 * 1000);
+          const nextHh = String(nextHour.getHours()).padStart(2, '0');
+          const nextMm = String(Math.floor(nextHour.getMinutes() / 5) * 5).padStart(2, '0');
+          activityTimeInput.value = `${nextHh}:${nextMm}`;
+        }
+      } else {
+        activityTimeInput.removeAttribute('min');
+      }
+    }
+  }
+
+  if (activityDateInput) {
+    activityDateInput.addEventListener('change', updateActivityDateTimeLimits);
+    activityDateInput.addEventListener('input', updateActivityDateTimeLimits);
+  }
+  if (activityTimeInput) {
+    activityTimeInput.addEventListener('change', updateActivityDateTimeLimits);
+  }
+
+  // Initialize limits on page load
+  updateActivityDateTimeLimits();
+
   if (newActivityBtn && activityForm) {
     newActivityBtn.addEventListener('click', () => {
       activityForm.classList.toggle('hidden');
+      if (!activityForm.classList.contains('hidden')) {
+        updateActivityDateTimeLimits();
+      }
     });
 
     activityForm.addEventListener('submit', async (e) => {
       e.preventDefault();
       const submitBtn = activityForm.querySelector('button[type="submit"]');
+
+      const dateVal = document.getElementById('activityDate')?.value;
+      const timeVal = document.getElementById('activityTime')?.value;
+
+      if (!dateVal) {
+        alert('กรุณาระบุวันที่จัดกิจกรรม');
+        return;
+      }
+
+      // Check if date or time is in the past
+      const checkIso = timeVal ? `${dateVal}T${timeVal}:00` : `${dateVal}T23:59:59`;
+      const selectedTimeMs = new Date(checkIso).getTime();
+      const nowMs = Date.now();
+      if (isNaN(selectedTimeMs) || selectedTimeMs < nowMs - 60000) {
+        alert('ไม่สามารถเพิ่มคำขอที่มีวันหรือเวลาย้อนอดีตได้ กรุณาเลือกวันและเวลาที่เป็นปัจจุบันหรือในอนาคต');
+        return;
+      }
+
       try {
         if (submitBtn) {
           submitBtn.disabled = true;
-          submitBtn.textContent = '⏳ กำลังสร้างกิจกรรม...';
+          submitBtn.textContent = '⏳ กำลังส่งคำขอ...';
         }
 
         const payload = {
@@ -1827,8 +1904,8 @@ window.matchSpaceApp = (function () {
           description: document.getElementById('activityDescription')?.value,
           member_count: Number(document.getElementById('activityMemberCount')?.value || 4),
           location: document.getElementById('activityLocation')?.value,
-          event_date: document.getElementById('activityDate')?.value || null,
-          event_time: document.getElementById('activityTime')?.value || null
+          event_date: dateVal,
+          event_time: timeVal || null
         };
 
         const result = await apiRequest('/api/activities', {
@@ -1838,14 +1915,14 @@ window.matchSpaceApp = (function () {
 
         activityForm.reset();
         activityForm.classList.add('hidden');
-        alert(result.message || 'สร้างกิจกรรมเรียบร้อย');
+        alert(result.message || 'ส่งคำขอสร้างกิจกรรมเรียบร้อย รอการอนุมัติ');
         await loadActivities();
       } catch (err) {
         alert(err.message || 'เกิดข้อผิดพลาดในการสร้างกิจกรรม');
       } finally {
         if (submitBtn) {
           submitBtn.disabled = false;
-          submitBtn.textContent = 'สร้างกิจกรรม';
+          submitBtn.textContent = 'ส่งคำขออนุมัติ';
         }
       }
     });
