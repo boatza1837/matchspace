@@ -49,6 +49,7 @@ window.matchSpaceApp = (function () {
       }
 
       setupTabs();
+      setupMobileDrawer();
       setupHomeInteractions();
       setupProfile();
       setupCategoryFilterChips();
@@ -78,6 +79,15 @@ window.matchSpaceApp = (function () {
       });
     });
 
+    // Discover Top Segmented Switcher
+    document.getElementById('segBtnDiscover')?.addEventListener('click', () => switchTab('discover'));
+    document.getElementById('segBtnLiked')?.addEventListener('click', () => switchTab('liked'));
+    document.getElementById('segBtnSkipped')?.addEventListener('click', () => switchTab('skipped'));
+
+    // Subpage Back to Discover Buttons
+    document.getElementById('btnBackToDiscoverFromLiked')?.addEventListener('click', () => switchTab('discover'));
+    document.getElementById('btnBackToDiscoverFromSkipped')?.addEventListener('click', () => switchTab('discover'));
+
     const logoutBtn = document.getElementById('logoutBtn');
     if (logoutBtn) {
       logoutBtn.addEventListener('click', async () => {
@@ -88,12 +98,95 @@ window.matchSpaceApp = (function () {
     }
   }
 
+  function setupMobileDrawer() {
+    const toggleBtn = document.getElementById('mobileMenuToggleBtn');
+    const drawer = document.getElementById('mobileMenuDrawer');
+    const backdrop = document.getElementById('mobileDrawerBackdrop');
+    const closeBtn = document.getElementById('closeDrawerBtn');
+
+    function openDrawer() {
+      if (!drawer || !backdrop) return;
+      drawer.classList.remove('hidden');
+      backdrop.classList.remove('hidden');
+      document.body.style.overflow = 'hidden';
+    }
+
+    function closeDrawer() {
+      if (!drawer || !backdrop) return;
+      drawer.classList.add('hidden');
+      backdrop.classList.add('hidden');
+      document.body.style.overflow = '';
+    }
+
+    toggleBtn?.addEventListener('click', openDrawer);
+    closeBtn?.addEventListener('click', closeDrawer);
+    backdrop?.addEventListener('click', closeDrawer);
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && !drawer?.classList.contains('hidden')) {
+        closeDrawer();
+      }
+    });
+
+    document.getElementById('drawerBtnLiked')?.addEventListener('click', () => {
+      closeDrawer();
+      switchTab('liked');
+    });
+
+    document.getElementById('drawerBtnSkipped')?.addEventListener('click', () => {
+      closeDrawer();
+      switchTab('skipped');
+    });
+
+    document.getElementById('drawerBtnVerify')?.addEventListener('click', () => {
+      closeDrawer();
+      document.getElementById('btnOpenStudentVerify')?.click();
+    });
+
+    document.getElementById('drawerBtnBlocked')?.addEventListener('click', () => {
+      closeDrawer();
+      document.getElementById('btnOpenBlockedUsers')?.click();
+    });
+
+    document.getElementById('drawerLogoutBtn')?.addEventListener('click', () => {
+      closeDrawer();
+      document.getElementById('logoutBtn')?.click();
+    });
+  }
+
+  function updateDrawerUserInfo(user) {
+    if (!user) return;
+    const nameEl = document.getElementById('drawerUserName');
+    const majorEl = document.getElementById('drawerUserMajor');
+    const avatarEl = document.getElementById('drawerAvatar');
+    const verifyPill = document.getElementById('drawerVerifyPill');
+
+    if (nameEl) nameEl.textContent = user.nickname || user.name || 'ผู้ใช้งาน';
+    if (majorEl) majorEl.textContent = `${user.year ? user.year + ' · ' : ''}${user.major || 'มหาวิทยาลัยขอนแก่น'}`;
+    if (avatarEl && user.profile_image) avatarEl.src = user.profile_image;
+    if (verifyPill) {
+      if (Number(user.is_student_verified) === 1) {
+        verifyPill.textContent = '✔️ ยืนยันแล้ว';
+        verifyPill.className = 'drawer-status-pill verified';
+      } else {
+        verifyPill.textContent = 'รอยืนยัน';
+        verifyPill.className = 'drawer-status-pill';
+      }
+    }
+  }
+
   function switchTab(tabName, forceAnim) {
     triggerTabSwitch(tabName, forceAnim);
   }
 
   function triggerTabSwitch(nextTab, customAnim) {
     if (!nextTab) return;
+
+    // Leaving chat room resets in-chat-mobile state
+    if (nextTab !== 'chat') {
+      document.body.classList.remove('in-chat-mobile');
+    }
+
     const tabButtons = document.querySelectorAll('.tab-button');
     const tabPanels = document.querySelectorAll('.tab-panel');
 
@@ -116,6 +209,26 @@ window.matchSpaceApp = (function () {
         panel.classList.remove('active');
       }
     });
+
+    // Update Discover Matching Mode Segmented Bar
+    const segBtnDiscover = document.getElementById('segBtnDiscover');
+    const segBtnLiked = document.getElementById('segBtnLiked');
+    const segBtnSkipped = document.getElementById('segBtnSkipped');
+    if (segBtnDiscover) {
+      segBtnDiscover.classList.toggle('active', nextTab === 'discover');
+      segBtnDiscover.setAttribute('aria-selected', nextTab === 'discover');
+    }
+    if (segBtnLiked) {
+      segBtnLiked.classList.toggle('active', nextTab === 'liked');
+      segBtnLiked.setAttribute('aria-selected', nextTab === 'liked');
+    }
+    if (segBtnSkipped) {
+      segBtnSkipped.classList.toggle('active', nextTab === 'skipped');
+      segBtnSkipped.setAttribute('aria-selected', nextTab === 'skipped');
+    }
+
+    // Scroll to top smoothly when switching tabs on mobile
+    window.scrollTo({ top: 0, behavior: 'smooth' });
 
     if (nextTab === 'home') loadHomeScreen();
     if (nextTab === 'activity') loadActivities();
@@ -327,6 +440,7 @@ window.matchSpaceApp = (function () {
 
   function renderProfile(user) {
     if (!user) return;
+    updateDrawerUserInfo(user);
 
     // Update Student Verification UI Card
     const verifyCard = document.getElementById('studentVerificationCard');
@@ -927,7 +1041,11 @@ window.matchSpaceApp = (function () {
     const { prompts: dynamicPrompts, sharedTags } = generateDiscoverPrompts(sessionUser, user);
 
     discoverUserCard.innerHTML = `
-      <div class="discover-match-card">
+      <div id="activeDiscoverCard" class="discover-match-card">
+        <!-- Swipe Visual Stamps for Mobile Touch Gestures -->
+        <div id="swipeStampLike" class="card-swipe-stamp like">LIKE 💕</div>
+        <div id="swipeStampSkip" class="card-swipe-stamp skip">SKIP ✕</div>
+
         <div class="discover-match-header" style="cursor:pointer;" title="กดเพื่อดูรูปภาพและโปรไฟล์เต็ม">
           ${avatarSrc 
             ? `<img class="discover-match-avatar" src="${escapeHtml(avatarSrc)}" alt="${escapeHtml(user.name)}" />`
@@ -962,10 +1080,22 @@ window.matchSpaceApp = (function () {
           <span class="discover-shared-percent">${sharedPercent}%</span>
         </div>
 
+        <!-- Ergonomic & Thumb-Friendly Action Buttons -->
         <div class="discover-match-actions">
-          <button class="btn-discover-skip" data-discover-action="skip" type="button">ข้าม</button>
-          <button class="btn-discover-like" data-discover-action="like" type="button">สนใจ</button>
-          ${skippedHistory.length > 0 ? `<button class="button secondary-action" data-discover-action="rewind" type="button" title="ย้อนกลับไปดูคนที่ปัดผ่านก่อนหน้า" style="border-radius:14px; padding:12px 16px; background:#f0ebff; color:var(--purple); font-weight:700;">⏮️</button>` : ''}
+          ${skippedHistory.length > 0 ? `
+            <button class="btn-discover-round rewind" data-discover-action="rewind" type="button" title="ย้อนกลับไปดูคนที่ปัดผ่านก่อนหน้า" aria-label="ย้อนกลับ">
+              ⏮️
+            </button>
+          ` : ''}
+          <button class="btn-discover-round skip" data-discover-action="skip" type="button" title="ข้ามคนนี้ (หรือปัดซ้าย)" aria-label="ข้าม">
+            ✕
+          </button>
+          <button class="btn-discover-round starters" id="btnOpenIcebreakerFromCard" type="button" title="ดูคำแนะนำเริ่มต้นคุยกับคนนี้" aria-label="ไอเดียคุย">
+            💡
+          </button>
+          <button class="btn-discover-round like" data-discover-action="like" type="button" title="ส่งความสนใจ (หรือปัดขวา)" aria-label="สนใจ">
+            💕
+          </button>
         </div>
       </div>
 
@@ -1003,12 +1133,22 @@ window.matchSpaceApp = (function () {
 
     updateSkippedCounters();
 
+    const activeCard = document.getElementById('activeDiscoverCard');
+    if (activeCard) {
+      attachCardTouchController(activeCard, user);
+    }
+
     // Open profile modal
     discoverUserCard.querySelector('.discover-match-header')?.addEventListener('click', () => {
       openProfileModal(user.id);
     });
     discoverUserCard.querySelector('.discover-album-pill')?.addEventListener('click', () => {
       openProfileModal(user.id);
+    });
+
+    // Quick icebreaker trigger button from card
+    discoverUserCard.querySelector('#btnOpenIcebreakerFromCard')?.addEventListener('click', () => {
+      openIcebreakerModal(user.id);
     });
 
     // Prompt cards click to copy
@@ -1050,54 +1190,165 @@ window.matchSpaceApp = (function () {
 
     // Action buttons (like, skip, rewind)
     discoverUserCard.querySelectorAll('[data-discover-action]').forEach((button) => {
-      button.addEventListener('click', async () => {
+      button.addEventListener('click', () => {
         const action = button.dataset.discoverAction;
-        
-        if (action === 'rewind') {
-          if (skippedHistory.length > 0) {
-            const lastSkipped = skippedHistory.pop();
-            currentDiscoverIndex = Math.max(0, currentDiscoverIndex - 1);
-            const idx = discoverUsers.findIndex(u => u.id === lastSkipped.id);
-            if (idx === -1) {
-              discoverUsers.splice(currentDiscoverIndex, 0, lastSkipped);
-            }
-            renderDiscoverCard();
-          }
-          return;
-        }
-
-        const cardEl = discoverUserCard.querySelector('.discover-match-card');
-        if (cardEl) cardEl.classList.add('card-slide-out');
-
-        if (action === 'like') {
-          try {
-            const matchResult = await apiRequest('/api/matches', {
-              method: 'POST',
-              body: JSON.stringify({ matched_user_id: user.id, note: 'Interested', status: 'liked' })
-            });
-            if (matchResult.mutual) {
-              showMatchToast(matchResult.message);
-              if (window.matchSpaceChat) await window.matchSpaceChat.loadChats();
-            }
-            await loadLikedUsers();
-          } catch(e) { /* ignore */ }
-        } else if (action === 'skip') {
-          skippedHistory.push(user);
-          try {
-            await apiRequest('/api/matches', {
-              method: 'POST',
-              body: JSON.stringify({ matched_user_id: user.id, note: 'Skipped', status: 'skipped' })
-            });
-            await loadSkippedUsers();
-          } catch(e) { /* ignore */ }
-        }
-
-        setTimeout(() => {
-          currentDiscoverIndex += 1;
-          renderDiscoverCard();
-        }, 180);
+        executeDiscoverAction(action, user);
       });
     });
+  }
+
+  // ===================== CARD TOUCH SWIPE CONTROLLER =====================
+  function attachCardTouchController(cardEl, user) {
+    if (!cardEl) return;
+
+    let startX = 0;
+    let startY = 0;
+    let currentX = 0;
+    let isDragging = false;
+    let isHorizontalSwipe = false;
+    const likeStamp = cardEl.querySelector('.card-swipe-stamp.like');
+    const skipStamp = cardEl.querySelector('.card-swipe-stamp.skip');
+
+    const onTouchStart = (e) => {
+      const touch = e.touches[0];
+      startX = touch.clientX;
+      startY = touch.clientY;
+      currentX = startX;
+      isDragging = true;
+      isHorizontalSwipe = false;
+      cardEl.classList.remove('spring-back', 'swiped-left', 'swiped-right');
+    };
+
+    const onTouchMove = (e) => {
+      if (!isDragging) return;
+      const touch = e.touches[0];
+      const deltaX = touch.clientX - startX;
+      const deltaY = touch.clientY - startY;
+
+      if (!isHorizontalSwipe) {
+        if (Math.abs(deltaX) > 12 && Math.abs(deltaX) > Math.abs(deltaY)) {
+          isHorizontalSwipe = true;
+        } else if (Math.abs(deltaY) > 12) {
+          isDragging = false;
+          return;
+        }
+      }
+
+      if (isHorizontalSwipe) {
+        if (e.cancelable) e.preventDefault();
+        cardEl.classList.add('swiping');
+        currentX = touch.clientX;
+        const rotateDeg = (deltaX / 16);
+        cardEl.style.transform = `translate(${deltaX}px, ${deltaY * 0.2}px) rotate(${rotateDeg}deg)`;
+
+        const progress = Math.min(1, Math.max(0, (Math.abs(deltaX) - 20) / 60));
+        if (deltaX > 0) {
+          if (likeStamp) {
+            likeStamp.style.opacity = progress;
+            likeStamp.style.transform = `rotate(15deg) scale(${0.8 + progress * 0.25})`;
+          }
+          if (skipStamp) skipStamp.style.opacity = '0';
+        } else {
+          if (skipStamp) {
+            skipStamp.style.opacity = progress;
+            skipStamp.style.transform = `rotate(-15deg) scale(${0.8 + progress * 0.25})`;
+          }
+          if (likeStamp) likeStamp.style.opacity = '0';
+        }
+      }
+    };
+
+    const onTouchEnd = () => {
+      if (!isDragging || !isHorizontalSwipe) {
+        isDragging = false;
+        isHorizontalSwipe = false;
+        return;
+      }
+      isDragging = false;
+      cardEl.classList.remove('swiping');
+
+      const deltaX = currentX - startX;
+      const SWIPE_THRESHOLD = 70;
+
+      if (deltaX > SWIPE_THRESHOLD) {
+        executeDiscoverAction('like', user);
+      } else if (deltaX < -SWIPE_THRESHOLD) {
+        executeDiscoverAction('skip', user);
+      } else {
+        cardEl.classList.add('spring-back');
+        cardEl.style.transform = '';
+        if (likeStamp) likeStamp.style.opacity = '0';
+        if (skipStamp) skipStamp.style.opacity = '0';
+      }
+      isHorizontalSwipe = false;
+    };
+
+    cardEl.addEventListener('touchstart', onTouchStart, { passive: true });
+    cardEl.addEventListener('touchmove', onTouchMove, { passive: false });
+    cardEl.addEventListener('touchend', onTouchEnd, { passive: true });
+    cardEl.addEventListener('touchcancel', onTouchEnd, { passive: true });
+  }
+
+  async function executeDiscoverAction(action, user) {
+    if (action === 'rewind') {
+      if (skippedHistory.length > 0) {
+        const lastSkipped = skippedHistory.pop();
+        currentDiscoverIndex = Math.max(0, currentDiscoverIndex - 1);
+        const idx = discoverUsers.findIndex(u => u.id === lastSkipped.id);
+        if (idx === -1) {
+          discoverUsers.splice(currentDiscoverIndex, 0, lastSkipped);
+        }
+        renderDiscoverCard();
+      }
+      return;
+    }
+
+    const cardEl = document.getElementById('activeDiscoverCard') || discoverUserCard.querySelector('.discover-match-card');
+    if (cardEl) {
+      if (action === 'like') {
+        cardEl.classList.add('swiped-right');
+        const stamp = cardEl.querySelector('.card-swipe-stamp.like');
+        if (stamp) {
+          stamp.style.opacity = '1';
+          stamp.style.transform = 'rotate(15deg) scale(1.1)';
+        }
+      } else if (action === 'skip') {
+        cardEl.classList.add('swiped-left');
+        const stamp = cardEl.querySelector('.card-swipe-stamp.skip');
+        if (stamp) {
+          stamp.style.opacity = '1';
+          stamp.style.transform = 'rotate(-15deg) scale(1.1)';
+        }
+      }
+    }
+
+    if (action === 'like') {
+      try {
+        const matchResult = await apiRequest('/api/matches', {
+          method: 'POST',
+          body: JSON.stringify({ matched_user_id: user.id, note: 'Interested', status: 'liked' })
+        });
+        if (matchResult.mutual) {
+          showMatchToast(matchResult.message);
+          if (window.matchSpaceChat) await window.matchSpaceChat.loadChats();
+        }
+        await loadLikedUsers();
+      } catch(e) { /* ignore */ }
+    } else if (action === 'skip') {
+      skippedHistory.push(user);
+      try {
+        await apiRequest('/api/matches', {
+          method: 'POST',
+          body: JSON.stringify({ matched_user_id: user.id, note: 'Skipped', status: 'skipped' })
+        });
+        await loadSkippedUsers();
+      } catch(e) { /* ignore */ }
+    }
+
+    setTimeout(() => {
+      currentDiscoverIndex += 1;
+      renderDiscoverCard();
+    }, 240);
   }
 
   // ===================== LIKED USERS SUBSYSTEM =====================
@@ -1108,6 +1359,12 @@ window.matchSpaceApp = (function () {
       countTabBadge.textContent = count;
       countTabBadge.classList.toggle('hidden', count === 0);
     }
+    const countDiscoverBtn = document.getElementById('likedCount');
+    if (countDiscoverBtn) countDiscoverBtn.textContent = count;
+    const countSegPill = document.getElementById('likedCountBadgePill');
+    if (countSegPill) countSegPill.textContent = count;
+    const drawerLikedBadge = document.getElementById('drawerLikedBadge');
+    if (drawerLikedBadge) drawerLikedBadge.textContent = count;
     const countHeader = document.getElementById('likedHeaderCountBadge');
     if (countHeader) countHeader.textContent = `${count} คน`;
   }
@@ -1270,6 +1527,10 @@ window.matchSpaceApp = (function () {
     }
     const countDiscoverBtn = document.getElementById('skippedCount');
     if (countDiscoverBtn) countDiscoverBtn.textContent = count;
+    const countSegPill = document.getElementById('skippedCountBadgePill');
+    if (countSegPill) countSegPill.textContent = count;
+    const drawerSkippedBadge = document.getElementById('drawerSkippedBadge');
+    if (drawerSkippedBadge) drawerSkippedBadge.textContent = count;
     const countHeader = document.getElementById('skippedHeaderCountBadge');
     if (countHeader) countHeader.textContent = `${count} คน`;
   }

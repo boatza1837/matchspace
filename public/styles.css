@@ -2834,23 +2834,24 @@ body {
 
 .bottom-nav-bar {
   position: fixed;
-  bottom: calc(14px + env(safe-area-inset-bottom, 0px));
+  bottom: calc(12px + env(safe-area-inset-bottom, 0px));
   left: 50%;
   transform: translateX(-50%);
-  z-index: 9999;
-  background: rgba(255, 255, 255, 0.94);
-  border-radius: 28px;
-  box-shadow: 0 12px 36px rgba(30, 27, 75, 0.12), 0 2px 10px rgba(0, 0, 0, 0.04);
+  z-index: 9990;
+  background: rgba(255, 255, 255, 0.96);
+  border-radius: 30px;
+  box-shadow: 0 14px 40px rgba(30, 27, 75, 0.14), 0 2px 10px rgba(0, 0, 0, 0.04);
   border: 1px solid rgba(226, 220, 246, 0.95);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 5px 6px;
-  max-width: 580px;
-  width: calc(100% - 16px);
+  padding: 6px 10px;
+  max-width: 520px;
+  width: calc(100% - 24px);
   box-sizing: border-box;
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  transition: transform 0.26s ease, opacity 0.26s ease;
 }
 
 .bottom-tab-item {
@@ -5906,5 +5907,624 @@ body {
 
 .btn-all-icebreakers:hover {
   color: #581c87;
+}
+
+/* ===================================================
+   Mobile UI/UX Overhaul & Responsiveness Enhancements
+   =================================================== */
+
+/* 1. Mobile Topbar Header Actions */
+.mobile-topbar-actions {
+  display: none;
+}
+
+.mobile-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  background: #ffffff;
+  border: 1.5px solid var(--line);
+  color: var(--purple);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 1.15rem;
+  box-shadow: 0 2px 8px rgba(74, 68, 141, 0.08);
+  padding: 0;
+  text-decoration: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.mobile-icon-btn:hover {
+  background: var(--purple-soft);
+  transform: translateY(-1px);
+}
+
+.mobile-icon-btn:active {
+  transform: scale(0.94);
+}
+
+@media (max-width: 768px) {
+  .topbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 0;
+    margin-bottom: 14px !important;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: rgba(247, 241, 255, 0.92);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+
+  .topbar .nav {
+    display: none !important;
+  }
+
+  .mobile-topbar-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  
+  .topbar .brand {
+    font-size: 1.35rem;
+    gap: 8px;
+  }
+
+  .topbar .brand-mark {
+    width: 36px;
+    height: 36px;
+    font-size: 1rem;
+    border-radius: 10px;
+  }
+}
+
+/* 2. Mobile Menu Drawer & Backdrop */
+.mobile-drawer-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(18, 16, 38, 0.55);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  z-index: 99998;
+  opacity: 1;
+  transition: opacity 0.28s ease;
+}
+
+.mobile-drawer-backdrop.hidden {
+  display: none !important;
+}
+
+.mobile-menu-drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 320px;
+  max-width: 86vw;
+  background: #ffffff;
+  z-index: 99999;
+  box-shadow: -8px 0 32px rgba(20, 15, 45, 0.2);
+  display: flex;
+  flex-direction: column;
+  transform: translateX(0);
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  box-sizing: border-box;
+  padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+}
+
+.mobile-menu-drawer.hidden {
+  transform: translateX(105%);
+  pointer-events: none;
+}
+
+.drawer-top-drag-handle {
+  width: 38px;
+  height: 4px;
+  background: #e2e8f0;
+  border-radius: 999px;
+  margin: 10px auto 4px;
+  display: none;
+}
+
+.drawer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 18px 16px;
+  border-bottom: 1px solid var(--line);
+  background: linear-gradient(180deg, #faf7ff, #ffffff);
+}
+
+.drawer-user-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  overflow: hidden;
+}
+
+.drawer-avatar {
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid var(--purple-soft);
+  flex-shrink: 0;
+}
+
+.drawer-user-meta {
+  overflow: hidden;
+}
+
+.drawer-user-name {
+  font-size: 1rem;
+  font-weight: 800;
+  color: var(--purple-dark);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.drawer-user-sub {
+  font-size: 0.78rem;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.drawer-close-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1px solid var(--line);
+  background: white;
+  color: var(--muted);
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  font-size: 1rem;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.drawer-close-btn:hover {
+  background: #f1f5f9;
+  color: var(--text);
+}
+
+.drawer-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.drawer-section-title {
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #94a3b8;
+  padding: 8px 10px 4px;
+}
+
+.drawer-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 12px;
+  border-radius: 14px;
+  border: none;
+  background: transparent;
+  width: 100%;
+  text-align: left;
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: #334155;
+  cursor: pointer;
+  text-decoration: none;
+  transition: all 0.18s ease;
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.drawer-item:hover, .drawer-item:active {
+  background: var(--purple-soft);
+  color: var(--purple);
+}
+
+.drawer-item-icon {
+  font-size: 1.15rem;
+  width: 24px;
+  display: inline-flex;
+  justify-content: center;
+}
+
+.drawer-item-text {
+  flex: 1;
+}
+
+.drawer-badge-pill {
+  background: #e11d48;
+  color: white;
+  font-size: 0.72rem;
+  font-weight: 800;
+  padding: 2px 7px;
+  border-radius: 999px;
+  min-width: 18px;
+  text-align: center;
+}
+
+.drawer-status-pill {
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #f1f5f9;
+  color: #64748b;
+}
+
+.drawer-status-pill.verified {
+  background: #eff6ff;
+  color: #2563eb;
+  border: 1px solid #bfdbfe;
+}
+
+.drawer-external-arrow {
+  color: #94a3b8;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.drawer-footer {
+  padding: 14px 18px;
+  border-top: 1px solid var(--line);
+  background: #ffffff;
+}
+
+.drawer-logout-btn {
+  width: 100%;
+  padding: 12px;
+  border-radius: 14px;
+  border: 1.5px solid #fecdd3;
+  background: #fff1f2;
+  color: #e11d48;
+  font-weight: 700;
+  font-size: 0.92rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all 0.2s ease;
+}
+
+.drawer-logout-btn:hover {
+  background: #ffe4e6;
+}
+
+/* 3. Discover Matching Mode Segmented Bar */
+.matching-mode-segmented-bar {
+  display: flex;
+  background: rgba(239, 235, 255, 0.75);
+  padding: 4px;
+  border-radius: 16px;
+  border: 1.5px solid rgba(226, 220, 246, 0.85);
+  margin-top: 12px;
+  margin-bottom: 14px;
+  gap: 4px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.matching-seg-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 10px;
+  border-radius: 12px;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  font-weight: 700;
+  font-size: 0.84rem;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
+  white-space: nowrap;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.matching-seg-btn:hover {
+  color: var(--purple);
+}
+
+.matching-seg-btn.active {
+  background: #ffffff;
+  color: var(--purple-dark);
+  box-shadow: 0 3px 12px rgba(74, 68, 141, 0.12), 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.matching-seg-badge {
+  background: rgba(105, 70, 237, 0.12);
+  color: #6946ed;
+  font-size: 0.68rem;
+  font-weight: 800;
+  padding: 1px 6px;
+  border-radius: 999px;
+  min-width: 16px;
+  text-align: center;
+}
+
+.matching-seg-btn.active .matching-seg-badge {
+  background: #6946ed;
+  color: white;
+}
+
+@media (max-width: 600px) {
+  .discover-desktop-counters {
+    display: none !important;
+  }
+}
+
+/* 4. Subpage Back Row */
+.subpage-back-row {
+  margin-bottom: 14px;
+}
+
+.btn-subpage-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: #ffffff;
+  border: 1.5px solid var(--line);
+  color: var(--purple);
+  padding: 8px 16px;
+  border-radius: 999px;
+  font-size: 0.86rem;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(74, 68, 141, 0.05);
+  transition: all 0.2s ease;
+}
+
+.btn-subpage-back:hover {
+  background: var(--purple-soft);
+  transform: translateX(-2px);
+}
+
+/* 5. In-Chat Mobile Layout Fixes */
+@media (max-width: 768px) {
+  body.in-chat-mobile {
+    padding-bottom: 0 !important;
+  }
+
+  body.in-chat-mobile .bottom-nav-bar,
+  body.in-chat-mobile .topbar {
+    display: none !important;
+  }
+
+  body.in-chat-mobile .app-shell {
+    padding: 0 !important;
+  }
+
+  body.in-chat-mobile .panel.chat-room-panel {
+    border-radius: 0 !important;
+    border: none !important;
+    height: 100dvh !important;
+    max-height: 100dvh !important;
+    padding: 12px 14px calc(12px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+
+  .chat-layout.chat-open .chat-room-panel {
+    display: flex !important;
+    flex-direction: column;
+  }
+
+  .chat-room-header {
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--line);
+    margin-bottom: 10px;
+  }
+
+  .chat-mobile-back-btn {
+    width: 40px;
+    height: 40px;
+    min-width: 40px;
+    border-radius: 12px;
+    font-size: 1.5rem;
+    font-weight: 800;
+    background: #f1edff;
+    color: var(--purple);
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    border: none;
+  }
+
+  .chat-composer-card {
+    margin-top: auto;
+    background: #ffffff;
+    padding-top: 8px;
+  }
+}
+
+/* 6. Discover Touch Card Swipe Physics & Visual Stamps */
+.discover-match-card {
+  position: relative;
+  touch-action: pan-y;
+  user-select: none;
+  will-change: transform, opacity;
+}
+
+.discover-match-card.swiping {
+  transition: none !important;
+  cursor: grabbing !important;
+}
+
+.discover-match-card.spring-back {
+  transition: transform 0.38s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.3s ease !important;
+}
+
+.discover-match-card.swiped-right {
+  transition: transform 0.32s ease-out, opacity 0.32s ease-out !important;
+  transform: translate(140%, 15px) rotate(24deg) !important;
+  opacity: 0 !important;
+}
+
+.discover-match-card.swiped-left {
+  transition: transform 0.32s ease-out, opacity 0.32s ease-out !important;
+  transform: translate(-140%, 15px) rotate(-24deg) !important;
+  opacity: 0 !important;
+}
+
+.card-swipe-stamp {
+  position: absolute;
+  top: 24px;
+  padding: 6px 16px;
+  border-radius: 12px;
+  font-size: 1.25rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  pointer-events: none;
+  z-index: 20;
+  opacity: 0;
+  transform: scale(0.8);
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+
+.card-swipe-stamp.like {
+  right: 20px;
+  color: #10b981;
+  border: 3px solid #10b981;
+  transform: rotate(15deg);
+  background: rgba(16, 185, 129, 0.12);
+}
+
+.card-swipe-stamp.skip {
+  left: 20px;
+  color: #f43f5e;
+  border: 3px solid #f43f5e;
+  transform: rotate(-15deg);
+  background: rgba(244, 63, 94, 0.12);
+}
+
+/* Ergonomic Action Bar on Card */
+.discover-match-actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  margin-top: 6px;
+}
+
+.btn-discover-round {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: all 0.22s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
+  border: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.btn-discover-round:hover {
+  transform: scale(1.1);
+}
+
+.btn-discover-round:active {
+  transform: scale(0.92);
+}
+
+.btn-discover-round.skip {
+  width: 54px;
+  height: 54px;
+  background: #ffffff;
+  border: 2px solid #e4e4e7;
+  color: #71717a;
+  font-size: 1.3rem;
+}
+
+.btn-discover-round.like {
+  width: 62px;
+  height: 62px;
+  background: linear-gradient(135deg, #ec4899, #8b5cf6);
+  color: #ffffff;
+  font-size: 1.6rem;
+  box-shadow: 0 6px 20px rgba(236, 72, 153, 0.38);
+}
+
+.btn-discover-round.rewind {
+  width: 44px;
+  height: 44px;
+  background: #f3e8ff;
+  border: 1.5px solid #d8b4fe;
+  color: #7c3aed;
+  font-size: 1.1rem;
+}
+
+.btn-discover-round.starters {
+  width: 44px;
+  height: 44px;
+  background: #fef3c7;
+  border: 1.5px solid #fde68a;
+  color: #d97706;
+  font-size: 1.15rem;
+}
+
+/* 7. Modals on Mobile - Bottom Sheet Transition */
+@media (max-width: 680px) {
+  .modal {
+    align-items: flex-end !important;
+    padding: 0 !important;
+  }
+
+  .profile-modal-content,
+  .verify-modal-box,
+  .icebreaker-modal-content,
+  #skippedModal .modal-content,
+  #blockedUsersModal .modal-content,
+  #homeNotificationModal .modal-content {
+    border-radius: 28px 28px 0 0 !important;
+    max-height: 88vh !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box;
+    padding-bottom: calc(20px + env(safe-area-inset-bottom, 0px)) !important;
+    animation: sheetSlideUpMobile 0.3s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  }
+
+  @keyframes sheetSlideUpMobile {
+    from {
+      transform: translateY(100%);
+    }
+    to {
+      transform: translateY(0);
+    }
+  }
+
+  /* Prevent iOS auto-zoom on input tap */
+  input, select, textarea {
+    font-size: 16px !important;
+  }
+
+  /* Larger touch targets on mobile forms */
+  .profile-grid .form-group input,
+  .profile-grid .form-group select {
+    padding: 13px 14px;
+  }
 }
 

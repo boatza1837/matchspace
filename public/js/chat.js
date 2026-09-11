@@ -233,7 +233,10 @@ window.matchSpaceChat = (function () {
       item.addEventListener('click', async () => {
         const chatId = Number(item.dataset.chatId);
         currentChatId = chatId;
-        if (chatLayout) chatLayout.classList.add('chat-open');
+        if (chatLayout) {
+          chatLayout.classList.add('chat-open');
+          document.body.classList.add('in-chat-mobile');
+        }
         filterAndRenderChats();
         await loadMessages(chatId);
       });
@@ -530,7 +533,10 @@ window.matchSpaceChat = (function () {
       window.matchSpaceApp.triggerTabSwitch('chat', 'slide-right');
     }
     currentChatId = Number(chatId);
-    if (chatLayout) chatLayout.classList.add('chat-open');
+    if (chatLayout) {
+      chatLayout.classList.add('chat-open');
+      document.body.classList.add('in-chat-mobile');
+    }
     await loadChats();
     await loadMessages(chatId);
   }
@@ -625,6 +631,7 @@ window.matchSpaceChat = (function () {
     if (mobileBackBtn && chatLayout) {
       mobileBackBtn.addEventListener('click', () => {
         chatLayout.classList.remove('chat-open');
+        document.body.classList.remove('in-chat-mobile');
         if (window.matchSpaceWS) {
           window.matchSpaceWS.leaveChat();
         }

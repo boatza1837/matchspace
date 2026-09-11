@@ -2,7 +2,7 @@
 <html lang="th">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     <title>MatchSpace | App</title>
     <link rel="stylesheet" href="styles.css" />
   </head>
@@ -12,6 +12,18 @@
         <div class="brand">
           <div class="brand-mark">♥</div>
           <span>MatchSpace</span>
+        </div>
+        <div class="mobile-topbar-actions">
+          <a href="https://kku-creative.my.canva.site/matchspace-satisfaction-survey" target="_blank" rel="noopener noreferrer" class="mobile-icon-btn survey-btn" aria-label="แบบประเมินความพึงพอใจ" title="แบบประเมินความพึงพอใจ">
+            📋
+          </a>
+          <button id="mobileMenuToggleBtn" class="mobile-icon-btn hamburger-btn" type="button" aria-label="เปิดเมนูเพิ่มเติม" title="เมนูเพิ่มเติม">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="3" y1="6" x2="21" y2="6"></line>
+              <line x1="3" y1="12" x2="21" y2="12"></line>
+              <line x1="3" y1="18" x2="21" y2="18"></line>
+            </svg>
+          </button>
         </div>
         <nav class="nav">
           <a href="https://kku-creative.my.canva.site/matchspace-satisfaction-survey" target="_blank" rel="noopener noreferrer" class="nav-survey-btn">📋 แบบประเมิน</a>
@@ -145,7 +157,7 @@
                   <h1 class="discover-main-title">คนที่น่าจะเข้ากันได้</h1>
                   <p class="discover-subtitle">จับคู่จากแท็กและความสนใจร่วมกัน ไม่ตัดสินจากรูปอย่างเดียว</p>
                 </div>
-                <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+                <div class="discover-desktop-counters" style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
                   <button id="viewLikedBtn" class="button secondary-action" type="button" style="font-size:0.82rem; padding:6px 14px; border-radius:999px;">
                     💖 สนใจ (<span id="likedCount">0</span>)
                   </button>
@@ -154,6 +166,24 @@
                   </button>
                 </div>
               </div>
+            </div>
+
+            <!-- Matching Mode Segmented Switcher (Mobile & Tablet Friendly) -->
+            <div class="matching-mode-segmented-bar" role="tablist" aria-label="โหมดการค้นหาและประวัติ">
+              <button id="segBtnDiscover" class="matching-seg-btn active" type="button" role="tab" aria-selected="true">
+                <span class="matching-seg-icon">🔍</span>
+                <span>ค้นหาเพื่อน</span>
+              </button>
+              <button id="segBtnLiked" class="matching-seg-btn" type="button" role="tab" aria-selected="false">
+                <span class="matching-seg-icon">💖</span>
+                <span>คนที่สนใจ</span>
+                <span id="likedCountBadgePill" class="matching-seg-badge">0</span>
+              </button>
+              <button id="segBtnSkipped" class="matching-seg-btn" type="button" role="tab" aria-selected="false">
+                <span class="matching-seg-icon">📜</span>
+                <span>ปัดผ่านแล้ว</span>
+                <span id="skippedCountBadgePill" class="matching-seg-badge">0</span>
+              </button>
             </div>
 
             <!-- Verified Student Banner in Discover Tab -->
@@ -193,6 +223,14 @@
 
         <section id="tab-liked" class="tab-panel">
           <div class="panel">
+            <div class="subpage-back-row">
+              <button id="btnBackToDiscoverFromLiked" class="btn-subpage-back" type="button">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M19 12H5M12 19l-7-7 7-7"/>
+                </svg>
+                <span>กลับไปหน้าค้นหาเพื่อน</span>
+              </button>
+            </div>
             <div class="liked-header-row">
               <div>
                 <h2 style="margin:0; color:#e11d48; display:flex; align-items:center; gap:8px;">
@@ -529,6 +567,14 @@
 
         <section id="tab-skipped" class="tab-panel">
           <div class="panel">
+            <div class="subpage-back-row">
+              <button id="btnBackToDiscoverFromSkipped" class="btn-subpage-back" type="button">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M19 12H5M12 19l-7-7 7-7"/>
+                </svg>
+                <span>กลับไปหน้าค้นหาเพื่อน</span>
+              </button>
+            </div>
             <div class="skipped-header-row">
               <div>
                 <h2 style="margin:0; color:var(--purple); display:flex; align-items:center; gap:8px;">
@@ -627,28 +673,6 @@
             </svg>
           </div>
           <span class="bottom-tab-label">Profile</span>
-        </button>
-
-        <button class="bottom-tab-item tab-button" data-tab="liked" type="button">
-          <div class="bottom-tab-icon">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/>
-            </svg>
-            <span id="likedTabBadge" class="bottom-tab-badge hidden">0</span>
-          </div>
-          <span class="bottom-tab-label">สนใจ</span>
-        </button>
-
-        <button class="bottom-tab-item tab-button" data-tab="skipped" type="button">
-          <div class="bottom-tab-icon">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-              <circle cx="12" cy="12" r="10"/>
-              <path d="m15 9-6 6"/>
-              <path d="m9 9 6 6"/>
-            </svg>
-            <span id="skippedTabBadge" class="bottom-tab-badge hidden">0</span>
-          </div>
-          <span class="bottom-tab-label">ผ่านแล้ว</span>
         </button>
       </nav>
     </div>
@@ -924,6 +948,66 @@
         </div>
       </div>
     </div>
+
+    <!-- Mobile Slide-over Menu Drawer & Backdrop -->
+    <div id="mobileDrawerBackdrop" class="mobile-drawer-backdrop hidden"></div>
+    <aside id="mobileMenuDrawer" class="mobile-menu-drawer hidden" aria-label="เมนูการใช้งาน MatchSpace">
+      <div class="drawer-top-drag-handle" aria-hidden="true"></div>
+      <div class="drawer-header">
+        <div class="drawer-user-info">
+          <img id="drawerAvatar" class="drawer-avatar" src="uploads/avatars/default.png" alt="Profile Avatar" />
+          <div class="drawer-user-meta">
+            <div id="drawerUserName" class="drawer-user-name">ผู้ใช้งาน</div>
+            <div id="drawerUserMajor" class="drawer-user-sub">มหาวิทยาลัยขอนแก่น</div>
+          </div>
+        </div>
+        <button id="closeDrawerBtn" class="drawer-close-btn" type="button" aria-label="ปิดเมนู">✕</button>
+      </div>
+
+      <div class="drawer-body">
+        <div class="drawer-section-title">การค้นหา & ประวัติ</div>
+        <button id="drawerBtnLiked" class="drawer-item" type="button">
+          <span class="drawer-item-icon">💖</span>
+          <span class="drawer-item-text">คนที่คุณกดสนใจ</span>
+          <span id="drawerLikedBadge" class="drawer-badge-pill">0</span>
+        </button>
+        <button id="drawerBtnSkipped" class="drawer-item" type="button">
+          <span class="drawer-item-icon">📜</span>
+          <span class="drawer-item-text">คนที่ปัดผ่านแล้ว</span>
+          <span id="drawerSkippedBadge" class="drawer-badge-pill">0</span>
+        </button>
+
+        <div class="drawer-section-title">ช่วยเหลือ & ติชม</div>
+        <a href="https://kku-creative.my.canva.site/matchspace-satisfaction-survey" target="_blank" rel="noopener noreferrer" class="drawer-item">
+          <span class="drawer-item-icon">📋</span>
+          <span class="drawer-item-text">ทำแบบประเมินความพึงพอใจ</span>
+          <span class="drawer-external-arrow">↗</span>
+        </a>
+        <a href="/report" class="drawer-item">
+          <span class="drawer-item-icon">⚠️</span>
+          <span class="drawer-item-text">รายงานปัญหาการใช้งาน</span>
+          <span class="drawer-external-arrow">›</span>
+        </a>
+
+        <div class="drawer-section-title">ความปลอดภัย & การยืนยัน</div>
+        <button id="drawerBtnVerify" class="drawer-item" type="button">
+          <span class="drawer-item-icon">🎓</span>
+          <span class="drawer-item-text">ยืนยันตัวตนนักศึกษา</span>
+          <span id="drawerVerifyPill" class="drawer-status-pill">รอยืนยัน</span>
+        </button>
+        <button id="drawerBtnBlocked" class="drawer-item" type="button">
+          <span class="drawer-item-icon">🚫</span>
+          <span class="drawer-item-text">รายชื่อผู้ใช้ที่บล็อก</span>
+          <span class="drawer-external-arrow">›</span>
+        </button>
+      </div>
+
+      <div class="drawer-footer">
+        <button id="drawerLogoutBtn" class="drawer-logout-btn" type="button">
+          <span>🚪 ออกจากระบบ</span>
+        </button>
+      </div>
+    </aside>
 
     <script src="js/core.js"></script>
     <script src="js/ws-client.js"></script>
