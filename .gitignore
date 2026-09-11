@@ -7,8 +7,12 @@ database.sqlite
 # Dependencies
 node_modules/
 
-# Uploads (keep folder, ignore files)
+# Uploads (track authentic user assets)
 public/uploads/*
+!public/uploads/*.jpg
+!public/uploads/*.jpeg
+!public/uploads/*.png
+!public/uploads/*.webp
 !public/uploads/.gitkeep
 !public/uploads/avatars/
 !public/uploads/avatars/default.png
@@ -28,3 +32,4 @@ test-*.js
 seed-*.js
 scratch/
 gehuedeee.html
+railway_dump.json

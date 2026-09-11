@@ -62,13 +62,17 @@ app.use(express.urlencoded({ extended: true }));
 app.use(express.static(publicDir));
 app.use('/uploads', express.static(uploadsDir));
 
-// Fallback image mirror from Railway for uploaded photos and avatars
+// Bidirectional image mirror fallback between Railway and Render
 app.use('/uploads', async (req, res, next) => {
   if (req.method !== 'GET') return next();
   const filename = req.path;
-  const railwayUrl = `https://matchspace-production-b035.up.railway.app/uploads${filename}`;
+  const isRailway = Boolean(process.env.RAILWAY_ENVIRONMENT || fs.existsSync('/data'));
+  const remoteBase = isRailway
+    ? 'https://matchspace.onrender.com'
+    : 'https://matchspace-production-b035.up.railway.app';
+  const remoteUrl = `${remoteBase}/uploads${filename}`;
   try {
-    const upstream = await fetch(railwayUrl);
+    const upstream = await fetch(remoteUrl);
     if (upstream.ok) {
       const buffer = Buffer.from(await upstream.arrayBuffer());
       const localFilePath = path.join(uploadsDir, filename);
