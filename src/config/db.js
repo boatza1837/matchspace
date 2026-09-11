@@ -7,8 +7,11 @@ const dataDir = process.env.DATA_DIR || (isRailwayVolume ? '/data' : path.join(_
 const dbPath = path.join(dataDir, 'matchspace.db');
 
 // Turso Cloud or Local SQLite Database Adapter
-const tursoUrl = process.env.TURSO_DATABASE_URL || '';
-const tursoToken = process.env.TURSO_AUTH_TOKEN || '';
+const DEFAULT_TURSO_URL = 'libsql://matchspace-boatza1837.aws-ap-northeast-1.turso.io';
+const DEFAULT_TURSO_TOKEN = 'eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJhIjoicnciLCJpYXQiOjE3ODkxMTk5MDcsImlkIjoiMDFhMDA3M2MtZWUwMS03NDcxLTkyMzktMDVkYzgzMzJjNmYzIiwia2lkIjoiUHR0ZlBzcU5vWXBvbWg4R2k3MzNQNm5ybWVtcGxtYjNsb1lfV2pIVE1jcyIsInJpZCI6ImIxYTI3NjRiLTkzY2QtNGZhMi05NmJmLTQ1YzllNTZkMzdjYyJ9.ru4ZJ8bWcYn5jaGql9uqEO4zjHCsL3alqD2TlSJ2VCxCOK9_PfB0e2sBpRfocNVzBOFza9r7CER5e_nhO01VBQ';
+
+const tursoUrl = process.env.TURSO_DATABASE_URL || DEFAULT_TURSO_URL;
+const tursoToken = process.env.TURSO_AUTH_TOKEN || DEFAULT_TURSO_TOKEN;
 const useTurso = Boolean(tursoUrl && tursoUrl.startsWith('libsql://') && tursoToken);
 
 let sqliteDb = null;
