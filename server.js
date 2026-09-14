@@ -239,8 +239,8 @@ app.get('/', (req, res) => {
 // Boot Database then start HTTP & WebSocket Server
 initDatabase()
   .then(() => {
-    httpServer.listen(PORT, () => {
-      console.log(`[Server] MatchSpace running at http://localhost:${PORT}`);
+    httpServer.listen(PORT, '0.0.0.0', () => {
+      console.log(`[Server] MatchSpace running at http://0.0.0.0:${PORT}`);
     });
   })
   .catch((err) => {
