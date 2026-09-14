@@ -5,6 +5,7 @@ const { formatUser } = require('../middlewares/auth');
 const { multiUpload } = require('../middlewares/upload');
 const { comparePassword, hashPassword, encryptPassword } = require('../config/security');
 const { logLogin } = require('../services/logger');
+const { processUploadedFile } = require('../services/cloudinary');
 
 router.get('/api/session', async (req, res) => {
   if (!req.session?.user) {
@@ -174,7 +175,7 @@ router.post('/api/register', multiUpload, async (req, res) => {
 
   let profileImage = '';
   if (req.files && req.files.profile_image_file && req.files.profile_image_file[0]) {
-    profileImage = `/uploads/${req.files.profile_image_file[0].filename}`;
+    profileImage = await processUploadedFile(req.files.profile_image_file[0]);
   } else if (google_profile_image) {
     profileImage = String(google_profile_image).trim();
   }
@@ -211,7 +212,7 @@ router.post('/api/register', multiUpload, async (req, res) => {
 
   if (req.files && req.files.photos) {
     for (const f of req.files.photos) {
-      const url = `/uploads/${f.filename}`;
+      const url = await processUploadedFile(f);
       await db.run('INSERT INTO user_photos (user_id, photo_url) VALUES (?, ?)', [userId, url]);
     }
   }

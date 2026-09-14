@@ -5,6 +5,7 @@ const { requireAuth, formatUser } = require('../middlewares/auth');
 const { upload, multiUpload } = require('../middlewares/upload');
 const { sendToUser } = require('../services/websocket');
 const { sendPushNotification } = require('../services/notification');
+const { processUploadedFile } = require('../services/cloudinary');
 
 const STUDENT_BADGES = {
   punctual: { key: 'punctual', label: 'ตรงต่อเวลา', icon: '⏰', desc: 'นัดหมายตรงเวลา ไม่ปล่อยให้รอ' },
@@ -36,13 +37,13 @@ router.put('/api/me', requireAuth, multiUpload, async (req, res) => {
 
   let profileImage = req.session.user.profile_image || '';
   if (req.files && req.files.profile_image_file && req.files.profile_image_file[0]) {
-    profileImage = `/uploads/${req.files.profile_image_file[0].filename}`;
+    profileImage = await processUploadedFile(req.files.profile_image_file[0]);
     await db.run('INSERT INTO user_photos (user_id, photo_url) VALUES (?, ?)', [userId, profileImage]);
   }
 
   if (req.files && req.files.photos) {
     for (const f of req.files.photos) {
-      const url = `/uploads/${f.filename}`;
+      const url = await processUploadedFile(f);
       await db.run('INSERT INTO user_photos (user_id, photo_url) VALUES (?, ?)', [userId, url]);
       if (!profileImage) profileImage = url;
     }
@@ -119,7 +120,7 @@ router.post('/api/me/photos', requireAuth, upload.array('photos', 6), async (req
     }
 
     for (const f of req.files) {
-      const url = `/uploads/${f.filename}`;
+      const url = await processUploadedFile(f);
       await db.run('INSERT INTO user_photos (user_id, photo_url) VALUES (?, ?)', [userId, url]);
     }
 
