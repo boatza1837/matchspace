@@ -55,6 +55,7 @@ window.matchSpaceApp = (function () {
       setupGiveBadgeModal();
       setupWebPushNotifications();
       setupCategoryFilterChips();
+      setupDiscoverGenderPreference();
 
       await Promise.all([
         loadProfile(),
@@ -430,6 +431,7 @@ window.matchSpaceApp = (function () {
             messageEl.textContent = result.message || 'บันทึกโปรไฟล์สำเร็จ';
           }
           await loadProfile();
+          await loadDiscoverUsers();
         } catch (error) {
           if (messageEl) {
             messageEl.className = 'message error';
@@ -571,6 +573,16 @@ window.matchSpaceApp = (function () {
     if (genderEl) genderEl.value = user.gender || 'ชาย';
     const interestedGenderEl = document.getElementById('profileInterestedGender');
     if (interestedGenderEl) interestedGenderEl.value = user.interested_gender || 'ทุกเพศ';
+    const discoverGenderSelect = document.getElementById('discoverGenderSelect');
+    if (discoverGenderSelect) {
+      discoverGenderSelect.value = user.interested_gender || 'ทุกเพศ';
+      const hint = document.getElementById('discoverGenderHint');
+      if (hint) {
+        hint.textContent = (user.interested_gender && user.interested_gender !== 'ทุกเพศ')
+          ? `แสดงเฉพาะเพื่อนเพศ "${user.interested_gender}" ตามที่คุณสนใจ`
+          : 'แสดงเพื่อนทุกเพศ';
+      }
+    }
     const universityEl = document.getElementById('profileUniversity');
     const customUniversityEl = document.getElementById('profileCustomUniversity');
     const majorEl = document.getElementById('profileMajor');
@@ -941,6 +953,48 @@ window.matchSpaceApp = (function () {
     });
   }
 
+  function setupDiscoverGenderPreference() {
+    const select = document.getElementById('discoverGenderSelect');
+    if (!select) return;
+
+    select.addEventListener('change', async () => {
+      const chosenGender = select.value;
+      const hint = document.getElementById('discoverGenderHint');
+      if (hint) {
+        hint.textContent = `กำลังโหลดผู้ใช้เพศ "${chosenGender}"...`;
+      }
+
+      try {
+        // Persist to user profile
+        const formData = new FormData();
+        formData.append('interested_gender', chosenGender);
+        await apiRequest('/api/users/me', {
+          method: 'PUT',
+          body: formData
+        });
+
+        if (sessionUser) {
+          sessionUser.interested_gender = chosenGender;
+        }
+        const profileInterestedGender = document.getElementById('profileInterestedGender');
+        if (profileInterestedGender) {
+          profileInterestedGender.value = chosenGender;
+        }
+
+        await loadDiscoverUsers(chosenGender);
+
+        if (hint) {
+          hint.textContent = chosenGender === 'ทุกเพศ'
+            ? 'แสดงเพื่อนทุกเพศ'
+            : `แสดงเฉพาะเพื่อนเพศ "${chosenGender}" ตามที่คุณสนใจ`;
+        }
+      } catch (err) {
+        console.error('Error updating gender preference:', err);
+        await loadDiscoverUsers(chosenGender);
+      }
+    });
+  }
+
   function getFilteredDiscoverUsers() {
     if (!currentCategoryFilter || currentCategoryFilter === 'ทั้งหมด') {
       return discoverUsers;
@@ -963,8 +1017,17 @@ window.matchSpaceApp = (function () {
     });
   }
 
-  async function loadDiscoverUsers() {
-    const users = await apiRequest('/api/candidates');
+  async function loadDiscoverUsers(genderOverride) {
+    const select = document.getElementById('discoverGenderSelect');
+    const targetGender = genderOverride !== undefined 
+      ? genderOverride 
+      : (select?.value || (sessionUser?.interested_gender || 'ทุกเพศ'));
+
+    let url = '/api/candidates';
+    if (targetGender && targetGender !== 'ทุกเพศ') {
+      url += `?gender=${encodeURIComponent(targetGender)}`;
+    }
+    const users = await apiRequest(url);
     discoverUsers = users;
     updateHomeStats();
     currentDiscoverIndex = 0;

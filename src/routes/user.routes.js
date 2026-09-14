@@ -148,7 +148,16 @@ router.delete('/api/me/photos/:photoId', requireAuth, async (req, res) => {
 router.get('/api/candidates', requireAuth, async (req, res) => {
   try {
     const myId = req.session.user.id;
-    const rows = await db.all(`
+    // Query current user from DB to always have the latest preferences
+    const me = await db.get('SELECT id, gender, interested_gender FROM users WHERE id = ?', [myId]);
+    const myInterestedGender = (me?.interested_gender || req.session.user?.interested_gender || 'ทุกเพศ').trim();
+
+    // Allow override from ?gender= if user specifically filters in Discover, otherwise default to user's interested_gender
+    const targetGender = req.query.gender !== undefined && req.query.gender !== ''
+      ? req.query.gender.trim()
+      : myInterestedGender;
+
+    let sql = `
       SELECT id, name, email, gender, interested_gender, university, major, year, interests, bio, nickname, age, profile_image, is_student_verified, is_active, created_at
       FROM users
       WHERE id != ? 
@@ -158,9 +167,20 @@ router.get('/api/candidates', requireAuth, async (req, res) => {
         AND id NOT IN (SELECT matched_user_id FROM matches WHERE user_id = ?)
         AND id NOT IN (SELECT blocked_id FROM user_blocks WHERE blocker_id = ?)
         AND id NOT IN (SELECT blocker_id FROM user_blocks WHERE blocked_id = ?)
+    `;
+    const params = [myId, myId, myId, myId];
+
+    if (targetGender && targetGender !== 'ทุกเพศ') {
+      sql += ` AND gender = ? `;
+      params.push(targetGender);
+    }
+
+    sql += `
       ORDER BY created_at DESC
       LIMIT 30
-    `, [myId, myId, myId, myId]);
+    `;
+
+    const rows = await db.all(sql, params);
     res.json(rows);
   } catch (err) {
     console.error('[Candidates Error]', err);
