@@ -2,7 +2,7 @@ const fs = require('fs');
 const cloudinary = require('cloudinary').v2;
 
 function initCloudinary() {
-  const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
+  const cloudName = process.env.CLOUDINARY_CLOUD_NAME || 'dcdzelbt';
   const apiKey = process.env.CLOUDINARY_API_KEY || '497266731549786';
   const apiSecret = process.env.CLOUDINARY_API_SECRET || 'btSjZhjzVjDldJ6V0x4GqXZUdKo';
 
@@ -19,7 +19,7 @@ function initCloudinary() {
 }
 
 function isCloudinaryConfigured() {
-  return Boolean(process.env.CLOUDINARY_CLOUD_NAME);
+  return Boolean(process.env.CLOUDINARY_CLOUD_NAME || 'dcdzelbt');
 }
 
 /**
