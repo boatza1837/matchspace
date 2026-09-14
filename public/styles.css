@@ -7856,6 +7856,49 @@ body {
   }
 }
 
+.astro-btn-secondary {
+  width: 100%;
+  border: 1.5px solid #e9d5ff;
+  border-radius: 999px;
+  padding: 11px 16px;
+  font-weight: 700;
+  font-size: 0.86rem;
+  color: #6b21a8;
+  background: #fdfaff;
+  cursor: pointer;
+  margin-top: 6px;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-family: inherit;
+}
+
+.astro-btn-secondary:hover {
+  background: #f5f3ff;
+  border-color: #c084fc;
+  color: #4c1d95;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(124, 58, 237, 0.1);
+}
+
+.astro-btn-secondary:active {
+  transform: translateY(0) scale(0.98);
+}
+
+@keyframes inputHighlightPulse {
+  0% { box-shadow: 0 0 0 0 rgba(124, 58, 237, 0.6); }
+  50% { box-shadow: 0 0 0 8px rgba(124, 58, 237, 0.25); border-color: #7c3aed; }
+  100% { box-shadow: 0 0 0 0 rgba(124, 58, 237, 0); }
+}
+
+.highlight-pulse {
+  animation: inputHighlightPulse 1.2s ease-in-out 3;
+  border-color: #7c3aed !important;
+}
+
+
 
 
 

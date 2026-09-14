@@ -598,6 +598,24 @@ window.matchSpaceApp = (function () {
       }
     });
 
+    const btnSkipToProfile = document.getElementById('btnSkipToProfile');
+    btnSkipToProfile?.addEventListener('click', () => {
+      closeAstroModal(snoozeCheckbox ? snoozeCheckbox.checked : true);
+      switchTab('profile');
+      setTimeout(() => {
+        const birthdateInput = document.getElementById('profileBirthdate');
+        if (birthdateInput) {
+          birthdateInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          birthdateInput.focus();
+          birthdateInput.classList.add('highlight-pulse');
+          setTimeout(() => birthdateInput.classList.remove('highlight-pulse'), 3600);
+        }
+        if (typeof showMatchToast === 'function') {
+          showMatchToast('คุณสามารถระบุวันเกิดและเพศที่สนใจได้ที่นี่ในหน้าโปรไฟล์ครับ ✨');
+        }
+      }, 300);
+    });
+
     if (inputBirthdate) {
       const handleDateChange = () => {
         updatePromptZodiacPreview(inputBirthdate.value);
