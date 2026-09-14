@@ -7457,3 +7457,325 @@ body {
   background: #ffe4e6;
 }
 
+/* ===================================================
+   Astrology & Soulmate Onboarding Pop-up Modal
+   =================================================== */
+
+.astrology-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  background: radial-gradient(circle at 50% 25%, rgba(124, 58, 237, 0.28) 0%, rgba(15, 12, 35, 0.72) 80%);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  z-index: 99999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  animation: astroBackdropFadeIn 0.35s ease-out;
+}
+
+@keyframes astroBackdropFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.astrology-modal-card {
+  background: linear-gradient(180deg, #ffffff 0%, #faf8ff 100%);
+  border-radius: 32px;
+  max-width: 440px;
+  width: 100%;
+  padding: 30px 24px 22px;
+  box-shadow: 
+    0 25px 65px -12px rgba(99, 102, 241, 0.35),
+    0 0 40px rgba(168, 85, 247, 0.12),
+    0 1px 0 rgba(255, 255, 255, 0.9) inset;
+  border: 1.5px solid rgba(192, 132, 252, 0.3);
+  position: relative;
+  text-align: center;
+  box-sizing: border-box;
+  animation: astroModalSpring 0.48s cubic-bezier(0.175, 0.885, 0.32, 1.275) both;
+  overflow: hidden;
+}
+
+/* Ambient glow accent in top-right */
+.astrology-modal-card::before {
+  content: '';
+  position: absolute;
+  top: -70px;
+  right: -70px;
+  width: 170px;
+  height: 170px;
+  background: radial-gradient(circle, rgba(236, 72, 153, 0.22) 0%, transparent 70%);
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+/* Ambient glow accent in bottom-left */
+.astrology-modal-card::after {
+  content: '';
+  position: absolute;
+  bottom: -60px;
+  left: -60px;
+  width: 160px;
+  height: 160px;
+  background: radial-gradient(circle, rgba(124, 58, 237, 0.2) 0%, transparent 70%);
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+@keyframes astroModalSpring {
+  0% {
+    opacity: 0;
+    transform: scale(0.8) translateY(36px);
+  }
+  65% {
+    opacity: 1;
+    transform: scale(1.02) translateY(-4px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.astro-orb-wrap {
+  position: relative;
+  width: 76px;
+  height: 76px;
+  margin: 0 auto 14px;
+}
+
+.astro-orb-halo {
+  position: absolute;
+  inset: -6px;
+  border-radius: 50%;
+  background: conic-gradient(from 0deg, #a855f7, #ec4899, #6366f1, #a855f7);
+  filter: blur(10px);
+  opacity: 0.65;
+  animation: orbRotate 7s linear infinite;
+}
+
+.astro-orb-core {
+  position: relative;
+  width: 76px;
+  height: 76px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #7c3aed 0%, #a855f7 50%, #ec4899 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2.3rem;
+  box-shadow: 0 10px 25px rgba(124, 58, 237, 0.4), inset 0 2px 5px rgba(255, 255, 255, 0.5);
+  animation: orbFloat 3s ease-in-out infinite alternate;
+}
+
+@keyframes orbFloat {
+  0% { transform: translateY(0) scale(1); }
+  100% { transform: translateY(-6px) scale(1.04); }
+}
+
+@keyframes orbRotate {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.astro-top-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.74rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #7c3aed;
+  background: #f3e8ff;
+  border: 1px solid rgba(168, 85, 247, 0.25);
+  padding: 4px 12px;
+  border-radius: 999px;
+  margin-bottom: 8px;
+}
+
+.astro-modal-title {
+  margin: 0 0 6px;
+  font-size: 1.35rem;
+  font-weight: 850;
+  background: linear-gradient(135deg, #2d2a5e 0%, #4a4496 60%, #7c3aed 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  letter-spacing: -0.3px;
+}
+
+.astro-modal-desc {
+  margin: 0 0 18px;
+  font-size: 0.86rem;
+  color: var(--muted);
+  line-height: 1.45;
+  padding: 0 4px;
+}
+
+.astro-form {
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 13px;
+  position: relative;
+  z-index: 1;
+}
+
+.astro-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.astro-label {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.astro-label-hint {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #a855f7;
+  margin-left: auto;
+}
+
+.astro-input,
+.astro-select {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1.5px solid #e9d5ff;
+  background: #ffffff;
+  font-size: 0.94rem;
+  font-weight: 600;
+  color: #2d2a5e;
+  outline: none;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 6px rgba(124, 58, 237, 0.03);
+  font-family: inherit;
+}
+
+.astro-select {
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  padding-right: 36px;
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%237c3aed' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  background-size: 16px;
+}
+
+.astro-input:focus,
+.astro-select:focus {
+  border-color: #7c3aed;
+  background: #ffffff;
+  box-shadow: 0 0 0 4px rgba(124, 58, 237, 0.12);
+}
+
+.astro-zodiac-preview {
+  display: none;
+  margin-top: 6px;
+  padding: 8px 12px;
+  background: linear-gradient(135deg, #fdf4ff 0%, #ede9fe 100%);
+  border: 1px solid #e9d5ff;
+  border-radius: 12px;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  animation: astroPreviewSlide 0.25s ease-out;
+}
+
+@keyframes astroPreviewSlide {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.astro-btn-submit {
+  width: 100%;
+  border: none;
+  border-radius: 999px;
+  padding: 14px;
+  font-weight: 800;
+  font-size: 0.98rem;
+  letter-spacing: 0.2px;
+  color: #ffffff;
+  background: linear-gradient(135deg, #7c3aed 0%, #6366f1 50%, #ec4899 100%);
+  box-shadow: 0 10px 28px rgba(124, 58, 237, 0.35);
+  cursor: pointer;
+  margin-top: 4px;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-family: inherit;
+}
+
+.astro-btn-submit:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 14px 34px rgba(124, 58, 237, 0.45);
+  filter: brightness(1.04);
+}
+
+.astro-btn-submit:active {
+  transform: translateY(0) scale(0.98);
+}
+
+.astro-btn-submit:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.astro-security-note {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 10px;
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+
+@media (max-width: 480px) {
+  .astrology-modal-card {
+    padding: 24px 18px 20px;
+    border-radius: 28px;
+    max-width: 95%;
+  }
+
+  .astro-orb-wrap,
+  .astro-orb-core {
+    width: 66px;
+    height: 66px;
+    font-size: 2rem;
+  }
+
+  .astro-modal-title {
+    font-size: 1.2rem;
+  }
+
+  .astro-modal-desc {
+    font-size: 0.82rem;
+    margin-bottom: 14px;
+  }
+
+  .astro-input,
+  .astro-select {
+    padding: 11px 13px;
+    font-size: 0.9rem;
+  }
+}
+
+
+

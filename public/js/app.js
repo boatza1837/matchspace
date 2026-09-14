@@ -550,9 +550,11 @@ window.matchSpaceApp = (function () {
     const submitBtn = document.getElementById('btnSaveIncompleteProfile');
 
     if (inputBirthdate) {
-      inputBirthdate.addEventListener('change', () => {
+      const handleDateChange = () => {
         updatePromptZodiacPreview(inputBirthdate.value);
-      });
+      };
+      inputBirthdate.addEventListener('change', handleDateChange);
+      inputBirthdate.addEventListener('input', handleDateChange);
     }
 
     if (form) {
@@ -570,7 +572,7 @@ window.matchSpaceApp = (function () {
         try {
           if (submitBtn) {
             submitBtn.disabled = true;
-            submitBtn.textContent = '⏳ กำลังคำนวณราศีและดวงชะตา...';
+            submitBtn.innerHTML = '<span>⏳</span> <span>กำลังคำนวณราศีและเปิดดวงชะตา...</span>';
           }
           const res = await apiRequest('/api/me/complete-profile', {
             method: 'POST',
@@ -580,7 +582,7 @@ window.matchSpaceApp = (function () {
           if (msgEl) {
             msgEl.style.display = 'block';
             msgEl.className = 'message success';
-            msgEl.textContent = res.message || 'บันทึกข้อมูลและเปิดระบบวิเคราะห์ดวงเรียบร้อย!';
+            msgEl.innerHTML = '✨ ' + (res.message || 'บันทึกข้อมูลและเปิดระบบวิเคราะห์ดวงเรียบร้อย!');
           }
 
           if (res.user) {
@@ -588,14 +590,26 @@ window.matchSpaceApp = (function () {
           }
 
           setTimeout(async () => {
-            modal?.classList.add('hidden');
-            if (submitBtn) {
-              submitBtn.disabled = false;
-              submitBtn.textContent = '🔮 บันทึกและเปิดระบบวิเคราะห์ดวงเนื้อคู่';
+            const cardEl = modal?.querySelector('.astrology-modal-card');
+            if (cardEl) {
+              cardEl.style.transition = 'all 0.28s cubic-bezier(0.4, 0, 1, 1)';
+              cardEl.style.transform = 'scale(0.85) translateY(20px)';
+              cardEl.style.opacity = '0';
             }
-            await loadProfile();
-            await loadDiscoverUsers();
-          }, 800);
+            setTimeout(async () => {
+              modal?.classList.add('hidden');
+              if (cardEl) {
+                cardEl.style.transform = '';
+                cardEl.style.opacity = '';
+              }
+              if (submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<span>🔮</span> <span>บันทึกและเปิดระบบดวงเนื้อคู่</span>';
+              }
+              await loadProfile();
+              await loadDiscoverUsers();
+            }, 280);
+          }, 700);
         } catch (err) {
           if (msgEl) {
             msgEl.style.display = 'block';
@@ -604,7 +618,7 @@ window.matchSpaceApp = (function () {
           }
           if (submitBtn) {
             submitBtn.disabled = false;
-            submitBtn.textContent = '🔮 บันทึกและเปิดระบบวิเคราะห์ดวงเนื้อคู่';
+            submitBtn.innerHTML = '<span>🔮</span> <span>บันทึกและเปิดระบบดวงเนื้อคู่</span>';
           }
         }
       });

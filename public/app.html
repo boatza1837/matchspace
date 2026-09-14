@@ -1273,47 +1273,49 @@
     </aside>
 
     <!-- Incomplete Profile Onboarding Modal (DoB & Preferences) -->
-    <div id="incompleteProfileModal" class="modal hidden" style="z-index:99999; backdrop-filter:blur(10px); background:rgba(15,10,35,0.8);">
-      <div class="modal-content" style="max-width:440px; border-radius:28px; padding:28px 24px; text-align:center; box-shadow:0 25px 60px rgba(0,0,0,0.35); border:2px solid rgba(255,255,255,0.9);">
-        <div style="width:68px; height:68px; margin:0 auto 14px; background:linear-gradient(135deg, #a855f7 0%, #ec4899 100%); border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:2rem; box-shadow:0 10px 25px rgba(168,85,247,0.35);">
-          🔮
+    <div id="incompleteProfileModal" class="modal hidden astrology-modal-backdrop">
+      <div class="astrology-modal-card">
+        <div class="astro-orb-wrap">
+          <div class="astro-orb-halo"></div>
+          <div class="astro-orb-core">🔮</div>
         </div>
-        <h3 style="margin:0 0 6px; font-size:1.25rem; color:var(--purple); font-weight:800;">
-          เปิดระบบทำนายดวงเนื้อคู่ ✨
-        </h3>
-        <p style="margin:0 0 18px; font-size:0.86rem; color:var(--muted); line-height:1.5;">
-          ยินดีต้อนรับสู่ MatchSpace! กรุณาระบุวันเดือนปีเกิดและเพศที่คุณสนใจ เพื่อให้ระบบคำนวณราศี ธาตุ และดวงสมพงษ์เชิงลึกได้อย่างแม่นยำครับ
+
+        <div class="astro-top-badge">✨ ASTROLOGY MATCHING</div>
+        <h3 class="astro-modal-title">เปิดระบบวิเคราะห์ดวงเนื้อคู่</h3>
+        <p class="astro-modal-desc">
+          ยินดีต้อนรับสู่ MatchSpace! กรุณาระบุวันเกิดและเพศที่สนใจ เพื่อให้ระบบคำนวณราศี ธาตุ และเคมีดวงสมพงษ์เชิงลึกได้อย่างแม่นยำครับ
         </p>
 
-        <form id="incompleteProfileForm" style="text-align:left; display:flex; flex-direction:column; gap:14px;">
-          <div class="form-group">
-            <label for="promptBirthdate" style="font-weight:700; font-size:0.88rem; color:var(--text); display:flex; align-items:center; gap:6px;">
-              🎂 วัน/เดือน/ปีเกิดของคุณ *
+        <form id="incompleteProfileForm" class="astro-form">
+          <div class="astro-field">
+            <label for="promptBirthdate" class="astro-label">
+              <span>🎂 วัน/เดือน/ปีเกิดของคุณ *</span>
+              <span class="astro-label-hint">คำนวณราศี &amp; ธาตุ</span>
             </label>
-            <input type="date" id="promptBirthdate" required max="2012-12-31" min="1960-01-01" style="width:100%; box-sizing:border-box; padding:12px 14px; border-radius:14px; border:1.5px solid var(--purple); font-size:0.95rem; font-weight:600; outline:none;" />
-            <div id="promptZodiacPreview" style="display:none; margin-top:8px; align-items:center; gap:8px; flex-wrap:wrap;">
-              <span id="promptZodiacTag" style="font-size:0.82rem; font-weight:700; padding:4px 10px; border-radius:999px; background:#f5f3ff; color:var(--purple); border:1px solid rgba(99,102,241,0.2);"></span>
+            <input type="date" id="promptBirthdate" class="astro-input" required max="2012-12-31" min="1960-01-01" />
+            <div id="promptZodiacPreview" class="astro-zodiac-preview">
+              <span id="promptZodiacTag" style="font-size:0.82rem; font-weight:700; padding:4px 10px; border-radius:999px; background:#f5f3ff; color:#7c3aed; border:1px solid rgba(124,58,237,0.2);"></span>
               <span id="promptElementTag" style="font-size:0.82rem; font-weight:700; padding:4px 10px; border-radius:999px;"></span>
               <span id="promptAgeTag" style="font-size:0.8rem; color:var(--muted); font-weight:600;"></span>
             </div>
           </div>
 
-          <div class="form-group">
-            <label for="promptGender" style="font-weight:700; font-size:0.88rem; color:var(--text);">
-              👤 เพศของคุณ *
+          <div class="astro-field">
+            <label for="promptGender" class="astro-label">
+              <span>👤 เพศของคุณ *</span>
             </label>
-            <select id="promptGender" required style="width:100%; box-sizing:border-box; padding:12px 14px; border-radius:14px; border:1.5px solid var(--line); font-size:0.95rem; font-weight:600; outline:none;">
-              <option value="ชาย">👨 ชาย</option>
-              <option value="หญิง">👩 หญิง</option>
+            <select id="promptGender" class="astro-select" required>
+              <option value="ชาย">👨 ชาย (Men)</option>
+              <option value="หญิง">👩 หญิง (Women)</option>
               <option value="เพศหลากหลาย">🌈 เพศหลากหลาย (LGBTQ+)</option>
             </select>
           </div>
 
-          <div class="form-group">
-            <label for="promptInterestedGender" style="font-weight:700; font-size:0.88rem; color:var(--text);">
-              🎯 สนใจเพศไหน (Looking for) *
+          <div class="astro-field">
+            <label for="promptInterestedGender" class="astro-label">
+              <span>🎯 สนใจเพื่อนเพศไหน (Looking for) *</span>
             </label>
-            <select id="promptInterestedGender" required style="width:100%; box-sizing:border-box; padding:12px 14px; border-radius:14px; border:1.5px solid var(--line); font-size:0.95rem; font-weight:600; outline:none;">
+            <select id="promptInterestedGender" class="astro-select" required>
               <option value="ทุกเพศ">🌈 ทุกเพศ (All / Any)</option>
               <option value="หญิง">👩 หญิง (Women)</option>
               <option value="ชาย">👨 ชาย (Men)</option>
@@ -1321,10 +1323,11 @@
             </select>
           </div>
 
-          <button type="submit" id="btnSaveIncompleteProfile" class="button primary" style="width:100%; border-radius:999px; padding:14px; font-weight:700; font-size:1rem; margin-top:8px; box-shadow:0 8px 25px rgba(99,102,241,0.35);">
-            🔮 บันทึกและเปิดระบบวิเคราะห์ดวงเนื้อคู่
+          <button type="submit" id="btnSaveIncompleteProfile" class="astro-btn-submit">
+            <span>🔮 บันทึกและเปิดระบบดวงเนื้อคู่</span>
           </button>
           <div id="incompleteProfileMessage" class="message" style="display:none; margin-top:8px;"></div>
+          <div class="astro-security-note">🔒 ข้อมูลวันเกิดใช้เพื่อคำนวณดวงสมพงษ์และอายุเท่านั้น</div>
         </form>
       </div>
     </div>
