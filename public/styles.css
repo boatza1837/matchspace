@@ -7898,6 +7898,590 @@ body {
   border-color: #7c3aed !important;
 }
 
+/* ==========================================================================
+   MULTI-DIMENSIONAL MATCH SCORE & ASTROLOGY FILTER STYLES
+   ========================================================================== */
+
+/* Dark Neon Discover Filter Card matching User Screenshot */
+.discover-filter-card {
+  background: #141226;
+  border: 1.5px solid #2d2850;
+  border-radius: 20px;
+  padding: 16px 20px;
+  margin: 14px 0 18px 0;
+  box-shadow: 0 8px 26px rgba(10, 8, 28, 0.45), 0 0 0 1px rgba(139, 92, 246, 0.12);
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  color: #f1f5f9;
+}
+
+.discover-filter-card:hover {
+  border-color: #423b75;
+  box-shadow: 0 10px 32px rgba(10, 8, 28, 0.55), 0 0 18px rgba(139, 92, 246, 0.2);
+}
+
+.discover-filter-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.discover-filter-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.98rem;
+  font-weight: 800;
+  color: #f8fafc;
+  letter-spacing: -0.01em;
+}
+
+.filter-header-icon {
+  font-size: 1.15rem;
+  filter: drop-shadow(0 0 8px rgba(168, 85, 247, 0.6));
+}
+
+.filter-toggle-btn {
+  background: transparent;
+  border: none;
+  color: #c084fc;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+  font-family: inherit;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.filter-toggle-btn:hover {
+  color: #e9d5ff;
+}
+
+.discover-filter-body {
+  transition: max-height 0.35s ease, opacity 0.25s ease;
+}
+
+.discover-filter-body.collapsed {
+  display: none;
+}
+
+.filter-dimension-row {
+  margin-top: 14px;
+}
+
+.filter-row-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.84rem;
+  font-weight: 700;
+  color: #e2e8f0;
+  margin-bottom: 8px;
+}
+
+.filter-pills-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.filter-pill {
+  background: #1f1b3a;
+  border: 1.5px solid #362f61;
+  color: #cbd5e1;
+  font-size: 0.84rem;
+  font-weight: 700;
+  padding: 7px 18px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: inherit;
+  user-select: none;
+}
+
+.filter-pill:hover {
+  background: #2a244f;
+  border-color: #55488c;
+  color: #ffffff;
+  transform: translateY(-1px);
+}
+
+.filter-pill.active {
+  background: linear-gradient(135deg, #9333ea 0%, #7c3aed 100%) !important;
+  border-color: #c084fc !important;
+  color: #ffffff !important;
+  box-shadow: 0 0 16px rgba(147, 51, 234, 0.55), 0 2px 8px rgba(0, 0, 0, 0.35) !important;
+  transform: scale(1.02);
+}
+
+.filter-pill:active {
+  transform: scale(0.97);
+}
+
+.filter-footer-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.filter-footer-hint {
+  font-size: 0.76rem;
+  color: #94a3b8;
+}
+
+.filter-sources-link {
+  background: transparent;
+  border: none;
+  color: #c084fc;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+  font-family: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.filter-sources-link:hover {
+  color: #f3e8ff;
+}
+
+/* Modal Astrology Multi-dimensional Card */
+.modal-astrology-card {
+  margin-top: 14px;
+  margin-bottom: 14px;
+  background: linear-gradient(135deg, #fdf4ff 0%, #f5f3ff 50%, #ede9fe 100%);
+  border: 1.5px solid #e9d5ff;
+  border-radius: 20px;
+  padding: 18px 20px;
+  box-shadow: 0 6px 20px rgba(124, 58, 237, 0.08);
+}
+
+.astro-card-top-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.astro-title-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.astro-sparkle-icon {
+  font-size: 1.15rem;
+  color: #7c3aed;
+}
+
+.astro-card-main-title {
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: #581c87;
+  letter-spacing: -0.01em;
+}
+
+.astro-score-pill {
+  background: #7c3aed;
+  color: #ffffff;
+  font-weight: 800;
+  font-size: 0.8rem;
+  padding: 3px 12px;
+  border-radius: 999px;
+  box-shadow: 0 2px 8px rgba(124, 58, 237, 0.3);
+}
+
+/* Chemistry Headline Box */
+.astro-chemistry-header {
+  text-align: center;
+  background: rgba(255, 255, 255, 0.7);
+  border: 1px solid rgba(233, 213, 255, 0.8);
+  border-radius: 16px;
+  padding: 14px 16px;
+  margin-bottom: 16px;
+}
+
+.astro-chemistry-sub {
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: #4c1d95;
+  margin-bottom: 4px;
+}
+
+.astro-chemistry-big-score {
+  font-size: 2.8rem;
+  font-weight: 900;
+  line-height: 1.1;
+  background: linear-gradient(135deg, #7c3aed 0%, #db2777 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  display: inline-block;
+  letter-spacing: -0.02em;
+}
+
+.astro-chemistry-calc-note {
+  font-size: 0.76rem;
+  color: #6b21a8;
+  margin: 4px 0 0 0;
+  font-weight: 600;
+}
+
+/* 4 Multi-dimensional Progress Bars */
+.astro-dimensions-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.dim-bar-row {
+  background: rgba(255, 255, 255, 0.75);
+  border: 1px solid rgba(233, 213, 255, 0.7);
+  border-radius: 12px;
+  padding: 10px 14px;
+  transition: all 0.2s ease;
+}
+
+.dim-bar-row:hover {
+  background: #ffffff;
+  border-color: #d8b4fe;
+  box-shadow: 0 3px 10px rgba(124, 58, 237, 0.06);
+}
+
+.dim-bar-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.84rem;
+  font-weight: 700;
+  color: #1f2937;
+  margin-bottom: 6px;
+}
+
+.dim-bar-val {
+  font-size: 0.88rem;
+  font-weight: 800;
+  color: #6b21a8;
+}
+
+.dim-progress-track {
+  height: 8px;
+  background: #e2e8f0;
+  border-radius: 999px;
+  overflow: hidden;
+  position: relative;
+}
+
+.dim-progress-fill {
+  height: 100%;
+  border-radius: 999px;
+  transition: width 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.dim-progress-fill.passion {
+  background: linear-gradient(90deg, #f97316, #ef4444);
+}
+
+.dim-progress-fill.emotional {
+  background: linear-gradient(90deg, #ec4899, #d946ef);
+}
+
+.dim-progress-fill.communication {
+  background: linear-gradient(90deg, #3b82f6, #8b5cf6);
+}
+
+.dim-progress-fill.longterm {
+  background: linear-gradient(90deg, #10b981, #06b6d4);
+}
+
+.dim-bar-desc {
+  font-size: 0.72rem;
+  color: #64748b;
+  margin-top: 4px;
+  line-height: 1.35;
+}
+
+/* Summary Bullets Box */
+.astro-summary-box {
+  background: rgba(255, 255, 255, 0.85);
+  border: 1.5px solid #e9d5ff;
+  border-radius: 14px;
+  padding: 12px 16px;
+  margin-bottom: 12px;
+}
+
+.astro-summary-title {
+  font-size: 0.86rem;
+  font-weight: 800;
+  color: #581c87;
+  margin-bottom: 6px;
+}
+
+.astro-summary-bullets {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.astro-summary-bullets li {
+  font-size: 0.82rem;
+  color: #374151;
+  line-height: 1.45;
+  position: relative;
+  padding-left: 14px;
+}
+
+.astro-summary-bullets li::before {
+  content: '•';
+  position: absolute;
+  left: 2px;
+  color: #7c3aed;
+  font-weight: 900;
+  font-size: 1rem;
+}
+
+/* Extra Insights Badges */
+.astro-level-badge {
+  font-weight: 700;
+  color: #581c87;
+  font-size: 0.88rem;
+  margin-bottom: 6px;
+}
+
+.astro-dynamic-text {
+  font-size: 0.82rem;
+  color: #4c1d95;
+  line-height: 1.45;
+  margin-bottom: 6px;
+}
+
+.astro-advice-box {
+  font-size: 0.82rem;
+  color: #6b21a8;
+  background: rgba(255, 255, 255, 0.75);
+  padding: 8px 12px;
+  border-radius: 12px;
+  line-height: 1.4;
+  margin-top: 8px;
+}
+
+/* Button to Open Research Sources */
+.astro-sources-action-row {
+  margin-top: 14px;
+}
+
+.btn-astro-sources {
+  width: 100%;
+  background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%);
+  color: #ffffff;
+  border: none;
+  border-radius: 999px;
+  padding: 10px 16px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  box-shadow: 0 4px 14px rgba(124, 58, 237, 0.25);
+  font-family: inherit;
+}
+
+.btn-astro-sources:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(124, 58, 237, 0.35);
+  background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+}
+
+.btn-astro-sources:active {
+  transform: scale(0.98);
+}
+
+/* Discover Card Mini Multi-dimensional Bar Grid */
+.discover-dimensions-preview {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 6px;
+  margin: 8px 0 4px 0;
+  padding: 8px 10px;
+  background: rgba(245, 243, 255, 0.8);
+  border-radius: 12px;
+  border: 1px solid rgba(124, 58, 237, 0.15);
+}
+
+.dim-mini-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.dim-mini-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #4b5563;
+}
+
+.dim-mini-val {
+  font-size: 0.74rem;
+  font-weight: 800;
+  color: #7c3aed;
+}
+
+.dim-mini-track {
+  height: 5px;
+  background: #e2e8f0;
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.dim-mini-fill {
+  height: 100%;
+  border-radius: 999px;
+}
+
+/* ==========================================================================
+   8 RESEARCH DATABASES & SCRIPTURES MODAL STYLES
+   ========================================================================== */
+.astro-sources-modal-content {
+  max-width: 760px;
+  width: 92%;
+  max-height: 88vh;
+  overflow-y: auto;
+  border-radius: 22px;
+  padding: 24px 26px;
+  background: #ffffff;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(124, 58, 237, 0.15);
+}
+
+.astro-sources-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 14px;
+  padding-bottom: 14px;
+  border-bottom: 1.5px solid #f1f5f9;
+}
+
+.astro-sources-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 12px;
+  margin: 18px 0;
+}
+
+.astro-source-card {
+  background: #f8fafc;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  transition: all 0.2s ease;
+}
+
+.astro-source-card:hover {
+  border-color: #c084fc;
+  background: #faf5ff;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(124, 58, 237, 0.08);
+}
+
+.source-card-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.source-card-badge {
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #ede9fe;
+  color: #6b21a8;
+  white-space: nowrap;
+}
+
+.source-card-title {
+  font-size: 0.88rem;
+  font-weight: 800;
+  color: #1e293b;
+  line-height: 1.35;
+}
+
+.source-card-author {
+  font-size: 0.76rem;
+  color: #64748b;
+  font-style: italic;
+}
+
+.source-card-desc {
+  font-size: 0.8rem;
+  color: #334155;
+  line-height: 1.45;
+}
+
+.astro-sources-footer {
+  padding-top: 14px;
+  border-top: 1.5px solid #f1f5f9;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.astro-sources-disclaimer {
+  font-size: 0.78rem;
+  color: #64748b;
+  line-height: 1.5;
+  margin: 0;
+  background: #f8fafc;
+  padding: 10px 14px;
+  border-radius: 10px;
+  border-left: 3px solid #7c3aed;
+}
+
+@media (max-width: 640px) {
+  .discover-filter-card {
+    padding: 14px 16px;
+  }
+  .filter-pill {
+    padding: 6px 14px;
+    font-size: 0.8rem;
+  }
+  .astro-sources-grid {
+    grid-template-columns: 1fr;
+  }
+  .discover-dimensions-preview {
+    grid-template-columns: 1fr;
+  }
+}
+
+
 
 
 

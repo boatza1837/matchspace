@@ -18,6 +18,8 @@ window.matchSpaceApp = (function () {
   let skippedUsersList = [];
   let modalPhotosList = [];
   let modalCurrentPhotoIndex = 0;
+  let currentMatchDimension = 'normal';
+  let currentAstroMode = 'all';
 
   async function initApp() {
     const appRoot = document.getElementById('appRoot');
@@ -57,6 +59,8 @@ window.matchSpaceApp = (function () {
       setupWebPushNotifications();
       setupCategoryFilterChips();
       setupDiscoverGenderPreference();
+      setupMatchFilterControls();
+      setupAstrologySourcesModal();
 
       await Promise.all([
         loadProfile(),
@@ -958,7 +962,7 @@ window.matchSpaceApp = (function () {
   // ===================== PROFILE MODAL =====================
   async function openProfileModal(userId) {
     try {
-      const data = await apiRequest(`/api/users/${userId}/profile`);
+      const data = await apiRequest(`/api/users/${userId}/profile?dimension=${encodeURIComponent(currentMatchDimension)}&astromode=${encodeURIComponent(currentAstroMode)}`);
       const { user, photos } = data;
 
       modalPhotosList = photos && photos.length ? photos : [user.profile_image || DEFAULT_AVATAR];
@@ -1002,13 +1006,26 @@ window.matchSpaceApp = (function () {
         }
       }
 
-      // Populate Astrology & Soulmate Deep Reading Card
+      // Populate Astrology & Multi-dimensional Match Score Card
       const astroSection = document.getElementById('modalAstrologySection');
       const astroScoreBadge = document.getElementById('modalAstrologyScoreBadge');
       const astroLevel = document.getElementById('modalAstrologyLevel');
       const astroElementDynamic = document.getElementById('modalAstrologyElementDynamic');
       const astroDayDynamic = document.getElementById('modalAstrologyDayDynamic');
       const astroAdvice = document.getElementById('modalAstrologyAdvice');
+      const astroTargetName = document.getElementById('modalAstroTargetName');
+      const astroTargetMajor = document.getElementById('modalAstroTargetMajor');
+      const astroOverallScore = document.getElementById('modalAstroOverallScore');
+      const bulletsEl = document.getElementById('modalAstroSummaryBullets');
+
+      const dimValPassion = document.getElementById('dimValPassion');
+      const dimFillPassion = document.getElementById('dimFillPassion');
+      const dimValEmotional = document.getElementById('dimValEmotional');
+      const dimFillEmotional = document.getElementById('dimFillEmotional');
+      const dimValCommunication = document.getElementById('dimValCommunication');
+      const dimFillCommunication = document.getElementById('dimFillCommunication');
+      const dimValLongTerm = document.getElementById('dimValLongTerm');
+      const dimFillLongTerm = document.getElementById('dimFillLongTerm');
 
       const compat = data.compatibility || user.horoscope;
       if (compat && astroSection) {
@@ -1016,6 +1033,43 @@ window.matchSpaceApp = (function () {
         if (astroScoreBadge) {
           astroScoreBadge.textContent = `ดวงสมพงษ์ ${compat.score}%`;
         }
+        if (astroOverallScore) {
+          astroOverallScore.textContent = `${compat.score}%`;
+        }
+        if (astroTargetName) {
+          astroTargetName.textContent = user.nickname || user.name || 'เพื่อน';
+        }
+        if (astroTargetMajor) {
+          astroTargetMajor.textContent = user.major || user.faculty || 'มหาวิทยาลัยขอนแก่น';
+        }
+
+        // 4 Multi-dimensional bars
+        const dims = compat.dimensions || {};
+        const pScore = dims.passion?.score ?? Math.min(99, Math.max(70, compat.score + 3));
+        const eScore = dims.emotional?.score ?? Math.min(99, Math.max(70, compat.score - 2));
+        const cScore = dims.communication?.score ?? Math.min(99, Math.max(70, compat.score - 1));
+        const lScore = dims.longTerm?.score ?? Math.min(99, Math.max(70, compat.score));
+
+        if (dimValPassion) dimValPassion.textContent = `${pScore}%`;
+        if (dimFillPassion) dimFillPassion.style.width = `${pScore}%`;
+        if (dimValEmotional) dimValEmotional.textContent = `${eScore}%`;
+        if (dimFillEmotional) dimFillEmotional.style.width = `${eScore}%`;
+        if (dimValCommunication) dimValCommunication.textContent = `${cScore}%`;
+        if (dimFillCommunication) dimFillCommunication.style.width = `${cScore}%`;
+        if (dimValLongTerm) dimValLongTerm.textContent = `${lScore}%`;
+        if (dimFillLongTerm) dimFillLongTerm.style.width = `${lScore}%`;
+
+        // Summary Bullets
+        if (bulletsEl) {
+          const points = (compat.summaryPoints && compat.summaryPoints.length > 0)
+            ? compat.summaryPoints
+            : [
+                'คุณทั้งคู่มีไลฟ์สไตล์ที่น่าสนใจ ทำให้ปรับตัวและคุยได้ลื่นไหล',
+                'สมดุลธาตุประจำราศีหนุนนำพลังงานเชิงบวก ให้คุยกันเข้าขาได้รวดเร็ว'
+              ];
+          bulletsEl.innerHTML = points.map(p => `<li>${escapeHtml(p)}</li>`).join('');
+        }
+
         if (astroLevel) {
           astroLevel.textContent = compat.level || '✨ ดวงคู่สมพงษ์';
         }
@@ -1320,15 +1374,206 @@ window.matchSpaceApp = (function () {
       ? genderOverride 
       : (select?.value || (sessionUser?.interested_gender || 'ทุกเพศ'));
 
-    let url = '/api/candidates';
+    const params = new URLSearchParams();
     if (targetGender && targetGender !== 'ทุกเพศ') {
-      url += `?gender=${encodeURIComponent(targetGender)}`;
+      params.append('gender', targetGender);
     }
+    if (currentMatchDimension) {
+      params.append('dimension', currentMatchDimension);
+    }
+    if (currentAstroMode) {
+      params.append('astromode', currentAstroMode);
+    }
+
+    const url = `/api/candidates?${params.toString()}`;
     const users = await apiRequest(url);
     discoverUsers = users;
     updateHomeStats();
     currentDiscoverIndex = 0;
     renderDiscoverCard();
+  }
+
+  // ===================== MATCH FILTER CONTROLS & SOURCES MODAL =====================
+  function setupMatchFilterControls() {
+    const btnToggle = document.getElementById('btnToggleMatchFilter');
+    const filterBody = document.getElementById('discoverFilterBody');
+    const filterToggleText = document.getElementById('filterToggleText');
+
+    if (btnToggle && filterBody) {
+      btnToggle.addEventListener('click', () => {
+        const isCollapsed = filterBody.classList.toggle('collapsed');
+        btnToggle.setAttribute('aria-expanded', (!isCollapsed).toString());
+        if (filterToggleText) {
+          filterToggleText.textContent = isCollapsed ? 'แสดง' : 'แสดง / ซ่อน';
+        }
+      });
+    }
+
+    // Match Dimension Pills
+    const dimensionPills = document.querySelectorAll('#matchDimensionPills .filter-pill');
+    dimensionPills.forEach(pill => {
+      pill.addEventListener('click', async () => {
+        const dim = pill.dataset.dimension || 'normal';
+        if (currentMatchDimension === dim) return;
+
+        dimensionPills.forEach(p => {
+          p.classList.remove('active');
+          p.setAttribute('aria-checked', 'false');
+        });
+        pill.classList.add('active');
+        pill.setAttribute('aria-checked', 'true');
+
+        currentMatchDimension = dim;
+        await loadDiscoverUsers();
+      });
+    });
+
+    // Astro Mode Pills
+    const astroPills = document.querySelectorAll('#astroModePills .filter-pill');
+    astroPills.forEach(pill => {
+      pill.addEventListener('click', async () => {
+        const mode = pill.dataset.astromode || 'all';
+        if (currentAstroMode === mode) return;
+
+        astroPills.forEach(p => {
+          p.classList.remove('active');
+          p.setAttribute('aria-checked', 'false');
+        });
+        pill.classList.add('active');
+        pill.setAttribute('aria-checked', 'true');
+
+        currentAstroMode = mode;
+        await loadDiscoverUsers();
+      });
+    });
+
+    // Sources button from filter
+    document.getElementById('btnOpenAstroSourcesFromFilter')?.addEventListener('click', () => {
+      openAstrologySourcesModal();
+    });
+  }
+
+  const ASTROLOGY_SOURCES_FALLBACK = [
+    {
+      id: 1,
+      icon: '📜',
+      title: 'ตำรามหาทักษาพยากรณ์ & ทักษาคู่มิตร 8 ทิศ',
+      category: 'โหราศาสตร์ไทยโบราณ',
+      author: 'คัมภีร์โหราศาสตร์ไทยมหาทักษา',
+      desc: 'คำนวณดาวคู่มิตรประจำวันเกิด 7 วัน (อาทิตย์-พฤหัส, จันทร์-พุธ, อังคาร-ศุกร์, เสาร์-ราหู) ชี้วัดความเข้าอกเข้าใจ ความไว้วางใจ และการเกื้อหนุนชีวิต'
+    },
+    {
+      id: 2,
+      icon: '☀️',
+      title: 'คัมภีร์สุริยยาตร์ & ดาวคู่ธาตุคู่สมพล',
+      category: 'โหราศาสตร์ไทยประยุกต์',
+      author: 'ตำราโหรหลวงหลวงประเสริฐอักษรนิติ์',
+      desc: 'ประเมินพลังงานดาวคู่ธาตุ 4 ธาตุ และดาวคู่สมพลที่ช่วยหนุนนำความเจริญก้าวหน้า โชคลาภ ทรัพย์สิน และความสำเร็จในชีวิตร่วมกัน'
+    },
+    {
+      id: 3,
+      icon: '🐉',
+      title: 'คัมภีร์ซาฮะ (三合 San He - สามประสานธาตุ)',
+      category: 'โหราศาสตร์จีน & ปาจื่อ (BaZi)',
+      author: 'คัมภีร์ดวงจีนโบราณซำง้วนหล่อแก',
+      desc: 'กลุ่ม 3 นักษัตรพันธมิตรเกื้อหนุน (ชวด-มะโรง-วอก, ขาล-มะเมีย-จอ, ฉลู-มะเส็ง-ระกา, เถาะ-มะแม-กุน) เสริมพลังความมั่นคงและชีวิตคู่ระยะยาว'
+    },
+    {
+      id: 4,
+      icon: '🤝',
+      title: 'คัมภีร์ลักฮะ (六合 Liu He - หกคู่มิตรแท้)',
+      category: 'โหราศาสตร์จีน & 12 นักษัตร',
+      author: 'สมาคมโหรจีนและฮวงจุ้ยแห่งประเทศไทย',
+      desc: 'คู่มิตรนักษัตรดูดซับพลังหยิน-หยางอย่างสมบูรณ์แบบ (ชวด-ฉลู, ขาล-กุน, เถาะ-จอ, มะโรง-ระกา, มะเส็ง-วอก, มะเมีย-มะแม) หนุนนำความสามัคคีและโชคลาภ'
+    },
+    {
+      id: 5,
+      icon: '🔮',
+      title: 'Western Synastry Astrology & The 4 Triplicities',
+      category: 'โหราศาสตร์สากล & Synastry',
+      author: 'Ptolemy’s Tetrabiblos / Robert Hand',
+      desc: 'วิเคราะห์ความสมดุลของ 4 ธาตุ (Fire, Earth, Air, Water) และพันธมิตร Yang (ไฟ-ลม) กับ Yin (ดิน-น้ำ) วัดพลังเสน่หาและแรงดึงดูดทางธรรมชาติ'
+    },
+    {
+      id: 6,
+      icon: '🔺',
+      title: 'Sternberg’s Triangular Theory of Love',
+      category: 'จิตวิทยาความสัมพันธ์',
+      author: 'Prof. Robert J. Sternberg (Yale University)',
+      desc: 'โมเดลสามเหลี่ยมแห่งความรัก 3 มิติหลัก: Passion (เสน่หา), Intimacy (ความใกล้ชิดผูกพัน), และ Commitment (ความมุ่งมั่นต่อยอดระยะยาว)'
+    },
+    {
+      id: 7,
+      icon: '🧬',
+      title: 'The Biological Basis of Love & Neurochemistry Compatibility',
+      category: 'ประสาทวิทยาและมานุษยวิทยา',
+      author: 'Dr. Helen Fisher (Rutgers University / Match.com Advisor)',
+      desc: 'ระบบจำแนกเคมีความเข้ากันได้ทางชีววิทยา 4 กลุ่มฮอร์โมน (Dopamine, Serotonin, Testosterone, Estrogen) วิเคราะห์สไตล์การสื่อสารและไลฟ์สไตล์'
+    },
+    {
+      id: 8,
+      icon: '🎯',
+      title: 'Similarity-Attraction Effect & Activity Theory',
+      category: 'จิตวิทยาสังคมและพฤติกรรมมนุษย์',
+      author: 'Donn Byrne (Attraction Paradigm) & Campbell',
+      desc: 'ทฤษฎีความดึงดูดจากความคล้ายคลึงของไลฟ์สไตล์ แท็กความสนใจร่วมกัน คณะวิชา และกิจกรรมในมหาวิทยาลัย ซึ่งเป็นกุญแจสำคัญของความสัมพันธ์ที่ราบรื่น'
+    }
+  ];
+
+  async function openAstrologySourcesModal() {
+    const modal = document.getElementById('astrologySourcesModal');
+    const grid = document.getElementById('astroSourcesGrid');
+    if (!modal) return;
+
+    modal.classList.remove('hidden');
+
+    if (grid && (!grid.children.length || grid.children.length < 8)) {
+      try {
+        const res = await apiRequest('/api/astrology/sources');
+        const sources = (res && res.sources && res.sources.length) ? res.sources : ASTROLOGY_SOURCES_FALLBACK;
+        renderAstrologySourcesGrid(sources);
+      } catch (e) {
+        renderAstrologySourcesGrid(ASTROLOGY_SOURCES_FALLBACK);
+      }
+    }
+  }
+
+  function renderAstrologySourcesGrid(sources) {
+    const grid = document.getElementById('astroSourcesGrid');
+    if (!grid) return;
+
+    grid.innerHTML = sources.map(s => `
+      <div class="astro-source-card">
+        <div class="source-card-top">
+          <span style="font-size:1.5rem;">${s.icon || '📜'}</span>
+          <span class="source-card-badge">${escapeHtml(s.category)}</span>
+        </div>
+        <div class="source-card-title">${escapeHtml(s.title)}</div>
+        <div class="source-card-author">โดย: ${escapeHtml(s.author)}</div>
+        <div class="source-card-desc">${escapeHtml(s.desc)}</div>
+      </div>
+    `).join('');
+  }
+
+  function setupAstrologySourcesModal() {
+    const modal = document.getElementById('astrologySourcesModal');
+    const btnClose = document.getElementById('btnCloseAstroSourcesModal');
+    const btnConfirm = document.getElementById('btnConfirmCloseSourcesModal');
+
+    function closeModal() {
+      if (modal) modal.classList.add('hidden');
+    }
+
+    btnClose?.addEventListener('click', closeModal);
+    btnConfirm?.addEventListener('click', closeModal);
+
+    modal?.addEventListener('click', (e) => {
+      if (e.target.id === 'astrologySourcesModal') closeModal();
+    });
+
+    document.getElementById('btnOpenAstroSourcesFromModal')?.addEventListener('click', () => {
+      openAstrologySourcesModal();
+    });
   }
 
   // ===================== CONVERSATION STARTERS QUESTION BANK =====================
@@ -1574,14 +1819,59 @@ window.matchSpaceApp = (function () {
           </span>
         </div>
 
-        <div class="discover-shared-box" style="display:flex; flex-direction:column; gap:4px;">
+        <div class="discover-shared-box" style="display:flex; flex-direction:column; gap:6px; cursor:pointer;" title="กดเพื่อดูผลวิเคราะห์เคมีฉบับเต็ม">
           <div style="display:flex; justify-content:space-between; align-items:center;">
-            <span class="discover-shared-label">🔮 ดวงสมพงษ์ &amp; ไลฟ์สไตล์</span>
-            <span class="discover-shared-percent" style="color:#7c3aed; font-weight:800;">${user.horoscope ? user.horoscope.score : sharedPercent}%</span>
+            <span class="discover-shared-label">⚡ Multi-dimensional Match Score</span>
+            <span class="discover-shared-percent" style="color:#7c3aed; font-weight:900; font-size:1.15rem;">
+              ${user.horoscope ? user.horoscope.score : sharedPercent}%
+            </span>
           </div>
-          ${user.horoscope ? `
-            <div style="font-size:0.75rem; color:#6b21a8; font-weight:600; text-align:left; background:rgba(255,255,255,0.7); padding:3px 8px; border-radius:8px;">
-              ${escapeHtml(user.horoscope.level)}
+          <div style="font-size:0.75rem; color:#6b21a8; font-weight:600; text-align:left; background:rgba(255,255,255,0.7); padding:3px 8px; border-radius:8px;">
+            ${escapeHtml(user.horoscope?.level || 'ดวงสมพงษ์เข้ากันได้ดี')}
+          </div>
+          ${user.horoscope?.dimensions ? `
+            <div class="discover-dimensions-preview">
+              <div class="dim-mini-cell">
+                <div class="dim-mini-header">
+                  <span>🔥 เสน่หา (Passion)</span>
+                  <span class="dim-mini-val">${user.horoscope.dimensions.passion.score}%</span>
+                </div>
+                <div class="dim-mini-track">
+                  <div class="dim-mini-fill passion" style="width:${user.horoscope.dimensions.passion.score}%; background:linear-gradient(90deg,#f97316,#ef4444);"></div>
+                </div>
+              </div>
+              <div class="dim-mini-cell">
+                <div class="dim-mini-header">
+                  <span>💖 ความรู้สึก (Emotional)</span>
+                  <span class="dim-mini-val">${user.horoscope.dimensions.emotional.score}%</span>
+                </div>
+                <div class="dim-mini-track">
+                  <div class="dim-mini-fill emotional" style="width:${user.horoscope.dimensions.emotional.score}%; background:linear-gradient(90deg,#ec4899,#d946ef);"></div>
+                </div>
+              </div>
+              <div class="dim-mini-cell">
+                <div class="dim-mini-header">
+                  <span>🗣️ สื่อสาร (Comm)</span>
+                  <span class="dim-mini-val">${user.horoscope.dimensions.communication.score}%</span>
+                </div>
+                <div class="dim-mini-track">
+                  <div class="dim-mini-fill communication" style="width:${user.horoscope.dimensions.communication.score}%; background:linear-gradient(90deg,#3b82f6,#8b5cf6);"></div>
+                </div>
+              </div>
+              <div class="dim-mini-cell">
+                <div class="dim-mini-header">
+                  <span>💍 ระยะยาว (Long-Term)</span>
+                  <span class="dim-mini-val">${user.horoscope.dimensions.longTerm.score}%</span>
+                </div>
+                <div class="dim-mini-track">
+                  <div class="dim-mini-fill longterm" style="width:${user.horoscope.dimensions.longTerm.score}%; background:linear-gradient(90deg,#10b981,#06b6d4);"></div>
+                </div>
+              </div>
+            </div>
+          ` : ''}
+          ${user.horoscope?.summaryPoints && user.horoscope.summaryPoints.length > 0 ? `
+            <div style="font-size:0.75rem; color:#475569; line-height:1.4; margin-top:2px;">
+              • ${escapeHtml(user.horoscope.summaryPoints[0])}
             </div>
           ` : ''}
         </div>
@@ -1652,6 +1942,9 @@ window.matchSpaceApp = (function () {
       openProfileModal(user.id);
     });
     discoverUserCard.querySelector('.discover-album-pill')?.addEventListener('click', () => {
+      openProfileModal(user.id);
+    });
+    discoverUserCard.querySelector('.discover-shared-box')?.addEventListener('click', () => {
       openProfileModal(user.id);
     });
 

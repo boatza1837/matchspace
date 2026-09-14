@@ -10,7 +10,8 @@ const {
   calculateAge, 
   getZodiacSign, 
   getUserAstrologyProfile, 
-  calculateSoulmateCompatibility 
+  calculateSoulmateCompatibility,
+  ASTROLOGY_SOURCES_DB 
 } = require('../services/astrology');
 
 const STUDENT_BADGES = {
@@ -21,6 +22,10 @@ const STUDENT_BADGES = {
   helpful: { key: 'helpful', label: 'ช่วยเหลือดีเยี่ยม', icon: '🤝', desc: 'มีน้ำใจ คอยช่วยเหลือเพื่อนๆ' },
   positive: { key: 'positive', label: 'พลังบวกสดใส', icon: '🌟', desc: 'สร้างบรรยากาศรื่นเริง เพิ่มพลังใจ' }
 };
+
+router.get('/api/astrology/sources', (req, res) => {
+  res.json({ sources: ASTROLOGY_SOURCES_DB });
+});
 
 router.get('/api/me', requireAuth, async (req, res) => {
   const user = await db.get('SELECT * FROM users WHERE id = ?', [req.session.user.id]);
@@ -156,8 +161,10 @@ router.get('/api/users/:id/profile', requireAuth, async (req, res) => {
     count: countMap[b.key] || 0
   }));
 
+  const dimension = (req.query.dimension || 'normal').toLowerCase();
+  const astromode = (req.query.astromode || 'all').toLowerCase();
   const me = await db.get('SELECT * FROM users WHERE id = ?', [myId]);
-  const compatibility = calculateSoulmateCompatibility(me, user);
+  const compatibility = calculateSoulmateCompatibility(me, user, { dimension, astromode });
   const targetAstro = getUserAstrologyProfile(user.birthdate);
 
   res.json({ 
@@ -246,9 +253,12 @@ router.get('/api/candidates', requireAuth, async (req, res) => {
       LIMIT 30
     `;
 
+    const dimension = (req.query.dimension || 'normal').toLowerCase();
+    const astromode = (req.query.astromode || 'all').toLowerCase();
+
     const rows = await db.all(sql, params);
     const candidatesWithAstro = rows.map(cand => {
-      const compatibility = calculateSoulmateCompatibility(me, cand);
+      const compatibility = calculateSoulmateCompatibility(me, cand, { dimension, astromode });
       const candAstro = getUserAstrologyProfile(cand.birthdate);
       return {
         ...cand,
@@ -261,11 +271,16 @@ router.get('/api/candidates', requireAuth, async (req, res) => {
           level: compatibility.level,
           elementDynamic: compatibility.elementDynamic,
           dayDynamic: compatibility.dayDynamic,
+          chineseDynamic: compatibility.chineseDynamic,
           advice: compatibility.advice,
-          luckySpot: compatibility.luckySpot
+          luckySpot: compatibility.luckySpot,
+          dimensions: compatibility.dimensions,
+          summaryPoints: compatibility.summaryPoints
         }
       };
     });
+
+    candidatesWithAstro.sort((a, b) => (b.horoscope?.score || 0) - (a.horoscope?.score || 0));
     res.json(candidatesWithAstro);
   } catch (err) {
     console.error('[Candidates Error]', err);

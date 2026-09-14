@@ -241,6 +241,73 @@
               <button class="category-chip" data-category="ศิลปะ" type="button">ศิลปะ</button>
             </div>
 
+            <!-- Match Filter Control Card (Multi-dimensional & Astrology Filter matching Screenshot) -->
+            <div id="discoverMatchFilterCard" class="discover-filter-card">
+              <div class="discover-filter-header">
+                <div class="discover-filter-title">
+                  <span class="filter-header-icon">⚙️</span>
+                  <span>ตั้งค่าตัวเลือกการแมตช์ (Filter)</span>
+                </div>
+                <button id="btnToggleMatchFilter" class="filter-toggle-btn" type="button" aria-expanded="true">
+                  <span id="filterToggleText">แสดง / ซ่อน</span>
+                </button>
+              </div>
+
+              <div id="discoverFilterBody" class="discover-filter-body">
+                <!-- Row 1: Match Dimension -->
+                <div class="filter-dimension-row">
+                  <div class="filter-row-label">
+                    <span>🎯</span>
+                    <span>เลือกด้านที่ต้องการแมตช์:</span>
+                  </div>
+                  <div class="filter-pills-row" id="matchDimensionPills" role="radiogroup" aria-label="เลือกด้านที่ต้องการแมตช์">
+                    <button type="button" class="filter-pill active" data-dimension="normal" role="radio" aria-checked="true">
+                      <span>ปกติ</span>
+                    </button>
+                    <button type="button" class="filter-pill" data-dimension="love" role="radio" aria-checked="false">
+                      <span>❤️ ความรัก</span>
+                    </button>
+                    <button type="button" class="filter-pill" data-dimension="work" role="radio" aria-checked="false">
+                      <span>💼 การงาน/เรียน</span>
+                    </button>
+                    <button type="button" class="filter-pill" data-dimension="wealth" role="radio" aria-checked="false">
+                      <span>💰 การเงิน</span>
+                    </button>
+                  </div>
+                </div>
+
+                <!-- Row 2: Astrology Calculation Mode -->
+                <div class="filter-dimension-row">
+                  <div class="filter-row-label">
+                    <span>🔮</span>
+                    <span>เลือกวิธีแมตช์จากดวง:</span>
+                  </div>
+                  <div class="filter-pills-row" id="astroModePills" role="radiogroup" aria-label="เลือกวิธีแมตช์จากดวง">
+                    <button type="button" class="filter-pill active" data-astromode="all" role="radio" aria-checked="true">
+                      <span>✨ ทั้งหมด</span>
+                    </button>
+                    <button type="button" class="filter-pill" data-astromode="noduo" role="radio" aria-checked="false">
+                      <span>ไม่ใช้ดวง</span>
+                    </button>
+                    <button type="button" class="filter-pill" data-astromode="day" role="radio" aria-checked="false">
+                      <span>📅 ดวงวันเกิด</span>
+                    </button>
+                    <button type="button" class="filter-pill" data-astromode="zodiac" role="radio" aria-checked="false">
+                      <span>✨ ราศี + นักษัตร</span>
+                    </button>
+                  </div>
+                </div>
+
+                <!-- Footer with Link to 8 Sources -->
+                <div class="filter-footer-row">
+                  <span class="filter-footer-hint">💡 ปรับสูตรคำนวณเคมีความเข้ากันได้แบบเรียลไทม์ตามความสนใจและดวงชะตา</span>
+                  <button type="button" id="btnOpenAstroSourcesFromFilter" class="filter-sources-link">
+                    <span>📚 ตรวจสอบ 8 ฐานข้อมูลวิจัยอ้างอิง</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+
             <!-- Discover Content Grid (Card + Conversation Starters) -->
             <div id="discoverUserCard" class="discover-content-row"></div>
           </div>
@@ -785,20 +852,98 @@
             </div>
           </div>
 
-          <!-- Astrology & Soulmate Deep Reading Card -->
-          <div id="modalAstrologySection" class="modal-astrology-card" style="margin-top:12px; margin-bottom:12px; background:linear-gradient(135deg, #fdf4ff 0%, #ede9fe 100%); border:1.5px solid #e9d5ff; border-radius:18px; padding:16px; box-shadow:0 4px 15px rgba(124,58,237,0.06);">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-              <h4 style="margin:0; font-size:0.95rem; color:#6b21a8; font-weight:700; display:flex; align-items:center; gap:6px;">
-                🔮 ดวงสมพงษ์ &amp; เคมีเนื้อคู่
-              </h4>
-              <span id="modalAstrologyScoreBadge" style="background:#7c3aed; color:#ffffff; font-weight:800; font-size:0.8rem; padding:3px 10px; border-radius:999px;">
-                ดวงสมพงษ์ --%
+          <!-- Astrology & Soulmate Multi-dimensional Match Score Card -->
+          <div id="modalAstrologySection" class="modal-astrology-card">
+            <div class="astro-card-top-bar">
+              <div class="astro-title-group">
+                <span class="astro-sparkle-icon">⚡</span>
+                <span class="astro-card-main-title">Multi-dimensional Match Score</span>
+              </div>
+              <span id="modalAstrologyScoreBadge" class="astro-score-pill">
+                ดวงสมพงษ์ 0%
               </span>
             </div>
-            <div id="modalAstrologyLevel" style="font-weight:700; color:#581c87; font-size:0.88rem; margin-bottom:6px;"></div>
-            <div id="modalAstrologyElementDynamic" style="font-size:0.84rem; color:#4c1d95; line-height:1.45; margin-bottom:8px;"></div>
-            <div id="modalAstrologyDayDynamic" style="font-size:0.82rem; color:#6d28d9; line-height:1.4; margin-bottom:8px;"></div>
-            <div id="modalAstrologyAdvice" style="font-size:0.82rem; color:#6b21a8; background:rgba(255,255,255,0.75); padding:8px 12px; border-radius:12px; line-height:1.4;"></div>
+
+            <!-- Chemistry Headline requested by user -->
+            <div class="astro-chemistry-header">
+              <div class="astro-chemistry-sub" id="modalAstroSub">
+                ผลวิเคราะห์เคมีระหว่าง คุณ &amp; <span id="modalAstroTargetName">เพื่อน</span> (<span id="modalAstroTargetMajor">คณะ/สาขา</span>)
+              </div>
+              <div class="astro-chemistry-score-wrap">
+                <span class="astro-chemistry-big-score" id="modalAstroOverallScore">--%</span>
+              </div>
+              <p class="astro-chemistry-calc-note">
+                คำนวณแบบเจาะลึกจากแท็กความสนใจ, วันเกิด, ราศี และวัตถุประสงค์
+              </p>
+            </div>
+
+            <!-- 4 Multi-dimensional Progress Bars -->
+            <div class="astro-dimensions-list" id="modalAstroDimensionsList">
+              <div class="dim-bar-row">
+                <div class="dim-bar-header">
+                  <span class="dim-bar-label">🔥 เสน่หาและแรงดึงดูด (Passion)</span>
+                  <span class="dim-bar-val" id="dimValPassion">--%</span>
+                </div>
+                <div class="dim-progress-track">
+                  <div class="dim-progress-fill passion" id="dimFillPassion" style="width:0%;"></div>
+                </div>
+                <div class="dim-bar-desc">เคมีความดึงดูด พลังความกระตือรือร้น และความน่าค้นหาในตัวอีกฝ่าย</div>
+              </div>
+
+              <div class="dim-bar-row">
+                <div class="dim-bar-header">
+                  <span class="dim-bar-label">💖 ความเข้าใจและความรู้สึก (Emotional Connection)</span>
+                  <span class="dim-bar-val" id="dimValEmotional">--%</span>
+                </div>
+                <div class="dim-progress-track">
+                  <div class="dim-progress-fill emotional" id="dimFillEmotional" style="width:0%;"></div>
+                </div>
+                <div class="dim-bar-desc">ความเข้าอกเข้าใจ ความอบอุ่นใจ และการเป็นพื้นที่ปลอดภัยให้แก่กัน</div>
+              </div>
+
+              <div class="dim-bar-row">
+                <div class="dim-bar-header">
+                  <span class="dim-bar-label">🗣️ การสื่อสารและไลฟ์สไตล์ (Communication)</span>
+                  <span class="dim-bar-val" id="dimValCommunication">--%</span>
+                </div>
+                <div class="dim-progress-track">
+                  <div class="dim-progress-fill communication" id="dimFillCommunication" style="width:0%;"></div>
+                </div>
+                <div class="dim-bar-desc">การคุยภาษาเดียวกัน ไลฟ์สไตล์ที่ตรงกัน และกิจกรรมที่ชอบทำร่วมกัน</div>
+              </div>
+
+              <div class="dim-bar-row">
+                <div class="dim-bar-header">
+                  <span class="dim-bar-label">💍 โอกาสต่อยอดระยะยาว (Long-Term Potential)</span>
+                  <span class="dim-bar-val" id="dimValLongTerm">--%</span>
+                </div>
+                <div class="dim-progress-track">
+                  <div class="dim-progress-fill longterm" id="dimFillLongTerm" style="width:0%;"></div>
+                </div>
+                <div class="dim-bar-desc">ความสมพงษ์ตามปีนักษัตร ค่านิยม ความมั่นคง และเป้าหมายอนาคต</div>
+              </div>
+            </div>
+
+            <!-- Summary Points requested by user -->
+            <div class="astro-summary-box">
+              <div class="astro-summary-title">บทสรุปความเข้ากันได้:</div>
+              <ul class="astro-summary-bullets" id="modalAstroSummaryBullets">
+                <!-- Populated dynamically -->
+              </ul>
+            </div>
+
+            <!-- Extra Dynamic Insights -->
+            <div id="modalAstrologyLevel" class="astro-level-badge"></div>
+            <div id="modalAstrologyElementDynamic" class="astro-dynamic-text"></div>
+            <div id="modalAstrologyDayDynamic" class="astro-dynamic-text"></div>
+            <div id="modalAstrologyAdvice" class="astro-advice-box"></div>
+
+            <!-- Link Button to Research Sources -->
+            <div class="astro-sources-action-row">
+              <button type="button" id="btnOpenAstroSourcesFromModal" class="btn-astro-sources">
+                <span>📚 ตรวจสอบ 8 ฐานข้อมูลวิจัยและคัมภีร์ที่ใช้อ้างอิง (Research DB)</span>
+              </button>
+            </div>
           </div>
 
           <div class="modal-bio-card">
@@ -1343,6 +1488,39 @@
           <div id="incompleteProfileMessage" class="message" style="display:none; margin-top:8px;"></div>
           <div class="astro-security-note">🔒 ข้อมูลวันเกิดใช้เพื่อคำนวณดวงสมพงษ์และอายุเท่านั้น</div>
         </form>
+      </div>
+    </div>
+
+    <!-- 8 Research Databases & Ancient Scriptures Modal -->
+    <div id="astrologySourcesModal" class="modal hidden">
+      <div class="modal-content astro-sources-modal-content">
+        <div class="astro-sources-header">
+          <div style="display:flex; align-items:center; gap:10px;">
+            <span style="font-size:1.6rem;">📚</span>
+            <div>
+              <h3 style="margin:0; font-size:1.1rem; color:var(--text); font-weight:800;">
+                8 ฐานข้อมูลวิจัย &amp; คัมภีร์อ้างอิง
+              </h3>
+              <p style="margin:0; font-size:0.8rem; color:var(--muted);">
+                หลักการทางสถิติ โหราศาสตร์ และวิทยาศาสตร์ที่ใช้ในการประมวลผล Multi-dimensional Match
+              </p>
+            </div>
+          </div>
+          <button id="btnCloseAstroSourcesModal" class="modal-close-btn" type="button" title="ปิด">✕</button>
+        </div>
+
+        <div class="astro-sources-grid" id="astroSourcesGrid">
+          <!-- Populated from API or static 8 sources -->
+        </div>
+
+        <div class="astro-sources-footer">
+          <p class="astro-sources-disclaimer">
+            MatchSpace นำศาสตร์การทำนายดวงชะตาโบราณ (ไทย-จีน-สากล) มาผสานรวมกับจิตวิทยาความสัมพันธ์เชิงประจักษ์ (Empirical Relationship Psychology) เพื่อให้คำแนะนำที่สร้างสรรค์ เสริมสร้างการเริ่มต้นบทสนทนาที่ดีในรั้วมหาวิทยาลัย
+          </p>
+          <button type="button" id="btnConfirmCloseSourcesModal" class="button primary" style="width:100%;">
+            เข้าใจแล้ว &amp; ปิดหน้าต่าง
+          </button>
+        </div>
       </div>
     </div>
 
