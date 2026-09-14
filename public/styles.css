@@ -7747,11 +7747,90 @@ body {
   color: var(--muted);
 }
 
+.astro-modal-close {
+  position: absolute;
+  top: 18px;
+  right: 18px;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1px solid rgba(168, 85, 247, 0.2);
+  background: rgba(245, 243, 255, 0.85);
+  color: #6b21a8;
+  font-size: 1rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  z-index: 10;
+  padding: 0;
+  box-shadow: 0 2px 8px rgba(124, 58, 237, 0.08);
+}
+
+.astro-modal-close:hover {
+  background: #ede9fe;
+  color: #4c1d95;
+  transform: rotate(90deg) scale(1.08);
+  box-shadow: 0 4px 12px rgba(124, 58, 237, 0.15);
+}
+
+.astro-modal-close:active {
+  transform: rotate(90deg) scale(0.95);
+}
+
+.astro-snooze-box {
+  margin: 2px 0 2px;
+  padding: 10px 12px;
+  background: rgba(245, 243, 255, 0.65);
+  border: 1px dashed rgba(168, 85, 247, 0.35);
+  border-radius: 14px;
+  transition: all 0.2s ease;
+}
+
+.astro-snooze-box:hover {
+  background: rgba(245, 243, 255, 0.95);
+  border-color: #7c3aed;
+}
+
+.astro-snooze-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.82rem;
+  font-weight: 650;
+  color: #6b21a8;
+  cursor: pointer;
+  user-select: none;
+}
+
+.astro-snooze-label input[type="checkbox"] {
+  width: 17px;
+  height: 17px;
+  accent-color: #7c3aed;
+  cursor: pointer;
+  margin: 0;
+  flex-shrink: 0;
+}
+
+.astro-snooze-text {
+  line-height: 1.35;
+}
+
 @media (max-width: 480px) {
   .astrology-modal-card {
     padding: 24px 18px 20px;
     border-radius: 28px;
     max-width: 95%;
+  }
+
+  .astro-modal-close {
+    top: 14px;
+    right: 14px;
+    width: 32px;
+    height: 32px;
+    font-size: 0.9rem;
   }
 
   .astro-orb-wrap,
@@ -7776,6 +7855,7 @@ body {
     font-size: 0.9rem;
   }
 }
+
 
 
 

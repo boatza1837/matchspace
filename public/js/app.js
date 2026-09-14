@@ -515,6 +515,19 @@ window.matchSpaceApp = (function () {
 
   function checkIncompleteProfile(user) {
     if (!user) return;
+
+    // Check if user snoozed the reminder for 7 days or dismissed for this session
+    try {
+      const snoozeUntil = localStorage.getItem('ms_astrology_snooze_until');
+      if (snoozeUntil && Number(snoozeUntil) > Date.now()) {
+        return; // Snoozed for 7 days
+      }
+      const sessionDismissed = sessionStorage.getItem('ms_astrology_session_dismissed');
+      if (sessionDismissed === 'true') {
+        return; // Dismissed during this session
+      }
+    } catch (e) {}
+
     const isBirthdateMissing = !user.birthdate || user.birthdate === '' || user.birthdate === 'null';
     const isInterestedGenderMissing = !user.interested_gender || user.interested_gender === '' || user.interested_gender === 'null';
     const isGenderMissing = !user.gender || user.gender === 'ไม่ระบุ' || user.gender === '';
@@ -548,6 +561,42 @@ window.matchSpaceApp = (function () {
     const modal = document.getElementById('incompleteProfileModal');
     const msgEl = document.getElementById('incompleteProfileMessage');
     const submitBtn = document.getElementById('btnSaveIncompleteProfile');
+    const btnClose = document.getElementById('closeIncompleteProfileModal');
+    const snoozeCheckbox = document.getElementById('promptSnooze7Days');
+
+    function closeAstroModal(snooze7Days = false) {
+      try {
+        if (snooze7Days) {
+          const sevenDaysMs = 7 * 24 * 60 * 60 * 1000;
+          localStorage.setItem('ms_astrology_snooze_until', String(Date.now() + sevenDaysMs));
+        }
+        sessionStorage.setItem('ms_astrology_session_dismissed', 'true');
+      } catch (e) {}
+
+      const cardEl = modal?.querySelector('.astrology-modal-card');
+      if (cardEl) {
+        cardEl.style.transition = 'all 0.25s cubic-bezier(0.4, 0, 1, 1)';
+        cardEl.style.transform = 'scale(0.85) translateY(20px)';
+        cardEl.style.opacity = '0';
+      }
+      setTimeout(() => {
+        modal?.classList.add('hidden');
+        if (cardEl) {
+          cardEl.style.transform = '';
+          cardEl.style.opacity = '';
+        }
+      }, 250);
+    }
+
+    btnClose?.addEventListener('click', () => {
+      closeAstroModal(snoozeCheckbox ? snoozeCheckbox.checked : true);
+    });
+
+    modal?.addEventListener('click', (e) => {
+      if (e.target === modal) {
+        closeAstroModal(snoozeCheckbox ? snoozeCheckbox.checked : true);
+      }
+    });
 
     if (inputBirthdate) {
       const handleDateChange = () => {
@@ -578,6 +627,11 @@ window.matchSpaceApp = (function () {
             method: 'POST',
             body: JSON.stringify({ birthdate, gender, interested_gender })
           });
+
+          try {
+            localStorage.removeItem('ms_astrology_snooze_until');
+            sessionStorage.removeItem('ms_astrology_session_dismissed');
+          } catch (e) {}
 
           if (msgEl) {
             msgEl.style.display = 'block';

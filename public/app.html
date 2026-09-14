@@ -1275,6 +1275,10 @@
     <!-- Incomplete Profile Onboarding Modal (DoB & Preferences) -->
     <div id="incompleteProfileModal" class="modal hidden astrology-modal-backdrop">
       <div class="astrology-modal-card">
+        <button type="button" id="closeIncompleteProfileModal" class="astro-modal-close" title="ปิดหน้าต่าง" aria-label="ปิด">
+          ✕
+        </button>
+
         <div class="astro-orb-wrap">
           <div class="astro-orb-halo"></div>
           <div class="astro-orb-core">🔮</div>
@@ -1321,6 +1325,13 @@
               <option value="ชาย">👨 ชาย (Men)</option>
               <option value="เพศหลากหลาย">🌈 เพศหลากหลาย (LGBTQ+)</option>
             </select>
+          </div>
+
+          <div class="astro-snooze-box">
+            <label class="astro-snooze-label" for="promptSnooze7Days">
+              <input type="checkbox" id="promptSnooze7Days" checked />
+              <span class="astro-snooze-text">🔔 เตือนฉันอีกใน 7 วัน (ถ้ายังไม่สะดวกตอบตอนนี้)</span>
+            </label>
           </div>
 
           <button type="submit" id="btnSaveIncompleteProfile" class="astro-btn-submit">
