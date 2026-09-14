@@ -250,6 +250,76 @@ function initAuthModule() {
       initializeTagsContainer('interestsTags', 'interests');
     }
 
+    const birthdateInput = document.getElementById('birthdate');
+    const zodiacWrap = document.getElementById('registerZodiacBadgeWrap');
+    const zodiacBadge = document.getElementById('registerZodiacBadge');
+    const elementBadge = document.getElementById('registerElementBadge');
+    const agePreview = document.getElementById('registerAgePreview');
+    const ageInput = document.getElementById('age');
+
+    function getZodiacInfo(dateStr) {
+      if (!dateStr) return null;
+      const d = new Date(dateStr);
+      if (isNaN(d.getTime())) return null;
+      const m = d.getMonth() + 1;
+      const day = d.getDate();
+      const signs = [
+        { name: 'ราศีมังกร ♑', element: '🌱 ธาตุดิน', color: '#92400e', bg: '#fef3c7', s: [12, 22], e: [1, 19] },
+        { name: 'ราศีกุมภ์ ♒', element: '💨 ธาตุลม', color: '#0369a1', bg: '#e0f2fe', s: [1, 20], e: [2, 18] },
+        { name: 'ราศีมีน ♓', element: '💧 ธาตุน้ำ', color: '#1d4ed8', bg: '#dbeafe', s: [2, 19], e: [3, 20] },
+        { name: 'ราศีเมษ ♈', element: '🔥 ธาตุไฟ', color: '#b91c1c', bg: '#fee2e2', s: [3, 21], e: [4, 19] },
+        { name: 'ราศีพฤษภ ♉', element: '🌱 ธาตุดิน', color: '#92400e', bg: '#fef3c7', s: [4, 20], e: [5, 20] },
+        { name: 'ราศีเมถุน ♊', element: '💨 ธาตุลม', color: '#0369a1', bg: '#e0f2fe', s: [5, 21], e: [6, 20] },
+        { name: 'ราศีกรกฎ ♋', element: '💧 ธาตุน้ำ', color: '#1d4ed8', bg: '#dbeafe', s: [6, 21], e: [7, 22] },
+        { name: 'ราศีสิงห์ ♌', element: '🔥 ธาตุไฟ', color: '#b91c1c', bg: '#fee2e2', s: [7, 23], e: [8, 22] },
+        { name: 'ราศีกันย์ ♍', element: '🌱 ธาตุดิน', color: '#92400e', bg: '#fef3c7', s: [8, 23], e: [9, 22] },
+        { name: 'ราศีตุลย์ ♎', element: '💨 ธาตุลม', color: '#0369a1', bg: '#e0f2fe', s: [9, 23], e: [10, 22] },
+        { name: 'ราศีพิจิก ♏', element: '💧 ธาตุน้ำ', color: '#1d4ed8', bg: '#dbeafe', s: [10, 23], e: [11, 21] },
+        { name: 'ราศีธนู ♐', element: '🔥 ธาตุไฟ', color: '#b91c1c', bg: '#fee2e2', s: [11, 22], e: [12, 21] }
+      ];
+      for (const z of signs) {
+        if (z.s[0] === 12 && z.e[0] === 1) {
+          if ((m === 12 && day >= z.s[1]) || (m === 1 && day <= z.e[1])) return z;
+        } else if ((m === z.s[0] && day >= z.s[1]) || (m === z.e[0] && day <= z.e[1])) {
+          return z;
+        }
+      }
+      return signs[0];
+    }
+
+    if (birthdateInput) {
+      birthdateInput.addEventListener('change', () => {
+        const val = birthdateInput.value;
+        if (!val) {
+          if (zodiacWrap) zodiacWrap.style.display = 'none';
+          return;
+        }
+        const info = getZodiacInfo(val);
+        const birthYear = new Date(val).getFullYear();
+        const curYear = new Date().getFullYear();
+        const calcAge = Math.max(16, curYear - birthYear);
+
+        if (ageInput && (!ageInput.value || Number(ageInput.value) <= 0)) {
+          ageInput.value = calcAge;
+        }
+
+        if (zodiacWrap && info) {
+          zodiacWrap.style.display = 'flex';
+          if (zodiacBadge) {
+            zodiacBadge.textContent = `✨ ${info.name}`;
+          }
+          if (elementBadge) {
+            elementBadge.textContent = `${info.element}`;
+            elementBadge.style.color = info.color;
+            elementBadge.style.background = info.bg;
+          }
+          if (agePreview) {
+            agePreview.textContent = `(อายุ ${calcAge} ปี)`;
+          }
+        }
+      });
+    }
+
     const consentCheckbox = document.getElementById('consentCheckbox');
     const btnAcceptConsent = document.getElementById('btnAcceptConsent');
     const btnDeclineConsent = document.getElementById('btnDeclineConsent');
@@ -365,6 +435,7 @@ function initAuthModule() {
         formData.append('password', document.getElementById('password').value);
         formData.append('gender', document.getElementById('gender')?.value || 'ชาย');
         formData.append('interested_gender', document.getElementById('interestedGender')?.value || 'ทุกเพศ');
+        formData.append('birthdate', document.getElementById('birthdate')?.value || '');
         formData.append('university', regUniValue);
         formData.append('phone', document.getElementById('phone')?.value || '');
         formData.append('nickname', document.getElementById('nickname')?.value || '');

@@ -6,6 +6,7 @@ const { multiUpload } = require('../middlewares/upload');
 const { comparePassword, hashPassword, encryptPassword } = require('../config/security');
 const { logLogin } = require('../services/logger');
 const { processUploadedFile } = require('../services/cloudinary');
+const { calculateAge, getZodiacSign } = require('../services/astrology');
 
 router.get('/api/session', async (req, res) => {
   if (!req.session?.user) {
@@ -151,7 +152,7 @@ router.post('/api/logout', (req, res) => {
 });
 
 router.post('/api/register', multiUpload, async (req, res) => {
-  const { name, email, password, gender, interested_gender, university, major, year, interests, bio, nickname, age, phone, google_profile_image } = req.body || {};
+  const { name, email, password, gender, interested_gender, birthdate, university, major, year, interests, bio, nickname, age, phone, google_profile_image } = req.body || {};
 
   if (!name || !email || !password || !phone) {
     return res.status(400).json({ message: 'กรุณากรอกชื่อ อีเมล รหัสผ่าน และเบอร์โทรศัพท์' });
@@ -183,9 +184,18 @@ router.post('/api/register', multiUpload, async (req, res) => {
   const passwordHash = hashPassword(String(password));
   const encPassword = encryptPassword(String(password).trim());
 
+  let calculatedAge = age ? Number(age) : null;
+  let zodiacName = '';
+  if (birthdate) {
+    const ageFromBirth = calculateAge(birthdate);
+    if (ageFromBirth !== null) calculatedAge = ageFromBirth;
+    const z = getZodiacSign(birthdate);
+    if (z) zodiacName = z.name;
+  }
+
   const result = await db.run(`
-    INSERT INTO users (name, email, password, encrypted_password, gender, interested_gender, university, major, year, interests, bio, nickname, age, phone, profile_image, is_admin)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)
+    INSERT INTO users (name, email, password, encrypted_password, gender, interested_gender, birthdate, zodiac, university, major, year, interests, bio, nickname, age, phone, profile_image, is_admin)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)
   `, [
     String(name).trim(),
     normalizedEmail,
@@ -193,13 +203,15 @@ router.post('/api/register', multiUpload, async (req, res) => {
     encPassword,
     gender || 'ไม่ระบุ',
     interested_gender || 'ทุกเพศ',
+    birthdate || null,
+    zodiacName || null,
     university || 'มหาวิทยาลัยขอนแก่น',
     major || '',
     year || '',
     interests || '',
     bio || '',
     nickname || '',
-    age ? Number(age) : null,
+    calculatedAge,
     cleanedPhone,
     profileImage
   ]);

@@ -98,6 +98,8 @@ async function initDatabase() {
       bio TEXT,
       nickname TEXT,
       age INTEGER,
+      birthdate TEXT,
+      zodiac TEXT,
       phone TEXT,
       profile_image TEXT,
       is_admin INTEGER DEFAULT 0,
@@ -248,7 +250,8 @@ async function initDatabase() {
   try { await db.run("ALTER TABLE users ADD COLUMN phone TEXT"); } catch(e) {}
   try { await db.run("ALTER TABLE users ADD COLUMN is_student_verified INTEGER DEFAULT 0"); } catch(e) {}
   try { await db.run("ALTER TABLE users ADD COLUMN student_email TEXT"); } catch(e) {}
-  try { await db.run("ALTER TABLE users ADD COLUMN student_verified_at TEXT"); } catch(e) {}
+  try { await db.run("ALTER TABLE users ADD COLUMN birthdate TEXT"); } catch(e) {}
+  try { await db.run("ALTER TABLE users ADD COLUMN zodiac TEXT"); } catch(e) {}
   try { await db.run("ALTER TABLE chat_messages ADD COLUMN is_read INTEGER DEFAULT 0"); } catch(e) {}
   try { await db.run("ALTER TABLE chat_messages ADD COLUMN read_at TEXT"); } catch(e) {}
 

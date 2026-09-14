@@ -237,3 +237,39 @@ function setAvatarWithFallback(imgEl, src, name = 'User') {
 window.generateLetterAvatar = generateLetterAvatar;
 window.setAvatarWithFallback = setAvatarWithFallback;
 
+/**
+ * Zodiac & Element Calculator
+ */
+function getZodiacInfo(dateStr) {
+  if (!dateStr) return null;
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return null;
+  const m = d.getMonth() + 1;
+  const day = d.getDate();
+  const signs = [
+    { name: 'ราศีมังกร ♑', element: '🌱 ธาตุดิน', color: '#92400e', bg: '#fef3c7', s: [12, 22], e: [1, 19] },
+    { name: 'ราศีกุมภ์ ♒', element: '💨 ธาตุลม', color: '#0369a1', bg: '#e0f2fe', s: [1, 20], e: [2, 18] },
+    { name: 'ราศีมีน ♓', element: '💧 ธาตุน้ำ', color: '#1d4ed8', bg: '#dbeafe', s: [2, 19], e: [3, 20] },
+    { name: 'ราศีเมษ ♈', element: '🔥 ธาตุไฟ', color: '#b91c1c', bg: '#fee2e2', s: [3, 21], e: [4, 19] },
+    { name: 'ราศีพฤษภ ♉', element: '🌱 ธาตุดิน', color: '#92400e', bg: '#fef3c7', s: [4, 20], e: [5, 20] },
+    { name: 'ราศีเมถุน ♊', element: '💨 ธาตุลม', color: '#0369a1', bg: '#e0f2fe', s: [5, 21], e: [6, 20] },
+    { name: 'ราศีกรกฎ ♋', element: '💧 ธาตุน้ำ', color: '#1d4ed8', bg: '#dbeafe', s: [6, 21], e: [7, 22] },
+    { name: 'ราศีสิงห์ ♌', element: '🔥 ธาตุไฟ', color: '#b91c1c', bg: '#fee2e2', s: [7, 23], e: [8, 22] },
+    { name: 'ราศีกันย์ ♍', element: '🌱 ธาตุดิน', color: '#92400e', bg: '#fef3c7', s: [8, 23], e: [9, 22] },
+    { name: 'ราศีตุลย์ ♎', element: '💨 ธาตุลม', color: '#0369a1', bg: '#e0f2fe', s: [9, 23], e: [10, 22] },
+    { name: 'ราศีพิจิก ♏', element: '💧 ธาตุน้ำ', color: '#1d4ed8', bg: '#dbeafe', s: [10, 23], e: [11, 21] },
+    { name: 'ราศีธนู ♐', element: '🔥 ธาตุไฟ', color: '#b91c1c', bg: '#fee2e2', s: [11, 22], e: [12, 21] }
+  ];
+  for (const z of signs) {
+    if (z.s[0] === 12 && z.e[0] === 1) {
+      if ((m === 12 && day >= z.s[1]) || (m === 1 && day <= z.e[1])) return z;
+    } else if ((m === z.s[0] && day >= z.s[1]) || (m === z.e[0] && day <= z.e[1])) {
+      return z;
+    }
+  }
+  return signs[0];
+}
+
+window.getZodiacInfo = getZodiacInfo;
+
+

@@ -6,6 +6,12 @@ const { upload, multiUpload } = require('../middlewares/upload');
 const { sendToUser } = require('../services/websocket');
 const { sendPushNotification } = require('../services/notification');
 const { processUploadedFile } = require('../services/cloudinary');
+const { 
+  calculateAge, 
+  getZodiacSign, 
+  getUserAstrologyProfile, 
+  calculateSoulmateCompatibility 
+} = require('../services/astrology');
 
 const STUDENT_BADGES = {
   punctual: { key: 'punctual', label: 'ตรงต่อเวลา', icon: '⏰', desc: 'นัดหมายตรงเวลา ไม่ปล่อยให้รอ' },
@@ -23,7 +29,7 @@ router.get('/api/me', requireAuth, async (req, res) => {
 });
 
 router.put('/api/me', requireAuth, multiUpload, async (req, res) => {
-  const { name, gender, interested_gender, university, major, year, interests, bio, nickname, age, phone } = req.body || {};
+  const { name, gender, interested_gender, birthdate, university, major, year, interests, bio, nickname, age, phone } = req.body || {};
   const userId = req.session.user.id;
 
   let cleanedPhone = req.session.user.phone || '';
@@ -49,21 +55,32 @@ router.put('/api/me', requireAuth, multiUpload, async (req, res) => {
     }
   }
 
+  let calculatedAge = age ? Number(age) : (req.session.user.age || null);
+  let zodiacName = req.session.user.zodiac || null;
+  if (birthdate) {
+    const ageFromBirth = calculateAge(birthdate);
+    if (ageFromBirth !== null) calculatedAge = ageFromBirth;
+    const z = getZodiacSign(birthdate);
+    if (z) zodiacName = z.name;
+  }
+
   await db.run(`
     UPDATE users
-    SET name = ?, gender = ?, interested_gender = ?, university = ?, major = ?, year = ?, interests = ?, bio = ?, nickname = ?, age = ?, phone = ?, profile_image = ?
+    SET name = ?, gender = ?, interested_gender = ?, birthdate = COALESCE(?, birthdate), zodiac = COALESCE(?, zodiac), university = ?, major = ?, year = ?, interests = ?, bio = ?, nickname = ?, age = ?, phone = ?, profile_image = ?
     WHERE id = ?
   `, [
     String(name || req.session.user.name).trim(),
     gender || req.session.user.gender || 'ไม่ระบุ',
     interested_gender || req.session.user.interested_gender || 'ทุกเพศ',
+    birthdate || null,
+    zodiacName || null,
     university || req.session.user.university || 'มหาวิทยาลัยขอนแก่น',
     major || '',
     year || '',
     interests || '',
     bio || '',
     nickname || '',
-    age ? Number(age) : null,
+    calculatedAge,
     cleanedPhone,
     profileImage,
     userId
@@ -74,11 +91,41 @@ router.put('/api/me', requireAuth, multiUpload, async (req, res) => {
   res.json({ message: 'อัปเดตโปรไฟล์สำเร็จ', user: req.session.user });
 });
 
+// Endpoint for incomplete profile modal completion (DoB, Gender, Looking for)
+router.post('/api/me/complete-profile', requireAuth, async (req, res) => {
+  try {
+    const userId = req.session.user.id;
+    const { birthdate, gender, interested_gender } = req.body || {};
+
+    if (!birthdate || !gender || !interested_gender) {
+      return res.status(400).json({ message: 'กรุณากรอกข้อมูลวันเดือนปีเกิด เพศของคุณ และเพศที่สนใจให้ครบถ้วน' });
+    }
+
+    const calculatedAge = calculateAge(birthdate);
+    const z = getZodiacSign(birthdate);
+    const zodiacName = z ? z.name : null;
+
+    await db.run(`
+      UPDATE users
+      SET birthdate = ?, zodiac = ?, gender = ?, interested_gender = ?, age = COALESCE(?, age)
+      WHERE id = ?
+    `, [birthdate, zodiacName, gender, interested_gender, calculatedAge, userId]);
+
+    const updated = await db.get('SELECT * FROM users WHERE id = ?', [userId]);
+    req.session.user = formatUser(updated);
+
+    res.json({ message: 'บันทึกข้อมูลดวงชะตาและโปรไฟล์เรียบร้อยแล้ว ✨', user: req.session.user });
+  } catch (err) {
+    console.error('[Complete Profile Error]', err);
+    res.status(500).json({ message: 'เกิดข้อผิดพลาดในการบันทึกข้อมูล' });
+  }
+});
+
 router.get('/api/users/:id/profile', requireAuth, async (req, res) => {
   const targetId = Number(req.params.id);
   const myId = req.session.user.id;
   const user = await db.get(`
-    SELECT id, name, nickname, gender, interested_gender, university, age, major, year, interests, bio, profile_image, is_student_verified, created_at
+    SELECT id, name, nickname, gender, interested_gender, birthdate, zodiac, university, age, major, year, interests, bio, profile_image, is_student_verified, created_at
     FROM users WHERE id = ? AND is_active != 0
   `, [targetId]);
 
@@ -109,7 +156,25 @@ router.get('/api/users/:id/profile', requireAuth, async (req, res) => {
     count: countMap[b.key] || 0
   }));
 
-  res.json({ user, photos: photoUrls, badges });
+  const me = await db.get('SELECT * FROM users WHERE id = ?', [myId]);
+  const compatibility = calculateSoulmateCompatibility(me, user);
+  const targetAstro = getUserAstrologyProfile(user.birthdate);
+
+  res.json({ 
+    user: {
+      ...user,
+      zodiac: user.zodiac || targetAstro?.zodiacName || 'ไม่ระบุราศี',
+      element: targetAstro?.element || 'ไม่ระบุ',
+      elementColor: targetAstro?.elementColor || '#6366f1',
+      elementBg: targetAstro?.elementBg || '#f5f3ff',
+      trait: targetAstro?.trait || '',
+      thaiDay: targetAstro?.thaiDay || '',
+      chineseZodiac: targetAstro?.chineseZodiac || ''
+    }, 
+    photos: photoUrls, 
+    badges,
+    compatibility
+  });
 });
 
 router.post('/api/me/photos', requireAuth, upload.array('photos', 6), async (req, res) => {
@@ -159,7 +224,7 @@ router.get('/api/candidates', requireAuth, async (req, res) => {
       : myInterestedGender;
 
     let sql = `
-      SELECT id, name, email, gender, interested_gender, university, major, year, interests, bio, nickname, age, profile_image, is_student_verified, is_active, created_at
+      SELECT id, name, email, gender, interested_gender, birthdate, zodiac, university, major, year, interests, bio, nickname, age, profile_image, is_student_verified, is_active, created_at
       FROM users
       WHERE id != ? 
         AND is_active != 0 
@@ -182,7 +247,26 @@ router.get('/api/candidates', requireAuth, async (req, res) => {
     `;
 
     const rows = await db.all(sql, params);
-    res.json(rows);
+    const candidatesWithAstro = rows.map(cand => {
+      const compatibility = calculateSoulmateCompatibility(me, cand);
+      const candAstro = getUserAstrologyProfile(cand.birthdate);
+      return {
+        ...cand,
+        zodiac: cand.zodiac || candAstro?.zodiacName || 'ไม่ระบุราศี',
+        element: candAstro?.element || 'ไม่ระบุ',
+        elementColor: candAstro?.elementColor || '#6366f1',
+        elementBg: candAstro?.elementBg || '#f5f3ff',
+        horoscope: {
+          score: compatibility.score,
+          level: compatibility.level,
+          elementDynamic: compatibility.elementDynamic,
+          dayDynamic: compatibility.dayDynamic,
+          advice: compatibility.advice,
+          luckySpot: compatibility.luckySpot
+        }
+      };
+    });
+    res.json(candidatesWithAstro);
   } catch (err) {
     console.error('[Candidates Error]', err);
     res.status(500).json({ message: err.message || 'เกิดข้อผิดพลาดในการดึงข้อมูล' });

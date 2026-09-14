@@ -133,6 +133,27 @@
                   </select>
                 </div>
               </div>
+
+              <div class="auth-input-field">
+                <label for="birthdate" class="auth-label">
+                  <span>วัน/เดือน/ปีเกิด (ใช้ทำนายดวงเนื้อคู่) *</span>
+                </label>
+                <div class="input-control-wrap">
+                  <input name="birthdate" id="birthdate" type="date" required class="auth-input" max="2012-12-31" min="1960-01-01" />
+                </div>
+                <!-- Live Zodiac & Element Preview Badge -->
+                <div id="registerZodiacBadgeWrap" style="display:none; margin-top:8px; align-items:center; gap:8px; flex-wrap:wrap;">
+                  <span id="registerZodiacBadge" style="font-size:0.82rem; font-weight:700; padding:4px 10px; border-radius:999px; background:#f5f3ff; color:var(--purple); border:1px solid rgba(99,102,241,0.2);">
+                    ✨ ราศี...
+                  </span>
+                  <span id="registerElementBadge" style="font-size:0.82rem; font-weight:700; padding:4px 10px; border-radius:999px; background:#fff1f2; color:#e11d48; border:1px solid rgba(225,29,72,0.2);">
+                    🔥 ธาตุ...
+                  </span>
+                  <span id="registerAgePreview" style="font-size:0.8rem; color:var(--muted); font-weight:600;">
+                    (อายุ ... ปี)
+                  </span>
+                </div>
+              </div>
             </div>
           </div>
 

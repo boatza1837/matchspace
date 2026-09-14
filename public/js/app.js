@@ -52,6 +52,7 @@ window.matchSpaceApp = (function () {
       setupMobileDrawer();
       setupHomeInteractions();
       setupProfile();
+      setupIncompleteProfileModal();
       setupGiveBadgeModal();
       setupWebPushNotifications();
       setupCategoryFilterChips();
@@ -65,6 +66,8 @@ window.matchSpaceApp = (function () {
         window.matchSpaceChat?.loadChats() || Promise.resolve(),
         loadActivities()
       ]);
+
+      checkIncompleteProfile(sessionUser);
 
       loadHomeScreen();
     } catch (err) {
@@ -385,6 +388,29 @@ window.matchSpaceApp = (function () {
         });
       }
 
+      const profileBirthdateEl = document.getElementById('profileBirthdate');
+      const profileZodiacBadge = document.getElementById('profileZodiacBadge');
+      if (profileBirthdateEl) {
+        profileBirthdateEl.addEventListener('change', () => {
+          const val = profileBirthdateEl.value;
+          if (!val) {
+            if (profileZodiacBadge) profileZodiacBadge.textContent = '';
+            return;
+          }
+          const info = window.getZodiacInfo ? window.getZodiacInfo(val) : null;
+          const birthYear = new Date(val).getFullYear();
+          const curYear = new Date().getFullYear();
+          const age = Math.max(16, curYear - birthYear);
+          const ageInput = document.getElementById('profileAge');
+          if (ageInput && (!ageInput.value || Number(ageInput.value) <= 0)) {
+            ageInput.value = age;
+          }
+          if (profileZodiacBadge && info) {
+            profileZodiacBadge.textContent = `🔮 ${info.name} (${info.element})`;
+          }
+        });
+      }
+
       profileForm.addEventListener('submit', async (event) => {
         event.preventDefault();
         const messageEl = document.getElementById('profileMessage');
@@ -412,6 +438,7 @@ window.matchSpaceApp = (function () {
           formData.append('major', majorValue);
           formData.append('phone', document.getElementById('profilePhone')?.value || '');
           formData.append('nickname', document.getElementById('profileNickname')?.value || '');
+          formData.append('birthdate', document.getElementById('profileBirthdate')?.value || '');
           formData.append('age', document.getElementById('profileAge')?.value || '');
           formData.append('interests', document.getElementById('profileInterests')?.value || '');
           formData.append('bio', document.getElementById('profileBio')?.value || '');
@@ -456,6 +483,132 @@ window.matchSpaceApp = (function () {
     setupBlockedUsersModal();
     setupConversationStarterModal();
     setupWebPushNotifications();
+  }
+
+  // ===================== INCOMPLETE PROFILE ONBOARDING MODAL =====================
+  function updatePromptZodiacPreview(dateStr) {
+    const previewBox = document.getElementById('promptZodiacPreview');
+    const tagZodiac = document.getElementById('promptZodiacTag');
+    const tagElement = document.getElementById('promptElementTag');
+    const tagAge = document.getElementById('promptAgeTag');
+
+    if (!dateStr) {
+      if (previewBox) previewBox.style.display = 'none';
+      return;
+    }
+    const info = window.getZodiacInfo ? window.getZodiacInfo(dateStr) : null;
+    const birthYear = new Date(dateStr).getFullYear();
+    const curYear = new Date().getFullYear();
+    const age = Math.max(16, curYear - birthYear);
+
+    if (previewBox && info) {
+      previewBox.style.display = 'flex';
+      if (tagZodiac) tagZodiac.textContent = `✨ ${info.name}`;
+      if (tagElement) {
+        tagElement.textContent = info.element;
+        tagElement.style.color = info.color;
+        tagElement.style.background = info.bg;
+      }
+      if (tagAge) tagAge.textContent = `(อายุ ${age} ปี)`;
+    }
+  }
+
+  function checkIncompleteProfile(user) {
+    if (!user) return;
+    const isBirthdateMissing = !user.birthdate || user.birthdate === '' || user.birthdate === 'null';
+    const isInterestedGenderMissing = !user.interested_gender || user.interested_gender === '' || user.interested_gender === 'null';
+    const isGenderMissing = !user.gender || user.gender === 'ไม่ระบุ' || user.gender === '';
+
+    if (isBirthdateMissing || isInterestedGenderMissing || isGenderMissing) {
+      const modal = document.getElementById('incompleteProfileModal');
+      if (modal) {
+        modal.classList.remove('hidden');
+
+        const inputBirthdate = document.getElementById('promptBirthdate');
+        const selectGender = document.getElementById('promptGender');
+        const selectInterestedGender = document.getElementById('promptInterestedGender');
+
+        if (inputBirthdate && user.birthdate) {
+          inputBirthdate.value = user.birthdate.split('T')[0];
+          updatePromptZodiacPreview(user.birthdate);
+        }
+        if (selectGender && user.gender && user.gender !== 'ไม่ระบุ') {
+          selectGender.value = user.gender;
+        }
+        if (selectInterestedGender && user.interested_gender) {
+          selectInterestedGender.value = user.interested_gender;
+        }
+      }
+    }
+  }
+
+  function setupIncompleteProfileModal() {
+    const form = document.getElementById('incompleteProfileForm');
+    const inputBirthdate = document.getElementById('promptBirthdate');
+    const modal = document.getElementById('incompleteProfileModal');
+    const msgEl = document.getElementById('incompleteProfileMessage');
+    const submitBtn = document.getElementById('btnSaveIncompleteProfile');
+
+    if (inputBirthdate) {
+      inputBirthdate.addEventListener('change', () => {
+        updatePromptZodiacPreview(inputBirthdate.value);
+      });
+    }
+
+    if (form) {
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const birthdate = document.getElementById('promptBirthdate')?.value;
+        const gender = document.getElementById('promptGender')?.value;
+        const interested_gender = document.getElementById('promptInterestedGender')?.value;
+
+        if (!birthdate) {
+          alert('กรุณาระบุวันเดือนปีเกิดของคุณ เพื่อให้ระบบวิเคราะห์ดวงเนื้อคู่ได้อย่างถูกต้องครับ');
+          return;
+        }
+
+        try {
+          if (submitBtn) {
+            submitBtn.disabled = true;
+            submitBtn.textContent = '⏳ กำลังคำนวณราศีและดวงชะตา...';
+          }
+          const res = await apiRequest('/api/me/complete-profile', {
+            method: 'POST',
+            body: JSON.stringify({ birthdate, gender, interested_gender })
+          });
+
+          if (msgEl) {
+            msgEl.style.display = 'block';
+            msgEl.className = 'message success';
+            msgEl.textContent = res.message || 'บันทึกข้อมูลและเปิดระบบวิเคราะห์ดวงเรียบร้อย!';
+          }
+
+          if (res.user) {
+            sessionUser = { ...sessionUser, ...res.user };
+          }
+
+          setTimeout(async () => {
+            modal?.classList.add('hidden');
+            if (submitBtn) {
+              submitBtn.disabled = false;
+              submitBtn.textContent = '🔮 บันทึกและเปิดระบบวิเคราะห์ดวงเนื้อคู่';
+            }
+            await loadProfile();
+            await loadDiscoverUsers();
+          }, 800);
+        } catch (err) {
+          if (msgEl) {
+            msgEl.style.display = 'block';
+            msgEl.className = 'message error';
+            msgEl.textContent = err.message || 'เกิดข้อผิดพลาดในการบันทึกข้อมูล';
+          }
+          if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.textContent = '🔮 บันทึกและเปิดระบบวิเคราะห์ดวงเนื้อคู่';
+          }
+        }
+      });
+    }
   }
 
   function renderProfile(user) {
@@ -638,6 +791,19 @@ window.matchSpaceApp = (function () {
     if (emailEl) emailEl.textContent = user.email || '';
     if (nicknameEl) nicknameEl.value = user.nickname || '';
     if (ageEl) ageEl.value = user.age || '';
+    const birthdateEl = document.getElementById('profileBirthdate');
+    const zodiacBadgeEl = document.getElementById('profileZodiacBadge');
+    if (birthdateEl) {
+      birthdateEl.value = user.birthdate ? user.birthdate.split('T')[0] : '';
+      if (user.birthdate) {
+        const info = window.getZodiacInfo ? window.getZodiacInfo(user.birthdate) : null;
+        if (zodiacBadgeEl && info) {
+          zodiacBadgeEl.textContent = `🔮 ${info.name} (${info.element})`;
+        }
+      } else if (zodiacBadgeEl) {
+        zodiacBadgeEl.textContent = '';
+      }
+    }
     if (preview) {
       preview.src = user.profile_image || DEFAULT_AVATAR;
     }
@@ -653,6 +819,7 @@ window.matchSpaceApp = (function () {
     renderUserPhotos(result.photos || []);
     await loadMyBadges();
     updateHomeStats();
+    checkIncompleteProfile(sessionUser);
   }
 
   async function loadMyBadges() {
@@ -737,6 +904,50 @@ window.matchSpaceApp = (function () {
       const modalInterestedGender = document.getElementById('modalProfileInterestedGender');
       if (modalInterestedGender) {
         modalInterestedGender.textContent = `🎯 สนใจ: ${user.interested_gender || 'ทุกเพศ'}`;
+      }
+
+      const zodiacEl = document.getElementById('modalProfileZodiac');
+      if (zodiacEl) {
+        if (user.zodiac) {
+          zodiacEl.style.display = 'inline-flex';
+          zodiacEl.innerHTML = `🔮 ${escapeHtml(user.zodiac)}${user.element ? ` · ${escapeHtml(user.element)}` : ''}`;
+        } else {
+          zodiacEl.style.display = 'none';
+        }
+      }
+
+      // Populate Astrology & Soulmate Deep Reading Card
+      const astroSection = document.getElementById('modalAstrologySection');
+      const astroScoreBadge = document.getElementById('modalAstrologyScoreBadge');
+      const astroLevel = document.getElementById('modalAstrologyLevel');
+      const astroElementDynamic = document.getElementById('modalAstrologyElementDynamic');
+      const astroDayDynamic = document.getElementById('modalAstrologyDayDynamic');
+      const astroAdvice = document.getElementById('modalAstrologyAdvice');
+
+      const compat = data.compatibility || user.horoscope;
+      if (compat && astroSection) {
+        astroSection.style.display = 'block';
+        if (astroScoreBadge) {
+          astroScoreBadge.textContent = `ดวงสมพงษ์ ${compat.score}%`;
+        }
+        if (astroLevel) {
+          astroLevel.textContent = compat.level || '✨ ดวงคู่สมพงษ์';
+        }
+        if (astroElementDynamic) {
+          astroElementDynamic.innerHTML = `🌿 <strong>ความสอดคล้องของธาตุ:</strong> ${escapeHtml(compat.elementDynamic || '')}`;
+        }
+        if (astroDayDynamic) {
+          astroDayDynamic.innerHTML = `📅 <strong>มิตรภาพตามวันเกิด:</strong> ${escapeHtml(compat.dayDynamic || '')}`;
+        }
+        if (astroAdvice) {
+          let adviceHtml = `💡 <strong>คำแนะนำเสริมดวง:</strong> ${escapeHtml(compat.advice || '')}`;
+          if (compat.luckySpot) {
+            adviceHtml += `<br>📍 <strong>พิกัดนัดเดทถูกโฉลก:</strong> ${escapeHtml(compat.luckySpot)}`;
+          }
+          astroAdvice.innerHTML = adviceHtml;
+        }
+      } else if (astroSection) {
+        astroSection.style.display = 'none';
       }
       
       const detailsArr = [];
@@ -1252,6 +1463,16 @@ window.matchSpaceApp = (function () {
             <div class="discover-match-sub">
               ${user.year ? escapeHtml(user.year) + ' · ' : ''}${escapeHtml(user.major || 'มหาวิทยาลัยขอนแก่น')}
             </div>
+            ${user.zodiac ? `
+              <div class="discover-zodiac-tag" style="display:flex; align-items:center; gap:6px; margin:4px 0 6px;">
+                <span style="font-size:0.75rem; font-weight:700; background:#f5f3ff; color:#7c3aed; padding:2px 8px; border-radius:999px; border:1px solid rgba(124,58,237,0.2);">
+                  🔮 ${escapeHtml(user.zodiac)}
+                </span>
+                ${user.element ? `<span style="font-size:0.75rem; font-weight:700; background:${user.elementBg || '#fef3c7'}; color:${user.elementColor || '#92400e'}; padding:2px 8px; border-radius:999px;">
+                  ${escapeHtml(user.element)}
+                </span>` : ''}
+              </div>
+            ` : ''}
             <div class="discover-match-tags">
               ${tags.length ? tags.map(t => `<span class="discover-tag-chip">#${escapeHtml(t)}</span>`).join('') : '<span class="discover-tag-chip">#ทั่วไป</span>'}
             </div>
@@ -1267,9 +1488,16 @@ window.matchSpaceApp = (function () {
           </span>
         </div>
 
-        <div class="discover-shared-box">
-          <span class="discover-shared-label">ความสนใจร่วมกัน</span>
-          <span class="discover-shared-percent">${sharedPercent}%</span>
+        <div class="discover-shared-box" style="display:flex; flex-direction:column; gap:4px;">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span class="discover-shared-label">🔮 ดวงสมพงษ์ &amp; ไลฟ์สไตล์</span>
+            <span class="discover-shared-percent" style="color:#7c3aed; font-weight:800;">${user.horoscope ? user.horoscope.score : sharedPercent}%</span>
+          </div>
+          ${user.horoscope ? `
+            <div style="font-size:0.75rem; color:#6b21a8; font-weight:600; text-align:left; background:rgba(255,255,255,0.7); padding:3px 8px; border-radius:8px;">
+              ${escapeHtml(user.horoscope.level)}
+            </div>
+          ` : ''}
         </div>
 
         <!-- Ergonomic & Thumb-Friendly Action Buttons -->
