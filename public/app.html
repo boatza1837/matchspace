@@ -852,100 +852,6 @@
             </div>
           </div>
 
-          <!-- Astrology & Soulmate Multi-dimensional Match Score Card -->
-          <div id="modalAstrologySection" class="modal-astrology-card">
-            <div class="astro-card-top-bar">
-              <div class="astro-title-group">
-                <span class="astro-sparkle-icon">⚡</span>
-                <span class="astro-card-main-title">Multi-dimensional Match Score</span>
-              </div>
-              <span id="modalAstrologyScoreBadge" class="astro-score-pill">
-                ดวงสมพงษ์ 0%
-              </span>
-            </div>
-
-            <!-- Chemistry Headline requested by user -->
-            <div class="astro-chemistry-header">
-              <div class="astro-chemistry-sub" id="modalAstroSub">
-                ผลวิเคราะห์เคมีระหว่าง คุณ &amp; <span id="modalAstroTargetName">เพื่อน</span> (<span id="modalAstroTargetMajor">คณะ/สาขา</span>)
-              </div>
-              <div class="astro-chemistry-score-wrap">
-                <span class="astro-chemistry-big-score" id="modalAstroOverallScore">--%</span>
-              </div>
-              <p class="astro-chemistry-calc-note">
-                คำนวณแบบเจาะลึกจากแท็กความสนใจ, วันเกิด, ราศี และวัตถุประสงค์
-              </p>
-            </div>
-
-            <!-- 4 Multi-dimensional Progress Bars -->
-            <div class="astro-dimensions-list" id="modalAstroDimensionsList">
-              <div class="dim-bar-row">
-                <div class="dim-bar-header">
-                  <span class="dim-bar-label">🔥 เสน่หาและแรงดึงดูด (Passion)</span>
-                  <span class="dim-bar-val" id="dimValPassion">--%</span>
-                </div>
-                <div class="dim-progress-track">
-                  <div class="dim-progress-fill passion" id="dimFillPassion" style="width:0%;"></div>
-                </div>
-                <div class="dim-bar-desc">เคมีความดึงดูด พลังความกระตือรือร้น และความน่าค้นหาในตัวอีกฝ่าย</div>
-              </div>
-
-              <div class="dim-bar-row">
-                <div class="dim-bar-header">
-                  <span class="dim-bar-label">💖 ความเข้าใจและความรู้สึก (Emotional Connection)</span>
-                  <span class="dim-bar-val" id="dimValEmotional">--%</span>
-                </div>
-                <div class="dim-progress-track">
-                  <div class="dim-progress-fill emotional" id="dimFillEmotional" style="width:0%;"></div>
-                </div>
-                <div class="dim-bar-desc">ความเข้าอกเข้าใจ ความอบอุ่นใจ และการเป็นพื้นที่ปลอดภัยให้แก่กัน</div>
-              </div>
-
-              <div class="dim-bar-row">
-                <div class="dim-bar-header">
-                  <span class="dim-bar-label">🗣️ การสื่อสารและไลฟ์สไตล์ (Communication)</span>
-                  <span class="dim-bar-val" id="dimValCommunication">--%</span>
-                </div>
-                <div class="dim-progress-track">
-                  <div class="dim-progress-fill communication" id="dimFillCommunication" style="width:0%;"></div>
-                </div>
-                <div class="dim-bar-desc">การคุยภาษาเดียวกัน ไลฟ์สไตล์ที่ตรงกัน และกิจกรรมที่ชอบทำร่วมกัน</div>
-              </div>
-
-              <div class="dim-bar-row">
-                <div class="dim-bar-header">
-                  <span class="dim-bar-label">💍 โอกาสต่อยอดระยะยาว (Long-Term Potential)</span>
-                  <span class="dim-bar-val" id="dimValLongTerm">--%</span>
-                </div>
-                <div class="dim-progress-track">
-                  <div class="dim-progress-fill longterm" id="dimFillLongTerm" style="width:0%;"></div>
-                </div>
-                <div class="dim-bar-desc">ความสมพงษ์ตามปีนักษัตร ค่านิยม ความมั่นคง และเป้าหมายอนาคต</div>
-              </div>
-            </div>
-
-            <!-- Summary Points requested by user -->
-            <div class="astro-summary-box">
-              <div class="astro-summary-title">บทสรุปความเข้ากันได้:</div>
-              <ul class="astro-summary-bullets" id="modalAstroSummaryBullets">
-                <!-- Populated dynamically -->
-              </ul>
-            </div>
-
-            <!-- Extra Dynamic Insights -->
-            <div id="modalAstrologyLevel" class="astro-level-badge"></div>
-            <div id="modalAstrologyElementDynamic" class="astro-dynamic-text"></div>
-            <div id="modalAstrologyDayDynamic" class="astro-dynamic-text"></div>
-            <div id="modalAstrologyAdvice" class="astro-advice-box"></div>
-
-            <!-- Link Button to Research Sources -->
-            <div class="astro-sources-action-row">
-              <button type="button" id="btnOpenAstroSourcesFromModal" class="btn-astro-sources">
-                <span>📚 ตรวจสอบ 8 ฐานข้อมูลวิจัยและคัมภีร์ที่ใช้อ้างอิง (Research DB)</span>
-              </button>
-            </div>
-          </div>
-
           <div class="modal-bio-card">
             <p id="modalProfileBio" class="profile-bio-text"></p>
           </div>
@@ -977,6 +883,29 @@
               🚫 บล็อก
             </button>
           </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Match Score Modal, opened from a one-to-one chat -->
+    <div id="chatMatchScoreModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="chatMatchScoreTitle">
+      <div class="modal-content" style="max-width:560px; max-height:90vh; overflow-y:auto; padding:20px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--line); padding-bottom:12px; margin-bottom:14px;">
+          <h3 id="chatMatchScoreTitle" style="margin:0; font-size:1.1rem; color:var(--purple);">⚡ ดวงคู่</h3>
+          <button id="closeChatMatchScoreModal" class="modal-close-btn" type="button" style="position:static;" aria-label="ปิดดวงคู่">✕</button>
+        </div>
+        <div id="chatMatchScoreLoading" style="padding:30px 10px; text-align:center; color:var(--muted);">กำลังคำนวณดวงคู่...</div>
+        <div id="chatMatchScoreContent" class="modal-astrology-card" style="display:none;">
+          <div class="astro-card-top-bar"><div class="astro-title-group"><span class="astro-sparkle-icon">⚡</span><span class="astro-card-main-title">Multi-dimensional Match Score</span></div><span id="chatMatchScoreBadge" class="astro-score-pill">ดวงสมพงษ์ --%</span></div>
+          <div class="astro-chemistry-header"><div class="astro-chemistry-sub">ผลวิเคราะห์เคมีระหว่าง คุณ &amp; <span id="chatMatchTargetName">เพื่อน</span> (<span id="chatMatchTargetMajor">คณะ/สาขา</span>)</div><div class="astro-chemistry-score-wrap"><span id="chatMatchOverallScore" class="astro-chemistry-big-score">--%</span></div><p class="astro-chemistry-calc-note">คำนวณจากแท็กความสนใจ วันเกิด ราศี และวัตถุประสงค์</p></div>
+          <div class="astro-dimensions-list">
+            <div class="dim-bar-row"><div class="dim-bar-header"><span class="dim-bar-label">🔥 เสน่หาและแรงดึงดูด</span><span id="chatMatchPassionValue" class="dim-bar-val">--%</span></div><div class="dim-progress-track"><div id="chatMatchPassionFill" class="dim-progress-fill passion"></div></div></div>
+            <div class="dim-bar-row"><div class="dim-bar-header"><span class="dim-bar-label">💖 ความเข้าใจและความรู้สึก</span><span id="chatMatchEmotionalValue" class="dim-bar-val">--%</span></div><div class="dim-progress-track"><div id="chatMatchEmotionalFill" class="dim-progress-fill emotional"></div></div></div>
+            <div class="dim-bar-row"><div class="dim-bar-header"><span class="dim-bar-label">🗣️ การสื่อสารและไลฟ์สไตล์</span><span id="chatMatchCommunicationValue" class="dim-bar-val">--%</span></div><div class="dim-progress-track"><div id="chatMatchCommunicationFill" class="dim-progress-fill communication"></div></div></div>
+            <div class="dim-bar-row"><div class="dim-bar-header"><span class="dim-bar-label">💍 โอกาสต่อยอดระยะยาว</span><span id="chatMatchLongTermValue" class="dim-bar-val">--%</span></div><div class="dim-progress-track"><div id="chatMatchLongTermFill" class="dim-progress-fill longterm"></div></div></div>
+          </div>
+          <div class="astro-summary-box"><div class="astro-summary-title">บทสรุปความเข้ากันได้:</div><ul id="chatMatchSummary" class="astro-summary-bullets"></ul></div>
+          <div id="chatMatchLevel" class="astro-level-badge"></div><div id="chatMatchElement" class="astro-dynamic-text"></div><div id="chatMatchDay" class="astro-dynamic-text"></div><div id="chatMatchAdvice" class="astro-advice-box"></div>
         </div>
       </div>
     </div>
