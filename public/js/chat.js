@@ -20,6 +20,62 @@ window.matchSpaceChat = (function () {
   const closeGreetingsBtn = document.getElementById('btnCloseGreetings');
   const chatLayout = document.getElementById('chatLayoutContainer');
 
+  function setMatchScoreDimension(prefix, dimension, fallback) {
+    const score = Number(dimension?.score ?? fallback);
+    const value = Math.min(99, Math.max(0, score));
+    const valueEl = document.getElementById(`chatMatch${prefix}Value`);
+    const fillEl = document.getElementById(`chatMatch${prefix}Fill`);
+    if (valueEl) valueEl.textContent = `${value}%`;
+    if (fillEl) fillEl.style.width = `${value}%`;
+  }
+
+  async function openMatchScoreModal(partnerId, partnerName) {
+    const modal = document.getElementById('chatMatchScoreModal');
+    const loading = document.getElementById('chatMatchScoreLoading');
+    const content = document.getElementById('chatMatchScoreContent');
+    if (!modal || !partnerId) return;
+
+    const title = document.getElementById('chatMatchScoreTitle');
+    if (title) title.textContent = `⚡ ดวงคู่กับ ${partnerName || 'เพื่อน'}`;
+    loading?.classList.remove('hidden');
+    if (loading) loading.textContent = 'กำลังคำนวณดวงคู่...';
+    if (content) content.style.display = 'none';
+    modal.classList.remove('hidden');
+
+    try {
+      const data = await apiRequest(`/api/users/${partnerId}/profile?dimension=normal&astromode=all`);
+      const compatibility = data.compatibility;
+      if (!compatibility) throw new Error('ยังไม่มีข้อมูลดวงคู่');
+
+      const score = Number(compatibility.score || 0);
+      const scoreText = `${score}%`;
+      const dimensions = compatibility.dimensions || {};
+      document.getElementById('chatMatchScoreBadge').textContent = `ดวงสมพงษ์ ${scoreText}`;
+      document.getElementById('chatMatchOverallScore').textContent = scoreText;
+      document.getElementById('chatMatchTargetName').textContent = data.user?.nickname || data.user?.name || partnerName || 'เพื่อน';
+      document.getElementById('chatMatchTargetMajor').textContent = data.user?.major || data.user?.faculty || 'มหาวิทยาลัยขอนแก่น';
+      setMatchScoreDimension('Passion', dimensions.passion, score + 3);
+      setMatchScoreDimension('Emotional', dimensions.emotional, score - 2);
+      setMatchScoreDimension('Communication', dimensions.communication, score - 1);
+      setMatchScoreDimension('LongTerm', dimensions.longTerm, score);
+
+      const summary = compatibility.summaryPoints?.length
+        ? compatibility.summaryPoints
+        : ['คุณทั้งคู่มีไลฟ์สไตล์ที่น่าสนใจ ทำให้ปรับตัวและคุยได้ลื่นไหล', 'สมดุลธาตุประจำราศีหนุนนำพลังงานเชิงบวก'];
+      document.getElementById('chatMatchSummary').innerHTML = summary.map(point => `<li>${escapeHtml(point)}</li>`).join('');
+      document.getElementById('chatMatchLevel').textContent = compatibility.level || '✨ ดวงคู่สมพงษ์';
+      document.getElementById('chatMatchElement').innerHTML = `🌿 <strong>ความสอดคล้องของธาตุ:</strong> ${escapeHtml(compatibility.elementDynamic || '')}`;
+      document.getElementById('chatMatchDay').innerHTML = `📅 <strong>มิตรภาพตามวันเกิด:</strong> ${escapeHtml(compatibility.dayDynamic || '')}`;
+      let advice = `💡 <strong>คำแนะนำเสริมดวง:</strong> ${escapeHtml(compatibility.advice || '')}`;
+      if (compatibility.luckySpot) advice += `<br>📍 <strong>พิกัดนัดเดทถูกโฉลก:</strong> ${escapeHtml(compatibility.luckySpot)}`;
+      document.getElementById('chatMatchAdvice').innerHTML = advice;
+      if (loading) loading.classList.add('hidden');
+      if (content) content.style.display = 'block';
+    } catch (error) {
+      if (loading) loading.textContent = error.message || 'ไม่สามารถคำนวณดวงคู่ได้';
+    }
+  }
+
   function initChat(user) {
     currentUser = user;
     if (!chatList || !messageThread) return;
@@ -322,6 +378,9 @@ window.matchSpaceChat = (function () {
           <button type="button" class="btn-chat-icebreaker-trigger" id="btnChatIcebreakerTrigger" title="คำแนะนำเริ่มต้นคุย" aria-label="คำแนะนำเริ่มต้นคุย">
             <span class="btn-chat-icon">💡</span><span class="btn-chat-label">ไอเดียคุย</span>
           </button>
+          <button type="button" class="btn-chat-icebreaker-trigger btn-chat-match-score-trigger" id="btnChatMatchScoreTrigger" title="ดูดวงคู่" aria-label="ดูดวงคู่">
+            <span class="btn-chat-icon">⚡</span><span class="btn-chat-label">ดวงคู่</span>
+          </button>
           <button type="button" class="btn-chat-view-profile" data-open-profile-id="${data.chat.partner_id}" title="ดูโปรไฟล์" aria-label="ดูโปรไฟล์">
             <span class="btn-chat-icon">🔍</span><span class="btn-chat-label">ดูโปรไฟล์</span>
           </button>
@@ -340,6 +399,10 @@ window.matchSpaceChat = (function () {
           if (window.matchSpaceApp?.openIcebreakerModal) {
             window.matchSpaceApp.openIcebreakerModal(Number(data.chat.partner_id));
           }
+        });
+
+        headerActions.querySelector('#btnChatMatchScoreTrigger')?.addEventListener('click', () => {
+          openMatchScoreModal(Number(data.chat.partner_id), data.chat.partner_name);
         });
 
         headerActions.querySelector('[data-open-profile-id]')?.addEventListener('click', () => {
@@ -700,6 +763,12 @@ window.matchSpaceChat = (function () {
     }
 
     setupInChatReportModal();
+    const matchScoreModal = document.getElementById('chatMatchScoreModal');
+    const closeMatchScoreModal = () => matchScoreModal?.classList.add('hidden');
+    document.getElementById('closeChatMatchScoreModal')?.addEventListener('click', closeMatchScoreModal);
+    matchScoreModal?.addEventListener('click', (event) => {
+      if (event.target === matchScoreModal) closeMatchScoreModal();
+    });
   }
 
   // ===================== IN-CHAT SAFETY REPORT MODAL =====================
