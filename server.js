@@ -20,6 +20,7 @@ const { uploadsDir, handleMulterError } = require('./src/middlewares/upload');
 
 // Services
 const { initWebSocketServer } = require('./src/services/websocket');
+const { recordPageVisit, seedHistoricalVisitsIfEmpty } = require('./src/services/analytics.service');
 
 // Route Modules
 const authRoutes = require('./src/routes/auth.routes');
@@ -61,6 +62,27 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(publicDir));
 app.use('/uploads', express.static(uploadsDir));
+
+// Analytics Visitor Tracking Middleware for HTML/Page requests
+app.use((req, res, next) => {
+  if (req.method === 'GET') {
+    const p = req.path;
+    const isAsset = p.includes('.') || p.startsWith('/uploads') || p.startsWith('/api') || p.startsWith('/ws');
+    if (!isAsset) {
+      recordPageVisit(req, p).catch(() => {});
+    }
+  }
+  next();
+});
+
+// Client-side analytics ping endpoint
+app.post('/api/analytics/track', (req, res) => {
+  const { path: pagePath } = req.body || {};
+  if (pagePath) {
+    recordPageVisit(req, String(pagePath)).catch(() => {});
+  }
+  res.json({ ok: true });
+});
 
 // Bidirectional image mirror fallback between Railway and Render
 app.use('/uploads', async (req, res, next) => {
@@ -238,7 +260,13 @@ app.get('/', (req, res) => {
 
 // Boot Database then start HTTP & WebSocket Server
 initDatabase()
-  .then(() => {
+  .then(async () => {
+    try {
+      await seedHistoricalVisitsIfEmpty();
+    } catch (seedErr) {
+      console.error('[Analytics Seed Warning]', seedErr.message);
+    }
+
     httpServer.listen(PORT, '0.0.0.0', () => {
       console.log(`[Server] MatchSpace running at http://0.0.0.0:${PORT}`);
     });

@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>MatchSpace | Admin</title>
     <link rel="stylesheet" href="styles.css" />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
   </head>
   <body>
     <div class="container">
@@ -61,6 +62,172 @@
         <div class="summary-box" style="border-left: 4px solid var(--coral);">
           <span class="number" id="apiResponseTimeText" style="color: var(--coral);">--</span>
           <span class="label">API Response Time</span>
+        </div>
+      </section>
+
+      <!-- ===================== WEB & APP TRAFFIC ANALYTICS ===================== -->
+      <section class="card analytics-container-card" style="padding: 24px; margin-top: 24px;">
+        <div class="analytics-header">
+          <div>
+            <h2 style="margin: 0; color: var(--purple); font-size: 1.45rem; display: flex; align-items: center; gap: 8px;">
+              <span>📈</span> สถิติผู้เข้าชมและการใช้งานระบบ (Traffic Analytics)
+            </h2>
+            <p style="margin: 4px 0 0; color: var(--muted); font-size: 0.9rem;">
+              วิเคราะห์จำนวนผู้เข้าชม พฤติกรรม และช่วงเวลาที่มีการใช้งานแอพหนาแน่นที่สุด
+            </p>
+          </div>
+          <div class="analytics-controls">
+            <div class="range-selector" id="analyticsRangeButtons">
+              <button type="button" class="range-btn active" data-days="7">7 วันล่าสุด</button>
+              <button type="button" class="range-btn" data-days="14">14 วัน</button>
+              <button type="button" class="range-btn" data-days="30">30 วัน</button>
+            </div>
+            <button class="button secondary-action" id="btnRefreshAnalytics" type="button" style="padding: 7px 16px; font-size: 0.85rem; display: flex; align-items: center; gap: 6px;">
+              <span>🔄</span> รีเฟรชสถิติ
+            </button>
+          </div>
+        </div>
+
+        <!-- KPI Summary Cards -->
+        <div class="analytics-kpi-grid">
+          <div class="analytics-kpi-card" style="border-top: 4px solid var(--purple);">
+            <div class="kpi-icon-badge" style="background: rgba(124, 58, 237, 0.1); color: var(--purple);">👁️</div>
+            <div class="kpi-info">
+              <div class="kpi-title">ผู้เข้าชมวันนี้ (Pageviews)</div>
+              <div class="kpi-value" id="kpiTodayViews">0</div>
+              <div class="kpi-sub" id="kpiTodayViewsSub">ครั้งที่เปิดหน้าเว็บ</div>
+            </div>
+          </div>
+          <div class="analytics-kpi-card" style="border-top: 4px solid #00b4d8;">
+            <div class="kpi-icon-badge" style="background: rgba(0, 180, 216, 0.1); color: #00b4d8;">👤</div>
+            <div class="kpi-info">
+              <div class="kpi-title">ผู้เข้าชมไม่ซ้ำคน (Uniques)</div>
+              <div class="kpi-value" id="kpiTodayUniques">0</div>
+              <div class="kpi-sub">คนไม่ซ้ำกันในวันนี้</div>
+            </div>
+          </div>
+          <div class="analytics-kpi-card" style="border-top: 4px solid var(--success);">
+            <div class="kpi-icon-badge" style="background: rgba(16, 185, 129, 0.1); color: var(--success);">🟢</div>
+            <div class="kpi-info">
+              <div class="kpi-title">ใช้งานอยู่ขณะนี้ (Active)</div>
+              <div class="kpi-value" style="color: var(--success); display: flex; align-items: center; gap: 8px;">
+                <span class="live-dot-pulse"></span>
+                <span id="kpiActiveNow">1</span>
+              </div>
+              <div class="kpi-sub">ในรอบ 15 นาทีที่ผ่านมา</div>
+            </div>
+          </div>
+          <div class="analytics-kpi-card" style="border-top: 4px solid var(--coral);">
+            <div class="kpi-icon-badge" style="background: rgba(255, 112, 67, 0.1); color: var(--coral);">🌐</div>
+            <div class="kpi-info">
+              <div class="kpi-title">ยอดเข้าชมสะสมทั้งหมด</div>
+              <div class="kpi-value" id="kpiTotalVisits">0</div>
+              <div class="kpi-sub" id="kpiMemberRatio">สมาชิก 0% • ทั่วไป 0%</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- AI / Peak Usage Insights Card -->
+        <div class="peak-insights-card">
+          <div class="peak-insight-icon">🔥</div>
+          <div class="peak-insight-content">
+            <div class="peak-insight-header">
+              <span class="peak-badge">วิเคราะห์พฤติกรรมผู้ใช้งาน (Peak Usage Insights)</span>
+              <span class="peak-time-highlight" id="peakHoursHighlight">ช่วงเวลาคนเข้าใช้แอพเยอะสุด: --:-- น.</span>
+            </div>
+            <p class="peak-insight-desc" id="peakInsightDesc">
+              กำลังวิเคราะห์ข้อมูลการเข้าใช้งานระบบ...
+            </p>
+            <div class="peak-insight-meta">
+              <span id="peakDayBadge">📅 วันที่คนเข้าเยอะสุด: --</span>
+              <span id="peakDeviceBadge">📱 อุปกรณ์ยอดนิยม: --</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Main Charts: Daily Visitors & Hourly Usage -->
+        <div class="charts-main-grid">
+          <div class="chart-box">
+            <div class="chart-header">
+              <div>
+                <h3 style="margin: 0; font-size: 1.1rem; color: var(--purple);">📅 ผู้เข้าชมเว็บไซต์รายวัน (Daily Visitors)</h3>
+                <span style="font-size: 0.8rem; color: var(--muted);" id="dailyVisitorsSubtitle">แสดงยอดเปิดหน้าและผู้เข้าชมไม่ซ้ำคน</span>
+              </div>
+              <span class="chart-badge">Daily Trend</span>
+            </div>
+            <div class="chart-canvas-wrap">
+              <canvas id="dailyVisitorsChart"></canvas>
+            </div>
+          </div>
+
+          <div class="chart-box">
+            <div class="chart-header">
+              <div>
+                <h3 style="margin: 0; font-size: 1.1rem; color: var(--purple);">⏰ เวลาคนเข้าใช้แอพเยอะตอนไหน (00:00 - 23:00 น.)</h3>
+                <span style="font-size: 0.8rem; color: var(--muted);">ความหนาแน่นของผู้เข้าใช้แยกตามช่วงเวลา 24 ชั่วโมง</span>
+              </div>
+              <span class="chart-badge" style="background: rgba(255,112,67,0.12); color: var(--coral);">Peak Hours</span>
+            </div>
+            <div class="chart-canvas-wrap">
+              <canvas id="hourlyTrafficChart"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <!-- Secondary Breakdown Charts: Devices & Top Pages -->
+        <div class="charts-secondary-grid">
+          <div class="chart-box">
+            <div class="chart-header">
+              <h3 style="margin: 0; font-size: 1.05rem; color: var(--purple);">📱 สัดส่วนอุปกรณ์ & เบราว์เซอร์</h3>
+              <span class="chart-badge">Platform</span>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 16px; margin-top: 10px;">
+              <div style="height: 180px; position: relative;">
+                <canvas id="deviceBreakdownChart"></canvas>
+              </div>
+              <div id="browserStatsList" class="browser-stats-container"></div>
+            </div>
+          </div>
+
+          <div class="chart-box">
+            <div class="chart-header">
+              <h3 style="margin: 0; font-size: 1.05rem; color: var(--purple);">🌟 หน้าเว็บและฟีเจอร์ที่มีผู้เข้าใช้มากที่สุด</h3>
+              <span class="chart-badge">Top Pages</span>
+            </div>
+            <div id="topPagesList" class="top-pages-container" style="margin-top: 10px;">
+              <div style="color: var(--muted); text-align: center; padding: 20px;">กำลังโหลดข้อมูล...</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Real-time Recent Visits Table -->
+        <div class="card" style="margin-top: 20px; padding: 18px; background: rgba(255, 255, 255, 0.6); border: 1px solid var(--line);">
+          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 12px;">
+            <div>
+              <h3 style="margin: 0; font-size: 1.1rem; color: var(--purple); display: flex; align-items: center; gap: 6px;">
+                <span>⚡</span> ประวัติการเข้าชมล่าสุดแบบ Real-time (Live Traffic Stream)
+              </h3>
+              <span style="font-size: 0.82rem; color: var(--muted);">แสดงการเปิดหน้าเว็บล่าสุดของผู้ใช้และผู้เข้าชม</span>
+            </div>
+            <input id="trafficSearchInput" type="text" placeholder="🔍 ค้นหาหน้า, IP หรือเบราว์เซอร์..." style="padding: 6px 12px; font-size: 0.82rem; width: 220px; border-radius: 8px; border: 1px solid var(--line);" />
+          </div>
+          <div class="table-wrap" style="max-height: 360px; overflow-y: auto;">
+            <table class="access-logs-table">
+              <thead>
+                <tr>
+                  <th>🕒 เวลา</th>
+                  <th>📄 หน้าที่เข้าชม</th>
+                  <th>👤 ผู้ใช้งาน / บทบาท</th>
+                  <th>💻 อุปกรณ์ / OS</th>
+                  <th>🌐 เบราว์เซอร์</th>
+                  <th>IP Address</th>
+                </tr>
+              </thead>
+              <tbody id="liveTrafficTableBody">
+                <tr><td colspan="6" style="text-align: center; padding: 20px; color: var(--muted);">กำลังโหลดประวัติการเข้าชม...</td></tr>
+              </tbody>
+            </table>
+          </div>
         </div>
       </section>
 

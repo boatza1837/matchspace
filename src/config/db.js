@@ -241,7 +241,25 @@ async function initDatabase() {
       sess TEXT NOT NULL,
       expired_at INTEGER NOT NULL
     );
+
+    CREATE TABLE IF NOT EXISTS page_visits (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      session_id TEXT,
+      user_id INTEGER,
+      path TEXT NOT NULL,
+      method TEXT DEFAULT 'GET',
+      ip TEXT,
+      user_agent TEXT,
+      device_type TEXT DEFAULT 'desktop',
+      os TEXT DEFAULT 'Unknown',
+      browser TEXT DEFAULT 'Unknown',
+      referrer TEXT,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    );
   `);
+
+  try { await db.run("CREATE INDEX IF NOT EXISTS idx_page_visits_created_at ON page_visits(created_at)"); } catch(e) {}
+  try { await db.run("CREATE INDEX IF NOT EXISTS idx_page_visits_path ON page_visits(path)"); } catch(e) {}
 
   try { await db.run("ALTER TABLE users ADD COLUMN encrypted_password TEXT"); } catch(e) {}
   try { await db.run("ALTER TABLE users ADD COLUMN gender TEXT DEFAULT 'ไม่ระบุ'"); } catch(e) {}

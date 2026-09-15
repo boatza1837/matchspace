@@ -5,6 +5,79 @@ const { db, useTurso } = require('../config/db');
 const { requireAdmin, requireOwner } = require('../middlewares/auth');
 const { encryptPassword, decryptPassword, hashPassword } = require('../config/security');
 const { logAudit } = require('../services/logger');
+const {
+  getAnalyticsOverview,
+  getDailyVisitors,
+  getHourlyDistribution,
+  getDeviceAndBrowserStats,
+  getTopPages,
+  getPeakInsights,
+  getRecentVisits
+} = require('../services/analytics.service');
+
+// ===================== ANALYTICS ENDPOINTS =====================
+router.get('/api/admin/analytics/overview', requireAdmin, async (req, res) => {
+  try {
+    const overview = await getAnalyticsOverview();
+    res.json(overview);
+  } catch (err) {
+    console.error('[Analytics Overview Route Error]', err);
+    res.status(500).json({ message: 'ไม่สามารถดึงข้อมูลสรุปภาพรวมได้' });
+  }
+});
+
+router.get('/api/admin/analytics/daily', requireAdmin, async (req, res) => {
+  try {
+    const days = parseInt(req.query.days || req.query.range || '7', 10);
+    const data = await getDailyVisitors(days);
+    res.json(data);
+  } catch (err) {
+    console.error('[Analytics Daily Route Error]', err);
+    res.status(500).json({ message: 'ไม่สามารถดึงข้อมูลสถิติรายวันได้' });
+  }
+});
+
+router.get('/api/admin/analytics/hourly', requireAdmin, async (req, res) => {
+  try {
+    const data = await getHourlyDistribution();
+    res.json(data);
+  } catch (err) {
+    console.error('[Analytics Hourly Route Error]', err);
+    res.status(500).json({ message: 'ไม่สามารถดึงข้อมูลสถิติรายชั่วโมงได้' });
+  }
+});
+
+router.get('/api/admin/analytics/devices', requireAdmin, async (req, res) => {
+  try {
+    const data = await getDeviceAndBrowserStats();
+    res.json(data);
+  } catch (err) {
+    console.error('[Analytics Devices Route Error]', err);
+    res.status(500).json({ message: 'ไม่สามารถดึงข้อมูลอุปกรณ์ได้' });
+  }
+});
+
+router.get('/api/admin/analytics/top-pages', requireAdmin, async (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit || '8', 10);
+    const data = await getTopPages(limit);
+    res.json(data);
+  } catch (err) {
+    console.error('[Analytics Top Pages Route Error]', err);
+    res.status(500).json({ message: 'ไม่สามารถดึงข้อมูลหน้ายอดนิยมได้' });
+  }
+});
+
+router.get('/api/admin/analytics/recent', requireAdmin, async (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit || '40', 10);
+    const data = await getRecentVisits(limit);
+    res.json(data);
+  } catch (err) {
+    console.error('[Analytics Recent Route Error]', err);
+    res.status(500).json({ message: 'ไม่สามารถดึงข้อมูลการเข้าชมล่าสุดได้' });
+  }
+});
 
 router.get('/api/admin/summary', requireAdmin, async (req, res) => {
   try {

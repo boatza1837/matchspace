@@ -1266,7 +1266,476 @@ function initAdminModule() {
       }
     }
 
+    // ===================== WEB & APP TRAFFIC ANALYTICS CONTROLLER =====================
+    let dailyChartInstance = null;
+    let hourlyChartInstance = null;
+    let deviceChartInstance = null;
+    let analyticsRangeDays = 7;
+    let cachedRecentTraffic = [];
+
+    async function initAnalyticsDashboard() {
+      const btnRefresh = document.getElementById('btnRefreshAnalytics');
+      const rangeBtns = document.querySelectorAll('#analyticsRangeButtons .range-btn');
+      const searchInput = document.getElementById('trafficSearchInput');
+
+      if (btnRefresh) {
+        btnRefresh.addEventListener('click', () => {
+          loadAllAnalytics(true);
+        });
+      }
+
+      if (rangeBtns) {
+        rangeBtns.forEach((btn) => {
+          btn.addEventListener('click', () => {
+            rangeBtns.forEach((b) => b.classList.remove('active'));
+            btn.classList.add('active');
+            analyticsRangeDays = parseInt(btn.dataset.days || '7', 10);
+            loadDailyVisitorsChart();
+          });
+        });
+      }
+
+      if (searchInput) {
+        searchInput.addEventListener('input', (e) => {
+          renderRecentTrafficTable(e.target.value.trim().toLowerCase());
+        });
+      }
+
+      await loadAllAnalytics();
+    }
+
+    async function loadAllAnalytics(showFeedback = false) {
+      const btnRefresh = document.getElementById('btnRefreshAnalytics');
+      if (btnRefresh && showFeedback) {
+        btnRefresh.classList.add('loading');
+        btnRefresh.textContent = '⏳ กำลังอัปเดต...';
+      }
+
+      try {
+        await Promise.allSettled([
+          loadAnalyticsOverview(),
+          loadDailyVisitorsChart(),
+          loadHourlyTrafficChart(),
+          loadDeviceBreakdownChart(),
+          loadTopPagesList(),
+          loadRecentTrafficStream()
+        ]);
+      } catch (e) {
+        console.error('[Analytics Load Error]', e);
+      } finally {
+        if (btnRefresh && showFeedback) {
+          btnRefresh.classList.remove('loading');
+          btnRefresh.innerHTML = '<span>🔄</span> รีเฟรชสถิติ';
+        }
+      }
+    }
+
+    async function loadAnalyticsOverview() {
+      try {
+        const overview = await apiRequest('/api/admin/analytics/overview');
+
+        const kpiTodayViews = document.getElementById('kpiTodayViews');
+        const kpiTodayUniques = document.getElementById('kpiTodayUniques');
+        const kpiActiveNow = document.getElementById('kpiActiveNow');
+        const kpiTotalVisits = document.getElementById('kpiTotalVisits');
+        const kpiMemberRatio = document.getElementById('kpiMemberRatio');
+
+        if (kpiTodayViews) kpiTodayViews.textContent = Number(overview.today_visits || 0).toLocaleString();
+        if (kpiTodayUniques) kpiTodayUniques.textContent = Number(overview.today_uniques || 0).toLocaleString();
+        if (kpiActiveNow) kpiActiveNow.textContent = Number(overview.active_now || 1).toLocaleString();
+        if (kpiTotalVisits) kpiTotalVisits.textContent = Number(overview.total_visits || 0).toLocaleString();
+
+        if (kpiMemberRatio) {
+          const totalKnown = (overview.member_visits || 0) + (overview.guest_visits || 0);
+          if (totalKnown > 0) {
+            const memPct = Math.round((overview.member_visits / totalKnown) * 100);
+            const guestPct = 100 - memPct;
+            kpiMemberRatio.textContent = `สมาชิก ${memPct}% • ทั่วไป ${guestPct}%`;
+          } else {
+            kpiMemberRatio.textContent = 'สมาชิก 0% • ทั่วไป 0%';
+          }
+        }
+
+        const peak = overview.peak_insights;
+        const peakHoursHighlight = document.getElementById('peakHoursHighlight');
+        const peakInsightDesc = document.getElementById('peakInsightDesc');
+        const peakDayBadge = document.getElementById('peakDayBadge');
+
+        if (peakHoursHighlight && peak) {
+          peakHoursHighlight.textContent = `ช่วงเวลาคนเข้าใช้แอพเยอะสุด: ${peak.peak_hours || '20:00 - 23:00 น.'}`;
+        }
+        if (peakInsightDesc && peak) {
+          peakInsightDesc.textContent = peak.recommendation || 'แนะนำจัดกิจกรรมหรือส่งแจ้งเตือนในระบบช่วงเวลาพีค เพื่อให้สมาชิกเห็นมากที่สุด';
+        }
+        if (peakDayBadge && peak) {
+          peakDayBadge.textContent = `📅 วันที่คนเข้าเยอะสุด: ${peak.peak_day || 'วันเสาร์'}`;
+        }
+      } catch (err) {
+        console.error('[Load Analytics Overview Error]', err);
+      }
+    }
+
+    async function loadDailyVisitorsChart() {
+      const canvas = document.getElementById('dailyVisitorsChart');
+      if (!canvas || typeof Chart === 'undefined') return;
+
+      try {
+        const data = await apiRequest(`/api/admin/analytics/daily?days=${analyticsRangeDays}`);
+        const subtitle = document.getElementById('dailyVisitorsSubtitle');
+        if (subtitle) {
+          subtitle.textContent = `แสดงยอดเปิดหน้าและผู้เข้าชมไม่ซ้ำคน ย้อนหลัง ${analyticsRangeDays} วัน`;
+        }
+
+        const labels = data.map(d => d.label);
+        const pageviews = data.map(d => d.pageviews);
+        const uniques = data.map(d => d.uniques);
+
+        if (dailyChartInstance) {
+          dailyChartInstance.destroy();
+        }
+
+        const ctx = canvas.getContext('2d');
+        const purpleGrad = ctx.createLinearGradient(0, 0, 0, 260);
+        purpleGrad.addColorStop(0, 'rgba(124, 58, 237, 0.35)');
+        purpleGrad.addColorStop(1, 'rgba(124, 58, 237, 0.00)');
+
+        dailyChartInstance = new Chart(ctx, {
+          type: 'line',
+          data: {
+            labels,
+            datasets: [
+              {
+                label: 'ยอดเปิดหน้าเว็บ (Pageviews)',
+                data: pageviews,
+                borderColor: '#7c3aed',
+                backgroundColor: purpleGrad,
+                fill: true,
+                tension: 0.35,
+                borderWidth: 2.5,
+                pointRadius: 4,
+                pointHoverRadius: 7,
+                pointBackgroundColor: '#7c3aed'
+              },
+              {
+                label: 'ผู้เข้าชมไม่ซ้ำคน (Unique Visitors)',
+                data: uniques,
+                borderColor: '#00b4d8',
+                backgroundColor: 'transparent',
+                fill: false,
+                tension: 0.35,
+                borderWidth: 2,
+                pointRadius: 3.5,
+                pointHoverRadius: 6,
+                pointBackgroundColor: '#00b4d8'
+              }
+            ]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: {
+              mode: 'index',
+              intersect: false
+            },
+            plugins: {
+              legend: {
+                position: 'top',
+                labels: {
+                  boxWidth: 12,
+                  boxHeight: 12,
+                  font: { family: 'Prompt, sans-serif', size: 12 }
+                }
+              },
+              tooltip: {
+                backgroundColor: 'rgba(23, 23, 37, 0.9)',
+                titleFont: { family: 'Prompt, sans-serif' },
+                bodyFont: { family: 'Prompt, sans-serif' },
+                padding: 10,
+                cornerRadius: 8
+              }
+            },
+            scales: {
+              x: {
+                grid: { display: false },
+                ticks: { font: { family: 'Prompt, sans-serif', size: 11 } }
+              },
+              y: {
+                beginAtZero: true,
+                grid: { color: 'rgba(0, 0, 0, 0.05)' },
+                ticks: { precision: 0, font: { family: 'Prompt, sans-serif', size: 11 } }
+              }
+            }
+          }
+        });
+      } catch (err) {
+        console.error('[Load Daily Chart Error]', err);
+      }
+    }
+
+    async function loadHourlyTrafficChart() {
+      const canvas = document.getElementById('hourlyTrafficChart');
+      if (!canvas || typeof Chart === 'undefined') return;
+
+      try {
+        const res = await apiRequest('/api/admin/analytics/hourly');
+        const hours = res.hours || [];
+        const peakHour = res.peakHour;
+
+        const labels = hours.map(h => h.label);
+        const dataVisits = hours.map(h => h.visits);
+
+        const bgColors = hours.map(h => {
+          if (h.hour >= peakHour && h.hour <= (peakHour + 2) % 24) {
+            return '#ff7043';
+          }
+          return 'rgba(124, 58, 237, 0.55)';
+        });
+
+        if (hourlyChartInstance) {
+          hourlyChartInstance.destroy();
+        }
+
+        const ctx = canvas.getContext('2d');
+        hourlyChartInstance = new Chart(ctx, {
+          type: 'bar',
+          data: {
+            labels,
+            datasets: [
+              {
+                label: 'จำนวนผู้เข้าใช้งาน (Visits)',
+                data: dataVisits,
+                backgroundColor: bgColors,
+                borderRadius: 6,
+                borderSkipped: false
+              }
+            ]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { display: false },
+              tooltip: {
+                backgroundColor: 'rgba(23, 23, 37, 0.9)',
+                titleFont: { family: 'Prompt, sans-serif' },
+                bodyFont: { family: 'Prompt, sans-serif' },
+                padding: 10,
+                cornerRadius: 8,
+                callbacks: {
+                  title: (items) => `เวลา ${items[0].label} น.`,
+                  label: (item) => {
+                    const h = hours[item.dataIndex];
+                    const isPeak = (h.hour >= peakHour && h.hour <= (peakHour + 2) % 24);
+                    return `${item.raw} ครั้ง ${isPeak ? '🔥 (ช่วงพีค)' : ''}`;
+                  }
+                }
+              }
+            },
+            scales: {
+              x: {
+                grid: { display: false },
+                ticks: {
+                  maxRotation: 0,
+                  font: { family: 'Prompt, sans-serif', size: 10 },
+                  callback: function(val, idx) {
+                    return idx % 2 === 0 ? labels[idx] : '';
+                  }
+                }
+              },
+              y: {
+                beginAtZero: true,
+                grid: { color: 'rgba(0, 0, 0, 0.05)' },
+                ticks: { precision: 0, font: { family: 'Prompt, sans-serif', size: 11 } }
+              }
+            }
+          }
+        });
+      } catch (err) {
+        console.error('[Load Hourly Chart Error]', err);
+      }
+    }
+
+    async function loadDeviceBreakdownChart() {
+      const canvas = document.getElementById('deviceBreakdownChart');
+      if (!canvas || typeof Chart === 'undefined') return;
+
+      try {
+        const res = await apiRequest('/api/admin/analytics/devices');
+        const devices = res.devices || [];
+        const browsers = res.browsers || [];
+
+        const labels = devices.map(d => d.device_type);
+        const counts = devices.map(d => d.count);
+        const palette = ['#7c3aed', '#00b4d8', '#ff7043', '#10b981', '#f59e0b'];
+
+        if (deviceChartInstance) {
+          deviceChartInstance.destroy();
+        }
+
+        const ctx = canvas.getContext('2d');
+        deviceChartInstance = new Chart(ctx, {
+          type: 'doughnut',
+          data: {
+            labels,
+            datasets: [
+              {
+                data: counts,
+                backgroundColor: palette.slice(0, labels.length),
+                borderWidth: 2,
+                borderColor: '#ffffff'
+              }
+            ]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            cutout: '68%',
+            plugins: {
+              legend: {
+                position: 'right',
+                labels: {
+                  boxWidth: 12,
+                  font: { family: 'Prompt, sans-serif', size: 11 }
+                }
+              }
+            }
+          }
+        });
+
+        const peakDeviceBadge = document.getElementById('peakDeviceBadge');
+        if (peakDeviceBadge && devices.length > 0) {
+          const topDev = devices[0];
+          const totalDevCount = devices.reduce((sum, d) => sum + d.count, 0);
+          const pct = Math.round((topDev.count / (totalDevCount || 1)) * 100);
+          peakDeviceBadge.textContent = `📱 อุปกรณ์ยอดนิยม: ${topDev.device_type} (${pct}%)`;
+        }
+
+        const browserContainer = document.getElementById('browserStatsList');
+        if (browserContainer) {
+          const totalBrowserCount = browsers.reduce((sum, b) => sum + b.count, 0) || 1;
+          browserContainer.innerHTML = browsers.map(b => {
+            const pct = Math.round((b.count / totalBrowserCount) * 100);
+            return `
+              <div class="browser-stat-item">
+                <div class="browser-stat-header">
+                  <span class="browser-name">${escapeHtml(b.browser)}</span>
+                  <span class="browser-count">${b.count} ครั้ง (${pct}%)</span>
+                </div>
+                <div class="stat-progress-bg">
+                  <div class="stat-progress-bar" style="width: ${pct}%;"></div>
+                </div>
+              </div>
+            `;
+          }).join('');
+        }
+      } catch (err) {
+        console.error('[Load Devices Chart Error]', err);
+      }
+    }
+
+    async function loadTopPagesList() {
+      const container = document.getElementById('topPagesList');
+      if (!container) return;
+
+      try {
+        const pages = await apiRequest('/api/admin/analytics/top-pages');
+        if (!pages || pages.length === 0) {
+          container.innerHTML = '<div style="color:var(--muted); text-align:center; padding:20px;">ไม่มีข้อมูลการเข้าชม</div>';
+          return;
+        }
+
+        const maxVisits = Math.max(...pages.map(p => p.visits), 1);
+        container.innerHTML = pages.map((p, idx) => {
+          const pct = Math.round((p.visits / maxVisits) * 100);
+          return `
+            <div class="top-page-row">
+              <div class="top-page-rank">#${idx + 1}</div>
+              <div class="top-page-info">
+                <div class="top-page-title-line">
+                  <strong class="top-page-title">${escapeHtml(p.readable_name)}</strong>
+                  <span class="top-page-count">${p.visits} ครั้ง</span>
+                </div>
+                <div class="stat-progress-bg">
+                  <div class="stat-progress-bar" style="width: ${pct}%; background: linear-gradient(90deg, var(--purple), #00b4d8);"></div>
+                </div>
+              </div>
+            </div>
+          `;
+        }).join('');
+      } catch (err) {
+        container.innerHTML = `<div style="color:var(--danger); text-align:center; padding:10px;">เกิดข้อผิดพลาด: ${err.message}</div>`;
+      }
+    }
+
+    async function loadRecentTrafficStream() {
+      try {
+        const logs = await apiRequest('/api/admin/analytics/recent');
+        cachedRecentTraffic = Array.isArray(logs) ? logs : [];
+        renderRecentTrafficTable();
+      } catch (err) {
+        const tbody = document.getElementById('liveTrafficTableBody');
+        if (tbody) {
+          tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--danger); padding:20px;">ไม่สามารถโหลดประวัติการเข้าชมได้</td></tr>`;
+        }
+      }
+    }
+
+    function renderRecentTrafficTable(filterQuery = '') {
+      const tbody = document.getElementById('liveTrafficTableBody');
+      if (!tbody) return;
+
+      let filtered = cachedRecentTraffic;
+      if (filterQuery) {
+        filtered = cachedRecentTraffic.filter(log => {
+          const text = `${log.path} ${log.ip} ${log.browser} ${log.os} ${log.user_name || ''} ${log.user_email || ''}`.toLowerCase();
+          return text.includes(filterQuery);
+        });
+      }
+
+      if (filtered.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:20px; color:var(--muted);">ไม่พบประวัติการเข้าชมที่ตรงกัน</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = filtered.map(log => {
+        const hasUser = Boolean(log.user_id && log.user_name);
+        const userBadge = hasUser
+          ? `<div style="display:flex; flex-direction:column;"><strong style="color:var(--purple);">${escapeHtml(log.user_name)}</strong><span style="font-size:0.75rem; color:var(--muted);">${escapeHtml(log.user_email || '')}</span></div>`
+          : '<span class="badge" style="background:#f1f5f9; color:#64748b;">👤 Guest / ทั่วไป</span>';
+
+        const deviceIcon = log.device_type === 'Mobile' ? '📱' : (log.device_type === 'Tablet' ? '📟' : '💻');
+
+        return `
+          <tr>
+            <td style="font-size:0.8rem; font-family:monospace; color:var(--muted);">${formatTrafficTime(log.created_at)}</td>
+            <td><strong style="color:#0284c7; font-size:0.85rem;">${escapeHtml(log.path)}</strong></td>
+            <td>${userBadge}</td>
+            <td>${deviceIcon} ${escapeHtml(log.device_type)} (${escapeHtml(log.os)})</td>
+            <td>${escapeHtml(log.browser)}</td>
+            <td style="font-size:0.8rem; font-family:monospace;">${escapeHtml(log.ip || '-')}</td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    function formatTrafficTime(timeStr) {
+      if (!timeStr) return '-';
+      try {
+        const d = new Date(timeStr);
+        if (isNaN(d.getTime())) return timeStr;
+        const h = String(d.getHours()).padStart(2, '0');
+        const m = String(d.getMinutes()).padStart(2, '0');
+        const s = String(d.getSeconds()).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        const mo = String(d.getMonth() + 1).padStart(2, '0');
+        return `${day}/${mo} ${h}:${m}:${s}`;
+      } catch (e) {
+        return timeStr;
+      }
+    }
+
     loadAdminDashboard();
+    initAnalyticsDashboard();
   }
 
   // ===================== ADMIN USERS MANAGEMENT (admin-users.html) =====================
