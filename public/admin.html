@@ -16,6 +16,7 @@
         </div>
         <nav class="nav">
           <a href="/admin" style="font-weight:700; color:var(--purple);">📊 Dashboard</a>
+          <a href="#matchmakingSection" style="font-weight:700; color:var(--coral);">🎯 Match Intelligence</a>
           <a href="/admin-users" style="font-weight:600;">👥 จัดการผู้ใช้งาน</a>
           <a href="/app">หน้า user</a>
           <a href="/report">รายงานปัญหา</a>
@@ -231,6 +232,250 @@
         </div>
       </section>
 
+      <!-- ===================== MATCHMAKING & SWIPE INTELLIGENCE (TINDER-GRADE ANALYTICS) ===================== -->
+      <section class="card matchmaking-container-card" id="matchmakingSection" style="padding: 24px; margin-top: 24px; border: 1px solid rgba(255, 112, 67, 0.25);">
+        <div class="matchmaking-header" style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 16px; margin-bottom: 20px;">
+          <div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span style="font-size: 1.6rem;">🎯</span>
+              <h2 style="margin: 0; color: var(--purple); font-size: 1.5rem; font-weight: 800;">
+                ระบบวิเคราะห์การจับคู่ &amp; Swipe Intelligence (Dating Algorithm Hub)
+              </h2>
+              <span class="badge" style="background: linear-gradient(135deg, #ff7043, #e11d48); color: white; font-size: 0.72rem; padding: 3px 8px; border-radius: 6px;">Tinder-Grade Metrics</span>
+            </div>
+            <p style="margin: 6px 0 0; color: var(--muted); font-size: 0.92rem;">
+              เก็บ Log ประวัติการปัด (Likes, Passes, Dwell Time), วิเคราะห์สิ่งที่ตรงกัน (Matching Synergy), และคำนวณโอกาสการจับคู่ (Match Probability) สำหรับพัฒนาต่อยอด
+            </p>
+          </div>
+          <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+            <button class="button secondary-action" id="btnExportMatchLogs" type="button" style="padding: 8px 16px; font-size: 0.85rem; display: flex; align-items: center; gap: 6px; border-color: #ff7043; color: #ff7043;">
+              <span>📥</span> ส่งออก CSV (Logs)
+            </button>
+            <button class="button secondary-action" id="btnRefreshMatchAnalytics" type="button" style="padding: 8px 16px; font-size: 0.85rem; display: flex; align-items: center; gap: 6px;">
+              <span>🔄</span> รีเฟรชข้อมูลจับคู่
+            </button>
+          </div>
+        </div>
+
+        <!-- KPI Summary Cards (6 Cards) -->
+        <div class="match-kpi-grid">
+          <div class="match-kpi-card" style="border-top: 4px solid #e11d48;">
+            <div class="match-kpi-icon" style="background: rgba(225, 29, 72, 0.12); color: #e11d48;">💖</div>
+            <div class="match-kpi-info">
+              <div class="match-kpi-title">แมตช์สำเร็จทั้งหมด (Mutual Matches)</div>
+              <div class="match-kpi-value" id="kpiTotalMatches">0</div>
+              <div class="match-kpi-sub" id="kpiMatchConversionRate">อัตราสำเร็จ: 0% ของการกด Like</div>
+            </div>
+          </div>
+
+          <div class="match-kpi-card" style="border-top: 4px solid var(--purple);">
+            <div class="match-kpi-icon" style="background: rgba(124, 58, 237, 0.12); color: var(--purple);">👉</div>
+            <div class="match-kpi-info">
+              <div class="match-kpi-title">ยอดการปัดสะสม (Total Swipes)</div>
+              <div class="match-kpi-value" id="kpiTotalSwipes">0</div>
+              <div class="match-kpi-sub" id="kpiSwipeRatio">Like 0% • Pass 0%</div>
+            </div>
+          </div>
+
+          <div class="match-kpi-card" style="border-top: 4px solid #00b4d8;">
+            <div class="match-kpi-icon" style="background: rgba(0, 180, 216, 0.12); color: #00b4d8;">💬</div>
+            <div class="match-kpi-info">
+              <div class="match-kpi-title">อัตราเริ่มคุยแชท (Chat Conversion)</div>
+              <div class="match-kpi-value" id="kpiChatConversion">0%</div>
+              <div class="match-kpi-sub" id="kpiChatsInitiated">เริ่มคุย 0 คู่จากทั้งหมด</div>
+            </div>
+          </div>
+
+          <div class="match-kpi-card" style="border-top: 4px solid var(--success);">
+            <div class="match-kpi-icon" style="background: rgba(16, 185, 129, 0.12); color: var(--success);">⭐</div>
+            <div class="match-kpi-info">
+              <div class="match-kpi-title">คะแนนความสมพงษ์เฉลี่ย (Avg Score)</div>
+              <div class="match-kpi-value" id="kpiAvgScore" style="color: var(--success);">0%</div>
+              <div class="match-kpi-sub">คำนวณจากดวงชะตา 4 มิติ &amp; ไลฟ์สไตล์</div>
+            </div>
+          </div>
+
+          <div class="match-kpi-card" style="border-top: 4px solid #f59e0b;">
+            <div class="match-kpi-icon" style="background: rgba(245, 158, 11, 0.12); color: #f59e0b;">⏱️</div>
+            <div class="match-kpi-info">
+              <div class="match-kpi-title">เวลาดูการ์ดเฉลี่ย (Dwell Time)</div>
+              <div class="match-kpi-value" id="kpiAvgDwell">0.0 วินาที</div>
+              <div class="match-kpi-sub" id="kpiDwellBreakdown">Like: 0.0s • Pass: 0.0s</div>
+            </div>
+          </div>
+
+          <div class="match-kpi-card" style="border-top: 4px solid #8b5cf6;">
+            <div class="match-kpi-icon" style="background: rgba(139, 92, 246, 0.12); color: #8b5cf6;">🏆</div>
+            <div class="match-kpi-info">
+              <div class="match-kpi-title">ปัจจัยนำสู่การแมตช์สูงสุด (Top Factor)</div>
+              <div class="match-kpi-value" id="kpiTopFactor" style="font-size: 1.15rem; line-height: 1.3;">กำลังประมวลผล...</div>
+              <div class="match-kpi-sub">สิ่งที่ตรงกันมากที่สุดในคู่ที่แมตช์</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Charts Grid (2 columns: Trends + Factors) -->
+        <div class="charts-main-grid" style="margin-top: 20px;">
+          <div class="chart-box">
+            <div class="chart-header">
+              <div>
+                <h3 style="margin: 0; font-size: 1.1rem; color: var(--purple);">📈 แนวโน้มการปัดและแมตช์รายวัน (Daily Swipe Funnel)</h3>
+                <span style="font-size: 0.8rem; color: var(--muted);">แสดงจำนวน Like, Pass และคู่ที่แมตช์สำเร็จ ย้อนหลัง 14 วัน</span>
+              </div>
+              <span class="chart-badge" style="background: rgba(225, 29, 72, 0.1); color: #e11d48;">Funnel Trend</span>
+            </div>
+            <div class="chart-canvas-wrap">
+              <canvas id="swipeTrendsChart"></canvas>
+            </div>
+          </div>
+
+          <div class="chart-box">
+            <div class="chart-header">
+              <div>
+                <h3 style="margin: 0; font-size: 1.1rem; color: var(--purple);">🧬 เหตุผลและปัจจัยที่ตรงกัน (Matching Synergy Factors)</h3>
+                <span style="font-size: 0.8rem; color: var(--muted);">แจกแจงสิ่งที่ทำให้สมาชิกถูกใจและแมตช์สำเร็จ</span>
+              </div>
+              <span class="chart-badge" style="background: rgba(124, 58, 237, 0.1); color: var(--purple);">Match Factors</span>
+            </div>
+            <div class="chart-canvas-wrap">
+              <canvas id="matchFactorsChart"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <!-- Secondary Breakdown: Top Matched Interests & Dwell Time Style -->
+        <div class="charts-secondary-grid" style="margin-top: 20px;">
+          <div class="chart-box">
+            <div class="chart-header">
+              <h3 style="margin: 0; font-size: 1.05rem; color: var(--purple);">🏷️ Top 10 แท็กความสนใจร่วมกันในคู่ที่แมตช์</h3>
+              <span class="chart-badge">Common Interests</span>
+            </div>
+            <div id="topMatchedInterestsContainer" style="margin-top: 12px; display: flex; flex-direction: column; gap: 8px;">
+              <div style="color: var(--muted); text-align: center; padding: 20px;">กำลังโหลดแท็กยอดนิยม...</div>
+            </div>
+          </div>
+
+          <div class="chart-box">
+            <div class="chart-header">
+              <h3 style="margin: 0; font-size: 1.05rem; color: var(--purple);">⚡ สไตล์การปัดและความเร็วในการตัดสินใจ (Swipe Behavior)</h3>
+              <span class="chart-badge">User Psychology</span>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 14px; margin-top: 12px;">
+              <div style="height: 180px; position: relative;">
+                <canvas id="swipeBehaviorChart"></canvas>
+              </div>
+              <div id="swipeBehaviorStats" class="browser-stats-container"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ===================== MATCH OPPORTUNITY & SIMULATION LAB ===================== -->
+        <div class="match-opportunity-lab" style="margin-top: 24px; padding: 20px; border-radius: 14px; background: rgba(255, 255, 255, 0.7); border: 1px solid var(--line);">
+          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 16px;">
+            <div>
+              <h3 style="margin: 0; font-size: 1.2rem; color: var(--purple); display: flex; align-items: center; gap: 8px;">
+                <span>🔮</span> โอกาสการจับคู่ &amp; เครื่องมือจำลอง (Match Opportunity Lab)
+              </h3>
+              <p style="margin: 4px 0 0; color: var(--muted); font-size: 0.85rem;">
+                วิเคราะห์คู่ที่มีโอกาสแมตช์สูงที่สุดในระบบที่ยังไม่ได้ปัดกัน หรือเลือกจำลองจับคู่สำหรับสมาชิกคนใดคนหนึ่ง
+              </p>
+            </div>
+            <div class="range-selector" id="opportunityTabs">
+              <button type="button" class="range-btn active" data-opp-tab="system">🌟 โอกาสจับคู่สูงสุดในระบบ</button>
+              <button type="button" class="range-btn" data-opp-tab="simulator">👤 จำลองโอกาสรายบุคคล (Simulator)</button>
+            </div>
+          </div>
+
+          <!-- Tab 1: System-wide Top Opportunities -->
+          <div id="tabSystemOpportunities">
+            <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 12px;">
+              <input type="text" id="oppSearchInput" placeholder="🔍 ค้นหาชื่อ, สาขาวิชา หรือความสนใจ..." style="padding: 7px 14px; font-size: 0.84rem; border-radius: 8px; border: 1px solid var(--line); width: 260px;" />
+              <select id="oppMinScoreSelect" style="padding: 7px 12px; font-size: 0.84rem; border-radius: 8px; border: 1px solid var(--line);">
+                <option value="70">คะแนนความสมพงษ์ &gt;= 70%</option>
+                <option value="80" selected>คะแนนความสมพงษ์ &gt;= 80% (แนะนำ)</option>
+                <option value="85">คะแนนความสมพงษ์ &gt;= 85% (High Chemistry)</option>
+              </select>
+              <button type="button" class="button secondary-action" id="btnRefreshOpportunities" style="padding: 7px 14px; font-size: 0.84rem;">🔄 คำนวณใหม่</button>
+            </div>
+            <div id="systemOpportunitiesGrid" class="opportunity-cards-grid">
+              <div style="text-align:center; padding:30px; color:var(--muted);">กำลังคำนวณโอกาสการจับคู่จากฐานข้อมูล...</div>
+            </div>
+          </div>
+
+          <!-- Tab 2: User Match Simulator -->
+          <div id="tabUserSimulator" style="display: none;">
+            <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-bottom: 16px; background: #faf5ff; padding: 12px 16px; border-radius: 10px; border: 1px solid rgba(124, 58, 237, 0.15);">
+              <label style="font-weight: 700; color: var(--purple); font-size: 0.9rem;">เลือกผู้ใช้ที่ต้องการจำลองโอกาส:</label>
+              <select id="simulatorUserSelect" style="padding: 8px 14px; font-size: 0.88rem; border-radius: 8px; border: 1px solid var(--purple); min-width: 240px;">
+                <option value="">กำลังโหลดรายชื่อผู้ใช้...</option>
+              </select>
+              <button type="button" class="button primary" id="btnRunSimulation" style="padding: 8px 18px; font-size: 0.86rem;">⚡ ประมวลผลโอกาสแมตช์</button>
+            </div>
+            <div id="simulatorResultsContainer">
+              <div style="text-align: center; padding: 40px; color: var(--muted);">กรุณาเลือกสมาชิกด้านบนแล้วกด "ประมวลผลโอกาสแมตช์" เพื่อดู 10 อันดับผู้มีโอกาสตรงกันสูงสุด</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ===================== TINDER-GRADE SWIPE & MATCH LOGS TABLE ===================== -->
+        <div class="card" style="margin-top: 24px; padding: 20px; background: rgba(255, 255, 255, 0.6); border: 1px solid var(--line);">
+          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 16px;">
+            <div>
+              <h3 style="margin: 0; font-size: 1.15rem; color: var(--purple); display: flex; align-items: center; gap: 8px;">
+                <span>📜</span> บันทึกประวัติการปัดและข้อมูลการแมตช์ (Swipe Intelligence Logs)
+              </h3>
+              <span style="font-size: 0.83rem; color: var(--muted);">แสดงทุกเหตุการณ์ปัดการ์ด (Like/Pass), เวลาที่ดูโปรไฟล์ (Dwell Time) และสิ่งที่ตรงกัน</span>
+            </div>
+            <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+              <input id="swipeLogSearchInput" type="text" placeholder="🔍 ค้นหาชื่อ, อีเมล หรือสิ่งที่ตรงกัน..." style="padding: 7px 12px; font-size: 0.83rem; width: 220px; border-radius: 8px; border: 1px solid var(--line);" />
+              <select id="swipeLogActionFilter" style="padding: 7px 10px; font-size: 0.83rem; border-radius: 8px; border: 1px solid var(--line);">
+                <option value="all">ทุกการกระทำ (All Actions)</option>
+                <option value="mutual">🎉 แมตช์สำเร็จ (Mutual)</option>
+                <option value="like">❤️ ถูกใจ (Like)</option>
+                <option value="pass">❌ ปัดผ่าน (Pass/Skip)</option>
+              </select>
+              <select id="swipeLogMinScoreFilter" style="padding: 7px 10px; font-size: 0.83rem; border-radius: 8px; border: 1px solid var(--line);">
+                <option value="0">ทุกคะแนน</option>
+                <option value="75">สมพงษ์ &gt;= 75%</option>
+                <option value="85">สมพงษ์ &gt;= 85%</option>
+              </select>
+              <button class="button secondary-action" id="btnRefreshSwipeLogs" type="button" style="padding: 7px 12px; font-size: 0.83rem;">🔄</button>
+            </div>
+          </div>
+
+          <div class="table-wrap" style="max-height: 520px; overflow-y: auto;">
+            <table class="access-logs-table">
+              <thead>
+                <tr>
+                  <th>🕒 วัน-เวลา</th>
+                  <th>👤 ผู้ปัด (Swiper)</th>
+                  <th>🎯 ผู้ถูกปัด (Target)</th>
+                  <th>⚡ ผลการปัด</th>
+                  <th>💖 ความสมพงษ์</th>
+                  <th>🏷️ สิ่งที่ตรงกัน (Synergy)</th>
+                  <th>⏱️ เวลาดูการ์ด</th>
+                  <th>💬 แชท</th>
+                  <th>🔬 Matching DNA</th>
+                </tr>
+              </thead>
+              <tbody id="swipeLogsTableBody">
+                <tr><td colspan="9" style="text-align: center; padding: 25px; color: var(--muted);">กำลังโหลดประวัติการปัด...</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Pagination -->
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 12px; font-size: 0.85rem; color: var(--muted);">
+            <div id="swipeLogsPaginationInfo">แสดง 0 รายการ</div>
+            <div style="display: flex; gap: 6px;">
+              <button type="button" class="button secondary-action" id="btnPrevSwipeLogs" style="padding: 4px 12px; font-size: 0.8rem;" disabled>← ก่อนหน้า</button>
+              <span id="swipeLogsPageIndicator" style="padding: 4px 10px; font-weight: 700; color: var(--purple);">1 / 1</span>
+              <button type="button" class="button secondary-action" id="btnNextSwipeLogs" style="padding: 4px 12px; font-size: 0.8rem;" disabled>ถัดไป →</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <section class="card" style="padding: 18px; margin-top: 24px;">
         <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
           <h2 style="margin: 0; color: var(--purple);">📜 System Audit Logs</h2>
@@ -338,6 +583,29 @@
           </table>
         </div>
       </section>
+    </div>
+
+    <!-- ===================== MATCHING DNA SIDE-BY-SIDE MODAL ===================== -->
+    <div id="matchingDnaModal" class="modal-overlay hidden">
+      <div class="modal-card modal-large" style="max-width: 860px; max-height: 90vh; overflow-y: auto;">
+        <div class="modal-header" style="background: linear-gradient(135deg, rgba(124, 58, 237, 0.08), rgba(225, 29, 72, 0.08));">
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <span style="font-size: 1.4rem;">🔬</span>
+            <div>
+              <h3 style="margin: 0; font-size: 1.2rem; color: var(--purple); font-weight: 800;">
+                เจาะลึก Matching DNA &amp; ปัจจัยความสมพงษ์ (Side-by-Side Analysis)
+              </h3>
+              <p style="margin: 2px 0 0; font-size: 0.8rem; color: var(--muted);">
+                เปรียบเทียบข้อมูลเชิงลึก 2 ฝั่ง เหตุผลที่ตรงกัน 4 มิติความเข้ากันได้ และประวัติการมีปฏิสัมพันธ์
+              </p>
+            </div>
+          </div>
+          <button id="btnCloseMatchingDnaModal" class="modal-close-btn" type="button" title="ปิด">✕</button>
+        </div>
+        <div class="modal-body" id="matchingDnaModalBody" style="padding: 20px;">
+          <div style="text-align: center; padding: 40px; color: var(--muted);">กำลังประมวลผลข้อมูลเปรียบเทียบ...</div>
+        </div>
+      </div>
     </div>
 
     <script src="js/core.js"></script>

@@ -13,6 +13,7 @@ const {
   calculateSoulmateCompatibility,
   ASTROLOGY_SOURCES_DB 
 } = require('../services/astrology');
+const { logSwipe, recordMutualMatch, recordUnmatch } = require('../services/matchmaking.service');
 
 const STUDENT_BADGES = {
   punctual: { key: 'punctual', label: 'ตรงต่อเวลา', icon: '⏰', desc: 'นัดหมายตรงเวลา ไม่ปล่อยให้รอ' },
@@ -306,7 +307,7 @@ router.get('/api/matches', requireAuth, async (req, res) => {
 
 router.post('/api/matches', requireAuth, async (req, res) => {
   try {
-    const { matched_user_id, note, status } = req.body || {};
+    const { matched_user_id, note, status, dwell_time_ms } = req.body || {};
     const userId = req.session.user.id;
 
     if (!matched_user_id) {
@@ -335,6 +336,8 @@ router.post('/api/matches', requireAuth, async (req, res) => {
         mutualMatch = true;
         await db.run('UPDATE matches SET status = ? WHERE id = ?', ['matched', matchId]);
         await db.run('UPDATE matches SET status = ? WHERE id = ?', ['matched', reverse.id]);
+
+        await recordMutualMatch(matchId, userId, Number(matched_user_id));
 
         const existingChat = await db.get(`
           SELECT * FROM chats
@@ -398,6 +401,16 @@ router.post('/api/matches', requireAuth, async (req, res) => {
       }
     }
 
+    // Log swipe event asynchronously with Tinder-grade metadata
+    logSwipe({
+      swiperId: userId,
+      targetId: Number(matched_user_id),
+      action: status === 'liked' ? 'like' : (status === 'skipped' ? 'pass' : (status || 'like')),
+      dwellTimeMs: dwell_time_ms || 0,
+      req,
+      isMutual: mutualMatch ? 1 : 0
+    }).catch(e => console.error('[Log Swipe Error]', e.message));
+
     const updatedMatch = await db.get('SELECT * FROM matches WHERE id = ?', [matchId]);
     res.status(existing ? 200 : 201).json({
       message: mutualMatch ? '🎉 แมตช์สำเร็จ! ระบบสร้างแชทให้แล้ว' : (status === 'liked' ? 'บันทึกความสนใจแล้ว' : 'บันทึกการปัดผ่านแล้ว'),
@@ -441,6 +454,7 @@ router.delete('/api/matches/:id', requireAuth, async (req, res) => {
 
     if (match.status === 'matched') {
       await db.run("UPDATE matches SET status = 'liked' WHERE user_id = ? AND matched_user_id = ?", [match.matched_user_id, userId]);
+      recordUnmatch(userId, match.matched_user_id, req.body?.reason || 'ผู้ใช้ยกเลิกการแมตช์').catch(() => {});
     }
 
     await db.run('DELETE FROM matches WHERE id = ?', [matchId]);

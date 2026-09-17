@@ -1751,6 +1751,8 @@ window.matchSpaceApp = (function () {
     }
 
     const user = filteredUsers[currentDiscoverIndex];
+    let discoverCardDisplayedAt = Date.now();
+    window._lastDiscoverCardDisplayedAt = discoverCardDisplayedAt;
     const tags = (user.interests || '').split(',').map((tag) => tag.trim()).filter(Boolean);
     const avatarSrc = user.profile_image || '';
 
@@ -2137,11 +2139,13 @@ window.matchSpaceApp = (function () {
       }
     }
 
+    const dwellTimeMs = Math.max(200, Date.now() - (window._lastDiscoverCardDisplayedAt || Date.now()));
+
     if (action === 'like') {
       try {
         const matchResult = await apiRequest('/api/matches', {
           method: 'POST',
-          body: JSON.stringify({ matched_user_id: user.id, note: 'Interested', status: 'liked' })
+          body: JSON.stringify({ matched_user_id: user.id, note: 'Interested', status: 'liked', dwell_time_ms: dwellTimeMs })
         });
         if (matchResult.mutual) {
           showMatchToast(matchResult.message);
@@ -2154,7 +2158,7 @@ window.matchSpaceApp = (function () {
       try {
         await apiRequest('/api/matches', {
           method: 'POST',
-          body: JSON.stringify({ matched_user_id: user.id, note: 'Skipped', status: 'skipped' })
+          body: JSON.stringify({ matched_user_id: user.id, note: 'Skipped', status: 'skipped', dwell_time_ms: dwellTimeMs })
         });
         await loadSkippedUsers();
       } catch(e) { /* ignore */ }

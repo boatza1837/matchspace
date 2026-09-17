@@ -8864,6 +8864,296 @@ body {
   }
 }
 
+/* ===================================================
+   Matchmaking & Swipe Intelligence (Dating Analytics)
+   =================================================== */
+
+.matchmaking-container-card {
+  background: #ffffff;
+  border-radius: 16px;
+  box-shadow: 0 10px 30px rgba(124, 58, 237, 0.05);
+}
+
+.match-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+}
+
+.match-kpi-card {
+  background: #fdfdfd;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 16px 18px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.match-kpi-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.06);
+}
+
+.match-kpi-icon {
+  width: 46px;
+  height: 46px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.35rem;
+  flex-shrink: 0;
+}
+
+.match-kpi-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.match-kpi-title {
+  font-size: 0.82rem;
+  color: var(--muted);
+  font-weight: 600;
+  margin-bottom: 2px;
+}
+
+.match-kpi-value {
+  font-size: 1.45rem;
+  font-weight: 800;
+  color: var(--text);
+  line-height: 1.2;
+}
+
+.match-kpi-sub {
+  font-size: 0.76rem;
+  color: var(--muted);
+  margin-top: 3px;
+}
+
+/* Opportunity Cards Grid */
+.opportunity-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 16px;
+}
+
+.opportunity-card {
+  background: #ffffff;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.opportunity-card:hover {
+  transform: translateY(-3px);
+  border-color: rgba(124, 58, 237, 0.4);
+  box-shadow: 0 8px 24px rgba(124, 58, 237, 0.1);
+}
+
+.opportunity-card-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.opp-pair-avatars {
+  display: flex;
+  align-items: center;
+  position: relative;
+}
+
+.opp-avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid #ffffff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+}
+
+.opp-avatar.placeholder {
+  background: linear-gradient(135deg, #7c3aed, #e11d48);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 1.05rem;
+}
+
+.opp-heart-badge {
+  margin: 0 -6px;
+  z-index: 2;
+  font-size: 1rem;
+  filter: drop-shadow(0 2px 4px rgba(225, 29, 72, 0.4));
+}
+
+.opp-score-badge {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  background: #f0edff;
+  color: var(--purple);
+  padding: 4px 10px;
+  border-radius: 10px;
+  border: 1px solid rgba(124, 58, 237, 0.15);
+}
+
+.opp-score-badge.high {
+  background: #ecfdf5;
+  color: #059669;
+  border-color: rgba(16, 185, 129, 0.25);
+}
+
+.opp-score-number {
+  font-size: 1.15rem;
+  font-weight: 800;
+  line-height: 1.1;
+}
+
+.opp-score-label {
+  font-size: 0.68rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.opp-names-row {
+  font-size: 0.88rem;
+  color: var(--text);
+  line-height: 1.4;
+}
+
+.opp-synergy-pills-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.opp-synergy-pill {
+  font-size: 0.74rem;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.opp-synergy-pill.interest {
+  background: #faf5ff;
+  color: #7c3aed;
+  border: 1px solid rgba(124, 58, 237, 0.2);
+}
+
+.opp-synergy-pill.shared-glow {
+  background: #fdf2f8;
+  color: #db2777;
+  border-color: #fbcfe8;
+  box-shadow: 0 0 6px rgba(236, 72, 153, 0.2);
+}
+
+.opp-synergy-pill.major {
+  background: #ecfdf5;
+  color: #059669;
+  border: 1px solid rgba(16, 185, 129, 0.2);
+}
+
+.opp-synergy-pill.age {
+  background: #eff6ff;
+  color: #2563eb;
+  border: 1px solid rgba(37, 99, 235, 0.2);
+}
+
+.opp-reason-text {
+  font-size: 0.82rem;
+  color: #475569;
+  line-height: 1.45;
+  margin: 0;
+  background: #f8fafc;
+  padding: 8px 10px;
+  border-radius: 8px;
+}
+
+/* Matching DNA Modal Elements */
+.dna-user-column-card {
+  background: #ffffff;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 16px;
+}
+
+.dna-profile-avatar {
+  width: 58px;
+  height: 58px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid var(--purple);
+  box-shadow: 0 3px 10px rgba(124, 58, 237, 0.15);
+}
+
+.dna-profile-avatar.placeholder {
+  background: linear-gradient(135deg, #7c3aed, #ec4899);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.4rem;
+  font-weight: 800;
+}
+
+.dna-info-mini-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  font-size: 0.83rem;
+  line-height: 1.4;
+  color: var(--text);
+  margin-top: 8px;
+}
+
+.mini-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.mini-avatar.initial {
+  background: #f0edff;
+  color: var(--purple);
+  font-size: 0.8rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+@media (max-width: 980px) {
+  .match-kpi-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .dna-side-by-side-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+@media (max-width: 580px) {
+  .match-kpi-grid {
+    grid-template-columns: 1fr;
+  }
+  .opportunity-cards-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+
 
 
 

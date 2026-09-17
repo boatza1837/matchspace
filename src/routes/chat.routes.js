@@ -3,6 +3,7 @@ const router = express.Router();
 const { db } = require('../config/db');
 const { requireAuth } = require('../middlewares/auth');
 const { broadcastToChat, sendToUser } = require('../services/websocket');
+const { recordChatActivity } = require('../services/matchmaking.service');
 
 async function getOrCreateActivityChat(activityId) {
   try {
@@ -336,6 +337,9 @@ router.post('/api/chats/:id/messages', requireAuth, async (req, res) => {
     const result = await db.run('INSERT INTO chat_messages (chat_id, sender_id, content) VALUES (?, ?, ?)', [
       chatId, userId, String(content).trim()
     ]);
+
+    // Track chat activity for match lifecycle
+    recordChatActivity(chatId, userId).catch(() => {});
 
     const message = await db.get(`
       SELECT m.*, u.name AS sender_name, u.profile_image AS sender_profile_image, u.role AS sender_role

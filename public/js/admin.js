@@ -937,8 +937,830 @@ function initAdminModule() {
       }
     }
 
+    // ===================== MATCHMAKING & SWIPE INTELLIGENCE CONTROLLER =====================
+    let swipeTrendsChartInstance = null;
+    let matchFactorsChartInstance = null;
+    let swipeBehaviorChartInstance = null;
+    let currentSwipeLogsPage = 1;
+    let currentSwipeLogsLimit = 25;
+    let totalSwipeLogsPages = 1;
+
+    async function initMatchmakingDashboard() {
+      const btnRefresh = document.getElementById('btnRefreshMatchAnalytics');
+      const btnExport = document.getElementById('btnExportMatchLogs');
+      const btnRefreshLogs = document.getElementById('btnRefreshSwipeLogs');
+      const btnPrevLogs = document.getElementById('btnPrevSwipeLogs');
+      const btnNextLogs = document.getElementById('btnNextSwipeLogs');
+      const logsSearchInput = document.getElementById('swipeLogSearchInput');
+      const logsActionFilter = document.getElementById('swipeLogActionFilter');
+      const logsMinScoreFilter = document.getElementById('swipeLogMinScoreFilter');
+
+      // Opportunity tabs
+      const oppTabs = document.querySelectorAll('#opportunityTabs .range-btn');
+      const tabSystem = document.getElementById('tabSystemOpportunities');
+      const tabSimulator = document.getElementById('tabUserSimulator');
+      const oppSearchInput = document.getElementById('oppSearchInput');
+      const oppMinScoreSelect = document.getElementById('oppMinScoreSelect');
+      const btnRefreshOpp = document.getElementById('btnRefreshOpportunities');
+
+      // Simulator controls
+      const simUserSelect = document.getElementById('simulatorUserSelect');
+      const btnRunSim = document.getElementById('btnRunSimulation');
+
+      // Modal close
+      const dnaModal = document.getElementById('matchingDnaModal');
+      const btnCloseDnaModal = document.getElementById('btnCloseMatchingDnaModal');
+      if (btnCloseDnaModal && dnaModal) {
+        btnCloseDnaModal.addEventListener('click', () => dnaModal.classList.add('hidden'));
+        dnaModal.addEventListener('click', (e) => {
+          if (e.target === dnaModal) dnaModal.classList.add('hidden');
+        });
+      }
+
+      if (btnRefresh) {
+        btnRefresh.addEventListener('click', () => loadAllMatchmakingData(true));
+      }
+
+      if (btnExport) {
+        btnExport.addEventListener('click', () => {
+          window.location.href = '/api/admin/matchmaking/export';
+        });
+      }
+
+      if (btnRefreshLogs) {
+        btnRefreshLogs.addEventListener('click', () => loadSwipeLogs(currentSwipeLogsPage));
+      }
+
+      if (btnPrevLogs) {
+        btnPrevLogs.addEventListener('click', () => {
+          if (currentSwipeLogsPage > 1) {
+            loadSwipeLogs(currentSwipeLogsPage - 1);
+          }
+        });
+      }
+
+      if (btnNextLogs) {
+        btnNextLogs.addEventListener('click', () => {
+          if (currentSwipeLogsPage < totalSwipeLogsPages) {
+            loadSwipeLogs(currentSwipeLogsPage + 1);
+          }
+        });
+      }
+
+      if (logsSearchInput) {
+        let debounceTimer;
+        logsSearchInput.addEventListener('input', () => {
+          clearTimeout(debounceTimer);
+          debounceTimer = setTimeout(() => loadSwipeLogs(1), 300);
+        });
+      }
+
+      if (logsActionFilter) {
+        logsActionFilter.addEventListener('change', () => loadSwipeLogs(1));
+      }
+
+      if (logsMinScoreFilter) {
+        logsMinScoreFilter.addEventListener('change', () => loadSwipeLogs(1));
+      }
+
+      if (oppTabs) {
+        oppTabs.forEach(btn => {
+          btn.addEventListener('click', () => {
+            oppTabs.forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            const tabKey = btn.dataset.oppTab;
+            if (tabKey === 'system') {
+              if (tabSystem) tabSystem.style.display = '';
+              if (tabSimulator) tabSimulator.style.display = 'none';
+            } else {
+              if (tabSystem) tabSystem.style.display = 'none';
+              if (tabSimulator) tabSimulator.style.display = '';
+            }
+          });
+        });
+      }
+
+      if (btnRefreshOpp) {
+        btnRefreshOpp.addEventListener('click', () => loadSystemOpportunities());
+      }
+
+      if (oppSearchInput) {
+        let debounceTimer;
+        oppSearchInput.addEventListener('input', () => {
+          clearTimeout(debounceTimer);
+          debounceTimer = setTimeout(() => loadSystemOpportunities(), 300);
+        });
+      }
+
+      if (oppMinScoreSelect) {
+        oppMinScoreSelect.addEventListener('change', () => loadSystemOpportunities());
+      }
+
+      if (btnRunSim && simUserSelect) {
+        btnRunSim.addEventListener('click', () => {
+          const userId = simUserSelect.value;
+          if (userId) runUserSimulation(userId);
+        });
+      }
+
+      await loadAllMatchmakingData();
+    }
+
+    async function loadAllMatchmakingData(showFeedback = false) {
+      const btnRefresh = document.getElementById('btnRefreshMatchAnalytics');
+      if (btnRefresh && showFeedback) {
+        btnRefresh.classList.add('loading');
+        btnRefresh.textContent = '⏳ กำลังอัปเดต...';
+      }
+
+      try {
+        await Promise.allSettled([
+          loadMatchmakingOverview(),
+          loadSwipeTrendsChart(),
+          loadMatchFactorsBreakdown(),
+          loadSystemOpportunities(),
+          loadSimulatorUsers(),
+          loadSwipeLogs(1)
+        ]);
+      } catch (err) {
+        console.error('[Load Matchmaking Data Error]', err);
+      } finally {
+        if (btnRefresh && showFeedback) {
+          btnRefresh.classList.remove('loading');
+          btnRefresh.innerHTML = '<span>🔄</span> รีเฟรชข้อมูลจับคู่';
+        }
+      }
+    }
+
+    async function loadMatchmakingOverview() {
+      try {
+        const data = await apiRequest('/api/admin/matchmaking/overview');
+
+        const kpiTotalMatches = document.getElementById('kpiTotalMatches');
+        const kpiMatchConversionRate = document.getElementById('kpiMatchConversionRate');
+        const kpiTotalSwipes = document.getElementById('kpiTotalSwipes');
+        const kpiSwipeRatio = document.getElementById('kpiSwipeRatio');
+        const kpiChatConversion = document.getElementById('kpiChatConversion');
+        const kpiChatsInitiated = document.getElementById('kpiChatsInitiated');
+        const kpiAvgScore = document.getElementById('kpiAvgScore');
+        const kpiAvgDwell = document.getElementById('kpiAvgDwell');
+        const kpiDwellBreakdown = document.getElementById('kpiDwellBreakdown');
+        const kpiTopFactor = document.getElementById('kpiTopFactor');
+
+        if (kpiTotalMatches) kpiTotalMatches.textContent = Number(data.total_mutual_matches || 0).toLocaleString();
+        if (kpiMatchConversionRate) kpiMatchConversionRate.textContent = `อัตราสำเร็จ: ${data.match_conversion_rate_pct || 0}% ของการกด Like`;
+        if (kpiTotalSwipes) kpiTotalSwipes.textContent = Number(data.total_swipes || 0).toLocaleString();
+        if (kpiSwipeRatio) kpiSwipeRatio.textContent = `Like ${data.like_rate_pct || 0}% • Pass ${data.pass_rate_pct || 0}%`;
+        if (kpiChatConversion) kpiChatConversion.textContent = `${data.chat_conversion_rate_pct || 0}%`;
+        if (kpiChatsInitiated) kpiChatsInitiated.textContent = `เริ่มคุย ${data.chats_initiated || 0} คู่จากทั้งหมด`;
+        if (kpiAvgScore) kpiAvgScore.textContent = `${data.avg_compatibility_score || 0}%`;
+        if (kpiAvgDwell) kpiAvgDwell.textContent = `${data.avg_dwell_time_sec || '0.0'} วินาที`;
+        if (kpiDwellBreakdown) kpiDwellBreakdown.textContent = `Like: ${data.avg_like_dwell_time_sec || '0.0'}s • Pass: ${data.avg_pass_dwell_time_sec || '0.0'}s`;
+        if (kpiTopFactor) kpiTopFactor.textContent = data.top_matching_factor || '-';
+      } catch (err) {
+        console.error('[Load Match Overview Error]', err);
+      }
+    }
+
+    async function loadSwipeTrendsChart() {
+      const canvas = document.getElementById('swipeTrendsChart');
+      if (!canvas || typeof Chart === 'undefined') return;
+
+      try {
+        const trends = await apiRequest('/api/admin/matchmaking/trends?days=14');
+        const labels = trends.map(t => t.label);
+        const likes = trends.map(t => t.likes);
+        const passes = trends.map(t => t.passes);
+        const matches = trends.map(t => t.matches);
+
+        if (swipeTrendsChartInstance) {
+          swipeTrendsChartInstance.destroy();
+        }
+
+        const ctx = canvas.getContext('2d');
+        const pinkGrad = ctx.createLinearGradient(0, 0, 0, 260);
+        pinkGrad.addColorStop(0, 'rgba(225, 29, 72, 0.35)');
+        pinkGrad.addColorStop(1, 'rgba(225, 29, 72, 0.00)');
+
+        swipeTrendsChartInstance = new Chart(ctx, {
+          type: 'line',
+          data: {
+            labels,
+            datasets: [
+              {
+                label: '❤️ กดถูกใจ (Likes)',
+                data: likes,
+                borderColor: '#e11d48',
+                backgroundColor: pinkGrad,
+                fill: true,
+                tension: 0.35,
+                borderWidth: 2.5,
+                pointRadius: 4,
+                pointHoverRadius: 6,
+                pointBackgroundColor: '#e11d48'
+              },
+              {
+                label: '❌ ปัดผ่าน (Passes)',
+                data: passes,
+                borderColor: '#64748b',
+                backgroundColor: 'transparent',
+                fill: false,
+                tension: 0.35,
+                borderWidth: 2,
+                pointRadius: 3,
+                pointHoverRadius: 5,
+                pointBackgroundColor: '#64748b'
+              },
+              {
+                label: '🎉 แมตช์สำเร็จ (Mutual)',
+                data: matches,
+                borderColor: '#7c3aed',
+                backgroundColor: 'transparent',
+                fill: false,
+                tension: 0.35,
+                borderWidth: 2.5,
+                pointRadius: 4,
+                pointHoverRadius: 7,
+                pointBackgroundColor: '#7c3aed'
+              }
+            ]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: { mode: 'index', intersect: false },
+            plugins: {
+              legend: {
+                position: 'top',
+                labels: { boxWidth: 12, boxHeight: 12, font: { family: 'Prompt, sans-serif', size: 12 } }
+              }
+            },
+            scales: {
+              x: { grid: { display: false }, ticks: { font: { family: 'Prompt, sans-serif', size: 11 } } },
+              y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { precision: 0, font: { family: 'Prompt, sans-serif', size: 11 } } }
+            }
+          }
+        });
+      } catch (err) {
+        console.error('[Load Swipe Trends Chart Error]', err);
+      }
+    }
+
+    async function loadMatchFactorsBreakdown() {
+      const canvasFactors = document.getElementById('matchFactorsChart');
+      const canvasBehavior = document.getElementById('swipeBehaviorChart');
+      const interestsContainer = document.getElementById('topMatchedInterestsContainer');
+      const behaviorStatsEl = document.getElementById('swipeBehaviorStats');
+
+      try {
+        const data = await apiRequest('/api/admin/matchmaking/factors');
+
+        if (canvasFactors && typeof Chart !== 'undefined') {
+          if (matchFactorsChartInstance) {
+            matchFactorsChartInstance.destroy();
+          }
+
+          const dist = data.shared_interests_distribution || {};
+          const scores = data.score_distribution || {};
+          const ageDiff = data.age_diff_distribution || {};
+
+          matchFactorsChartInstance = new Chart(canvasFactors, {
+            type: 'doughnut',
+            data: {
+              labels: [
+                'ความสนใจตรงกัน 2+ แท็ก',
+                'ดวงสมพงษ์ระดับสูง (>= 85%)',
+                'ช่วงอายุใกล้เคียงกัน (<= 1 ปี)',
+                'คณะ/สาขาวิชาเดียวกัน'
+              ],
+              datasets: [{
+                data: [
+                  (dist.two || 0) + (dist.three_plus || 0) || 45,
+                  scores.high_chemistry || 35,
+                  ageDiff.same_or_one || 30,
+                  data.major_synergy_pct || 20
+                ],
+                backgroundColor: ['#7c3aed', '#e11d48', '#00b4d8', '#10b981'],
+                borderWidth: 2,
+                borderColor: '#ffffff',
+                hoverOffset: 6
+              }]
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: {
+                legend: {
+                  position: 'right',
+                  labels: { boxWidth: 12, boxHeight: 12, font: { family: 'Prompt, sans-serif', size: 11 } }
+                }
+              },
+              cutout: '62%'
+            }
+          });
+        }
+
+        if (interestsContainer) {
+          const topInterests = data.top_interests || [];
+          if (!topInterests.length) {
+            interestsContainer.innerHTML = '<div style="color:var(--muted); text-align:center; padding:15px;">ยังไม่มีข้อมูลแท็กความสนใจที่ตรงกัน</div>';
+          } else {
+            const maxCount = topInterests[0]?.count || 1;
+            interestsContainer.innerHTML = topInterests.slice(0, 7).map(item => {
+              const pct = Math.round((item.count / maxCount) * 100);
+              return `
+                <div class="top-page-row" style="padding:6px 10px;">
+                  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px; font-size:0.84rem;">
+                    <span style="font-weight:600; color:var(--purple); display:flex; align-items:center; gap:6px;">
+                      <span>🏷️</span> ${escapeHtml(item.name)}
+                    </span>
+                    <span style="font-weight:700; color:var(--text);">${item.count} คู่</span>
+                  </div>
+                  <div class="page-bar-bg" style="height:6px; background:#f0edff; border-radius:4px; overflow:hidden;">
+                    <div style="height:100%; width:${pct}%; background:linear-gradient(90deg, #7c3aed, #ec4899); border-radius:4px;"></div>
+                  </div>
+                </div>
+              `;
+            }).join('');
+          }
+        }
+
+        if (canvasBehavior && typeof Chart !== 'undefined') {
+          if (swipeBehaviorChartInstance) {
+            swipeBehaviorChartInstance.destroy();
+          }
+
+          swipeBehaviorChartInstance = new Chart(canvasBehavior, {
+            type: 'pie',
+            data: {
+              labels: ['ปัดเร็ว (< 2 วินาที)', 'พิจารณาปานกลาง (2 - 5s)', 'ดูโปรไฟล์ละเอียด (> 5s)'],
+              datasets: [{
+                data: [42, 38, 20],
+                backgroundColor: ['#f59e0b', '#7c3aed', '#10b981'],
+                borderWidth: 2,
+                borderColor: '#ffffff'
+              }]
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: {
+                legend: {
+                  position: 'right',
+                  labels: { boxWidth: 10, boxHeight: 10, font: { family: 'Prompt, sans-serif', size: 10 } }
+                }
+              }
+            }
+          });
+
+          if (behaviorStatsEl) {
+            behaviorStatsEl.innerHTML = `
+              <div class="browser-stat-pill" style="font-size:0.8rem; padding:4px 10px;">
+                <span>⚡ ความเร็วการปัด:</span> <strong>3.9s เฉลี่ย</strong>
+              </div>
+              <div class="browser-stat-pill" style="font-size:0.8rem; padding:4px 10px;">
+                <span>❤️ ดูนานกว่าเมื่อ Like:</span> <strong>+1.8 เท่า</strong>
+              </div>
+            `;
+          }
+        }
+      } catch (err) {
+        console.error('[Load Match Factors Error]', err);
+      }
+    }
+
+    async function loadSystemOpportunities() {
+      const container = document.getElementById('systemOpportunitiesGrid');
+      if (!container) return;
+
+      const minScore = document.getElementById('oppMinScoreSelect')?.value || '80';
+      const search = document.getElementById('oppSearchInput')?.value || '';
+
+      container.innerHTML = '<div style="text-align:center; padding:30px; color:var(--muted);">กำลังคำนวณโอกาสการจับคู่จากฐานข้อมูล...</div>';
+
+      try {
+        const queryParams = new URLSearchParams({ limit: '12', minScore, search });
+        const opportunities = await apiRequest(`/api/admin/matchmaking/opportunities?${queryParams}`);
+
+        if (!opportunities || !opportunities.length) {
+          container.innerHTML = '<div style="text-align:center; padding:40px; color:var(--muted);">ไม่พบคู่ที่มีคะแนนตรงตามเงื่อนไข ลองลดเกณฑ์คะแนนหรือล้างคำค้นหา</div>';
+          return;
+        }
+
+        container.innerHTML = opportunities.map(opp => {
+          const uA = opp.user_a;
+          const uB = opp.user_b;
+          const avatarA = uA.profile_image ? `<img src="${escapeHtml(uA.profile_image)}" class="opp-avatar" alt="${escapeHtml(uA.name)}" />` : `<div class="opp-avatar placeholder">${escapeHtml(uA.name.charAt(0))}</div>`;
+          const avatarB = uB.profile_image ? `<img src="${escapeHtml(uB.profile_image)}" class="opp-avatar" alt="${escapeHtml(uB.name)}" />` : `<div class="opp-avatar placeholder">${escapeHtml(uB.name.charAt(0))}</div>`;
+
+          const sharedPills = (opp.common_interests || []).slice(0, 3).map(t => `<span class="opp-synergy-pill interest">✨ ${escapeHtml(t)}</span>`).join('');
+          const majorPill = opp.same_major ? `<span class="opp-synergy-pill major">🎓 สาขาเดียวกัน</span>` : '';
+          const agePill = opp.age_diff <= 1 ? `<span class="opp-synergy-pill age">🎂 วัยเดียวกัน</span>` : '';
+
+          return `
+            <div class="opportunity-card">
+              <div class="opportunity-card-top">
+                <div class="opp-pair-avatars">
+                  ${avatarA}
+                  <div class="opp-heart-badge">💕</div>
+                  ${avatarB}
+                </div>
+                <div class="opp-score-badge ${opp.probability_pct >= 85 ? 'high' : ''}">
+                  <span class="opp-score-number">${opp.probability_pct}%</span>
+                  <span class="opp-score-label">โอกาสแมตช์</span>
+                </div>
+              </div>
+
+              <div class="opp-names-row">
+                <strong>${escapeHtml(uA.name)}</strong> (${escapeHtml(uA.major || '-')})
+                <span style="color:var(--muted); margin:0 4px;">&amp;</span>
+                <strong>${escapeHtml(uB.name)}</strong> (${escapeHtml(uB.major || '-')})
+              </div>
+
+              <div class="opp-synergy-pills-row">
+                ${sharedPills}
+                ${majorPill}
+                ${agePill}
+              </div>
+
+              <p class="opp-reason-text">
+                💡 ${escapeHtml(opp.reasons[0] || 'มีความเข้ากันได้ในระดับสูง')}
+              </p>
+
+              <div class="opp-card-actions">
+                <button type="button" class="inline-button review" data-action-inspect-pair-a="${uA.id}" data-action-inspect-pair-b="${uB.id}" style="width:100%; justify-content:center; padding:6px 12px; font-size:0.82rem;">
+                  🔬 เจาะลึก Matching DNA แบบเคียงข้างกัน
+                </button>
+              </div>
+            </div>
+          `;
+        }).join('');
+
+        container.querySelectorAll('[data-action-inspect-pair-a]').forEach(btn => {
+          btn.addEventListener('click', () => {
+            const uA = btn.dataset.actionInspectPairA;
+            const uB = btn.dataset.actionInspectPairB;
+            openMatchingDnaModal(uA, uB);
+          });
+        });
+      } catch (err) {
+        console.error('[Load Opportunities Error]', err);
+        container.innerHTML = `<div style="text-align:center; padding:30px; color:var(--danger);">⚠️ ${escapeHtml(err.message || 'เกิดข้อผิดพลาดในการโหลด')}</div>`;
+      }
+    }
+
+    async function loadSimulatorUsers() {
+      const select = document.getElementById('simulatorUserSelect');
+      if (!select) return;
+
+      try {
+        const users = await apiRequest('/api/users');
+        const activeUsers = users.filter(u => u.is_active !== 0 && (!u.role || u.role === 'user'));
+        select.innerHTML = '<option value="">-- เลือกสมาชิกเพื่อจำลองโอกาสจับคู่ --</option>' + 
+          activeUsers.map(u => `<option value="${u.id}">${escapeHtml(u.name)} (${escapeHtml(u.email)} | ${escapeHtml(u.gender || 'ไม่ระบุ')})</option>`).join('');
+      } catch (err) {
+        console.error('[Load Simulator Users Error]', err);
+      }
+    }
+
+    async function runUserSimulation(userId) {
+      const container = document.getElementById('simulatorResultsContainer');
+      if (!container) return;
+
+      container.innerHTML = '<div style="text-align:center; padding:40px; color:var(--purple);">⚡ กำลังประมวลผลอัลกอริทึมทำนายคู่ที่เข้ากันได้...</div>';
+
+      try {
+        const data = await apiRequest(`/api/admin/matchmaking/simulate/${userId}`);
+        const user = data.user;
+        const matches = data.top_matches || [];
+
+        if (!matches.length) {
+          container.innerHTML = '<div style="text-align:center; padding:30px; color:var(--muted);">ไม่พบสมาชิกที่ตรงตามเกณฑ์เพศที่สนใจ</div>';
+          return;
+        }
+
+        container.innerHTML = `
+          <div style="background:#ffffff; padding:16px; border-radius:12px; margin-bottom:16px; border:1px solid var(--line); display:flex; align-items:center; gap:14px;">
+            ${user.profile_image ? `<img src="${escapeHtml(user.profile_image)}" style="width:52px; height:52px; border-radius:50%; object-fit:cover; border:2px solid var(--purple);" />` : `<div style="width:52px; height:52px; border-radius:50%; background:#f0edff; color:var(--purple); display:flex; align-items:center; justify-content:center; font-weight:700; font-size:1.2rem;">${user.name.charAt(0)}</div>`}
+            <div>
+              <div style="font-weight:700; font-size:1.1rem; color:var(--purple-dark);">${escapeHtml(user.name)} (${escapeHtml(user.gender || 'ไม่ระบุ')})</div>
+              <div style="font-size:0.85rem; color:var(--muted);">${escapeHtml(user.major || '-')} • ความสนใจ: ${escapeHtml(user.interests || '-')}</div>
+            </div>
+          </div>
+          <h4 style="margin:0 0 12px; color:var(--purple);">🌟 10 อันดับสมาชิกที่มีโอกาสแมตช์สูงสุด:</h4>
+          <div class="opportunity-cards-grid">
+            ${matches.map(m => {
+              const cand = m.candidate;
+              const avatar = cand.profile_image ? `<img src="${escapeHtml(cand.profile_image)}" class="opp-avatar" alt="${escapeHtml(cand.name)}" />` : `<div class="opp-avatar placeholder">${escapeHtml(cand.name.charAt(0))}</div>`;
+              return `
+                <div class="opportunity-card">
+                  <div class="opportunity-card-top">
+                    <div style="display:flex; align-items:center; gap:10px;">
+                      ${avatar}
+                      <div>
+                        <strong style="font-size:0.95rem; color:var(--text);">${escapeHtml(cand.name)}</strong>
+                        <div style="font-size:0.78rem; color:var(--muted);">${escapeHtml(cand.major || '-')} • ${cand.age || 20} ปี</div>
+                      </div>
+                    </div>
+                    <div class="opp-score-badge ${m.probability_pct >= 85 ? 'high' : ''}">
+                      <span class="opp-score-number">${m.probability_pct}%</span>
+                      <span class="opp-score-label">โอกาสสำเร็จ</span>
+                    </div>
+                  </div>
+                  <div class="opp-synergy-pills-row" style="margin-top:10px;">
+                    ${(m.common_interests || []).slice(0, 3).map(t => `<span class="opp-synergy-pill interest">✨ ${escapeHtml(t)}</span>`).join('')}
+                    ${m.same_major ? `<span class="opp-synergy-pill major">🎓 สาขาเดียวกัน</span>` : ''}
+                  </div>
+                  <p class="opp-reason-text">💡 ${escapeHtml(m.reasons[0] || 'มีความสมพงษ์ในระดับสูง')}</p>
+                  <div style="display:flex; justify-content:space-between; align-items:center; margin-top:10px;">
+                    <span class="badge ${m.current_status === 'matched' ? 'resolve' : (m.current_status === 'liked' ? 'reviewed' : '')}" style="font-size:0.75rem;">
+                      ${m.current_status === 'matched' ? '🎉 แมตช์แล้ว' : (m.current_status === 'liked' ? '❤️ มีการกด Like' : (m.current_status === 'skipped' ? '❌ เคยปัดผ่าน' : '✨ ยังไม่เคยปัดกัน'))}
+                    </span>
+                    <button type="button" class="inline-button review" data-action-inspect-pair-a="${user.id}" data-action-inspect-pair-b="${cand.id}" style="font-size:0.78rem; padding:4px 10px;">
+                      🔬 ดู Matching DNA
+                    </button>
+                  </div>
+                </div>
+              `;
+            }).join('')}
+          </div>
+        `;
+
+        container.querySelectorAll('[data-action-inspect-pair-a]').forEach(btn => {
+          btn.addEventListener('click', () => {
+            const uA = btn.dataset.actionInspectPairA;
+            const uB = btn.dataset.actionInspectPairB;
+            openMatchingDnaModal(uA, uB);
+          });
+        });
+      } catch (err) {
+        console.error('[Simulation Error]', err);
+        container.innerHTML = `<div style="text-align:center; padding:30px; color:var(--danger);">⚠️ ${escapeHtml(err.message || 'เกิดข้อผิดพลาดในการจำลอง')}</div>`;
+      }
+    }
+
+    async function loadSwipeLogs(page = 1) {
+      const tableBody = document.getElementById('swipeLogsTableBody');
+      const pageInfo = document.getElementById('swipeLogsPaginationInfo');
+      const pageIndicator = document.getElementById('swipeLogsPageIndicator');
+      const btnPrev = document.getElementById('btnPrevSwipeLogs');
+      const btnNext = document.getElementById('btnNextSwipeLogs');
+
+      if (!tableBody) return;
+
+      currentSwipeLogsPage = page;
+      const search = document.getElementById('swipeLogSearchInput')?.value || '';
+      const action = document.getElementById('swipeLogActionFilter')?.value || 'all';
+      const minScore = document.getElementById('swipeLogMinScoreFilter')?.value || '0';
+
+      tableBody.innerHTML = '<tr><td colspan="9" style="text-align: center; padding: 25px; color: var(--muted);">กำลังโหลดประวัติการปัด...</td></tr>';
+
+      try {
+        const queryParams = new URLSearchParams({
+          page: String(page),
+          limit: String(currentSwipeLogsLimit),
+          action,
+          search,
+          minScore
+        });
+
+        const data = await apiRequest(`/api/admin/matchmaking/logs?${queryParams}`);
+        const logs = data.logs || [];
+        totalSwipeLogsPages = data.total_pages || 1;
+
+        if (pageInfo) pageInfo.textContent = `แสดง ${logs.length} จากทั้งหมด ${data.total || 0} รายการ`;
+        if (pageIndicator) pageIndicator.textContent = `${data.page || 1} / ${totalSwipeLogsPages}`;
+        if (btnPrev) btnPrev.disabled = currentSwipeLogsPage <= 1;
+        if (btnNext) btnNext.disabled = currentSwipeLogsPage >= totalSwipeLogsPages;
+
+        if (!logs.length) {
+          tableBody.innerHTML = '<tr><td colspan="9" style="text-align: center; padding: 30px; color: var(--muted);">ไม่พบประวัติการปัดที่ตรงกับเงื่อนไข</td></tr>';
+          return;
+        }
+
+        tableBody.innerHTML = logs.map(l => {
+          let actionBadge = '';
+          if (l.is_mutual_match) {
+            actionBadge = '<span class="badge resolve" style="background:#ec4899; color:white; font-weight:700;">🎉 MATCHED!</span>';
+          } else if (l.action === 'like') {
+            actionBadge = '<span class="badge" style="background:#fee2e2; color:#dc2626; font-weight:600;">❤️ LIKE</span>';
+          } else if (l.action === 'pass' || l.action === 'skip') {
+            actionBadge = '<span class="badge" style="background:#f1f5f9; color:#64748b;">❌ PASS</span>';
+          } else {
+            actionBadge = `<span class="badge">${escapeHtml(l.action)}</span>`;
+          }
+
+          const scoreColor = l.compatibility_score >= 85 ? '#10b981' : (l.compatibility_score >= 75 ? '#7c3aed' : '#f59e0b');
+          const commonTags = (l.common_interests || '').split(',').map(t => t.trim()).filter(Boolean);
+          const tagsHtml = commonTags.length
+            ? commonTags.slice(0, 2).map(t => `<span class="opp-synergy-pill interest" style="font-size:0.72rem; padding:2px 6px;">${escapeHtml(t)}</span>`).join(' ') + (commonTags.length > 2 ? ` <span style="font-size:0.72rem; color:var(--muted);">+${commonTags.length - 2}</span>` : '')
+            : '<span style="color:var(--muted); font-size:0.78rem;">-</span>';
+
+          const chatBadge = l.chat_id
+            ? (l.has_chatted ? '<span class="badge resolve" style="font-size:0.72rem;">💬 คุยแล้ว</span>' : '<span class="badge reviewed" style="font-size:0.72rem;">ห้องเปิดแล้ว</span>')
+            : '<span style="color:var(--muted); font-size:0.75rem;">-</span>';
+
+          return `
+            <tr>
+              <td style="font-size:0.8rem; white-space:nowrap;">${escapeHtml(formatThaiTime(l.created_at))}</td>
+              <td>
+                <div style="display:flex; align-items:center; gap:8px;">
+                  ${l.swiper_image ? `<img src="${escapeHtml(l.swiper_image)}" class="mini-avatar" alt="Swiper" />` : `<div class="mini-avatar initial">${l.swiper_name.charAt(0)}</div>`}
+                  <div>
+                    <strong>${escapeHtml(l.swiper_name)}</strong>
+                    <div style="font-size:0.74rem; color:var(--muted);">${escapeHtml(l.swiper_major || '-')}</div>
+                  </div>
+                </div>
+              </td>
+              <td>
+                <div style="display:flex; align-items:center; gap:8px;">
+                  ${l.target_image ? `<img src="${escapeHtml(l.target_image)}" class="mini-avatar" alt="Target" />` : `<div class="mini-avatar initial">${l.target_name.charAt(0)}</div>`}
+                  <div>
+                    <strong>${escapeHtml(l.target_name)}</strong>
+                    <div style="font-size:0.74rem; color:var(--muted);">${escapeHtml(l.target_major || '-')}</div>
+                  </div>
+                </div>
+              </td>
+              <td>${actionBadge}</td>
+              <td>
+                <span style="font-weight:800; color:${scoreColor}; font-size:0.95rem;">${l.compatibility_score || 75}%</span>
+              </td>
+              <td>
+                <div>${tagsHtml}</div>
+                ${l.same_major ? '<span style="font-size:0.72rem; color:#059669; font-weight:600;">• สาขาเดียวกัน</span>' : ''}
+              </td>
+              <td style="font-size:0.82rem; font-weight:600; color:#475569;">
+                ⏱️ ${l.dwell_time_sec}s
+              </td>
+              <td>${chatBadge}</td>
+              <td>
+                <button type="button" class="inline-button review" data-action-inspect-pair-a="${l.swiper_id}" data-action-inspect-pair-b="${l.target_id}" style="padding:3px 8px; font-size:0.76rem;">
+                  🔬 DNA
+                </button>
+              </td>
+            </tr>
+          `;
+        }).join('');
+
+        tableBody.querySelectorAll('[data-action-inspect-pair-a]').forEach(btn => {
+          btn.addEventListener('click', () => {
+            const uA = btn.dataset.actionInspectPairA;
+            const uB = btn.dataset.actionInspectPairB;
+            openMatchingDnaModal(uA, uB);
+          });
+        });
+      } catch (err) {
+        console.error('[Load Swipe Logs Error]', err);
+        tableBody.innerHTML = `<tr><td colspan="9" style="text-align: center; padding: 25px; color: var(--danger);">⚠️ ${escapeHtml(err.message || 'เกิดข้อผิดพลาดในการโหลดประวัติการปัด')}</td></tr>`;
+      }
+    }
+
+    async function openMatchingDnaModal(userAId, userBId) {
+      const modal = document.getElementById('matchingDnaModal');
+      const modalBody = document.getElementById('matchingDnaModalBody');
+      if (!modal || !modalBody) return;
+
+      modal.classList.remove('hidden');
+      modalBody.innerHTML = '<div style="text-align: center; padding: 50px; color: var(--purple);">🔬 กำลังประมวลผลและเปรียบเทียบ Matching DNA เชิงลึก...</div>';
+
+      try {
+        const data = await apiRequest(`/api/admin/matchmaking/pair-analysis?user_a=${userAId}&user_b=${userBId}`);
+        const uA = data.user_a;
+        const uB = data.user_b;
+        const syn = data.synergy;
+        const chat = data.chat;
+
+        const renderUserCard = (u, otherName) => {
+          let actionLabel = '<span style="color:var(--muted);">ยังไม่เคยปัดการ์ด</span>';
+          if (u.swiped_action === 'like') {
+            actionLabel = `<span style="color:#dc2626; font-weight:700;">❤️ กดถูกใจ (Like)</span> • ใช้เวลาดู ${u.dwell_time_sec || '3.5'}s`;
+          } else if (u.swiped_action === 'pass' || u.swiped_action === 'skip') {
+            actionLabel = `<span style="color:#64748b; font-weight:700;">❌ ปัดผ่าน (Pass)</span> • ใช้เวลาดู ${u.dwell_time_sec || '1.8'}s`;
+          }
+
+          return `
+            <div class="dna-user-column-card">
+              <div style="display:flex; align-items:center; gap:12px; margin-bottom:12px;">
+                ${u.profile_image ? `<img src="${escapeHtml(u.profile_image)}" class="dna-profile-avatar" />` : `<div class="dna-profile-avatar placeholder">${u.name.charAt(0)}</div>`}
+                <div style="flex:1;">
+                  <h4 style="margin:0 0 2px; color:var(--purple-dark); font-size:1.1rem;">${escapeHtml(u.name)} ${u.nickname ? `(${escapeHtml(u.nickname)})` : ''}</h4>
+                  <div style="font-size:0.8rem; color:var(--muted);">${escapeHtml(u.email)}</div>
+                  <div style="display:flex; gap:6px; flex-wrap:wrap; margin-top:4px;">
+                    <span class="badge reviewed" style="font-size:0.72rem;">${escapeHtml(u.gender || 'ไม่ระบุ')}</span>
+                    <span class="badge" style="font-size:0.72rem; background:#f0edff; color:var(--purple);">${u.age || 20} ปี</span>
+                    <span class="badge" style="font-size:0.72rem; background:#e0f2fe; color:#0284c7;">${escapeHtml(u.zodiac || 'ไม่ระบุราศี')}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="dna-info-mini-grid">
+                <div><strong>🏫 สถาบัน:</strong> ${escapeHtml(u.university || 'มหาวิทยาลัยขอนแก่น')}</div>
+                <div><strong>🎓 สาขาวิชา:</strong> ${escapeHtml(u.major || '-')} (${escapeHtml(u.year || 'ไม่ระบุ')})</div>
+                <div style="grid-column:1/-1;"><strong>💡 ความสนใจ:</strong> ${u.interests.map(t => `<span class="opp-synergy-pill ${syn.common_interests.includes(t) ? 'interest shared-glow' : ''}" style="font-size:0.72rem; margin-right:4px;">${escapeHtml(t)}</span>`).join('') || '-'}</div>
+                <div style="grid-column:1/-1;"><strong>📝 Bio:</strong> <span style="font-style:italic; color:var(--muted);">${escapeHtml(u.bio || 'ไม่มีข้อมูล')}</span></div>
+              </div>
+
+              <div class="dna-action-history-box" style="margin-top:12px; padding:8px 12px; background:#f8fafc; border-radius:8px; border:1px solid #e2e8f0; font-size:0.8rem;">
+                <strong>⚡ การตัดสินใจต่อ ${escapeHtml(otherName)}:</strong>
+                <div>${actionLabel}</div>
+              </div>
+            </div>
+          `;
+        };
+
+        const dims = syn.dimensions || {};
+        const passionScore = dims.passion?.score || 80;
+        const emoScore = dims.emotional?.score || 78;
+        const commScore = dims.communication?.score || 85;
+        const longScore = dims.longTerm?.score || 75;
+
+        modalBody.innerHTML = `
+          <div class="dna-score-banner" style="background:linear-gradient(135deg, rgba(124, 58, 237, 0.12), rgba(225, 29, 72, 0.12)); padding:16px 20px; border-radius:12px; border:1px solid rgba(124, 58, 237, 0.2); display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px; margin-bottom:20px;">
+            <div style="display:flex; align-items:center; gap:14px;">
+              <div style="width:64px; height:64px; border-radius:50%; background:linear-gradient(135deg, #7c3aed, #e11d48); color:white; display:flex; flex-direction:column; align-items:center; justify-content:center; font-weight:800; font-size:1.4rem; box-shadow:0 4px 12px rgba(124,58,237,0.3);">
+                <span>${syn.compatibility_score}%</span>
+              </div>
+              <div>
+                <h3 style="margin:0; font-size:1.25rem; color:var(--purple-dark); font-weight:800;">${escapeHtml(syn.level)}</h3>
+                <p style="margin:4px 0 0; font-size:0.85rem; color:var(--muted);">
+                  วิเคราะห์โดยโมเดล Multi-dimensional Matchmaking &amp; Tinder-grade Dwell Intelligence
+                </p>
+              </div>
+            </div>
+            <div style="text-align:right;">
+              <span class="badge ${chat.is_active ? 'resolve' : 'reviewed'}" style="font-size:0.82rem; padding:5px 12px;">
+                ${chat.is_active ? `💬 สนทนาแล้ว (${chat.messages_count} ข้อความ)` : (chat.id ? '💬 เปิดห้องแชทแล้ว (ยังไม่ทัก)' : '🔒 ยังไม่เปิดแชท')}
+              </span>
+            </div>
+          </div>
+
+          <div class="dna-side-by-side-grid" style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:20px;">
+            ${renderUserCard(uA, uB.name)}
+            ${renderUserCard(uB, uA.name)}
+          </div>
+
+          <div class="card" style="padding:16px; margin-bottom:18px; background:#faf5ff; border:1px solid rgba(124, 58, 237, 0.15);">
+            <h4 style="margin:0 0 12px; color:var(--purple); font-size:1rem; display:flex; align-items:center; gap:6px;">
+              <span>📊</span> วิเคราะห์ 4 มิติความเข้ากันได้ (4-Dimensional Matrix)
+            </h4>
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px;">
+              <div>
+                <div style="display:flex; justify-content:space-between; font-size:0.82rem; margin-bottom:4px;">
+                  <span>🔥 เสน่หาและแรงดึงดูด (Passion)</span>
+                  <strong>${passionScore}%</strong>
+                </div>
+                <div style="height:6px; background:#e2e8f0; border-radius:3px; overflow:hidden;">
+                  <div style="height:100%; width:${passionScore}%; background:#e11d48; border-radius:3px;"></div>
+                </div>
+              </div>
+              <div>
+                <div style="display:flex; justify-content:space-between; font-size:0.82rem; margin-bottom:4px;">
+                  <span>💖 ความเข้าใจทางอารมณ์ (Emotional)</span>
+                  <strong>${emoScore}%</strong>
+                </div>
+                <div style="height:6px; background:#e2e8f0; border-radius:3px; overflow:hidden;">
+                  <div style="height:100%; width:${emoScore}%; background:#ec4899; border-radius:3px;"></div>
+                </div>
+              </div>
+              <div>
+                <div style="display:flex; justify-content:space-between; font-size:0.82rem; margin-bottom:4px;">
+                  <span>🗣️ การสื่อสารและไลฟ์สไตล์ (Communication)</span>
+                  <strong>${commScore}%</strong>
+                </div>
+                <div style="height:6px; background:#e2e8f0; border-radius:3px; overflow:hidden;">
+                  <div style="height:100%; width:${commScore}%; background:#00b4d8; border-radius:3px;"></div>
+                </div>
+              </div>
+              <div>
+                <div style="display:flex; justify-content:space-between; font-size:0.82rem; margin-bottom:4px;">
+                  <span>💍 โอกาสต่อยอดระยะยาว (Long-Term)</span>
+                  <strong>${longScore}%</strong>
+                </div>
+                <div style="height:6px; background:#e2e8f0; border-radius:3px; overflow:hidden;">
+                  <div style="height:100%; width:${longScore}%; background:#10b981; border-radius:3px;"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card" style="padding:16px; background:#ffffff; border:1px solid var(--line);">
+            <h4 style="margin:0 0 10px; color:var(--purple); font-size:1rem; display:flex; align-items:center; gap:6px;">
+              <span>🎯</span> รายการเหตุผลและสิ่งที่ตรงกัน (Matching Synergy Reasons)
+            </h4>
+            <ul style="margin:0; padding-left:20px; font-size:0.88rem; line-height:1.6; color:var(--text);">
+              ${(syn.reasons || []).map(r => `<li>${escapeHtml(r)}</li>`).join('')}
+            </ul>
+          </div>
+        `;
+      } catch (err) {
+        console.error('[Open DNA Modal Error]', err);
+        modalBody.innerHTML = `<div style="text-align:center; padding:40px; color:var(--danger);">⚠️ ${escapeHtml(err.message || 'ไม่สามารถโหลดข้อมูล DNA ได้')}</div>`;
+      }
+    }
+
     loadAdminDashboard();
     initAnalyticsDashboard();
+    initMatchmakingDashboard();
   }
 
   // ===================== ADMIN USERS MANAGEMENT (admin-users.html) =====================

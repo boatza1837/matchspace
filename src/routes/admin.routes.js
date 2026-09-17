@@ -14,6 +14,16 @@ const {
   getPeakInsights,
   getRecentVisits
 } = require('../services/analytics.service');
+const {
+  getMatchmakingOverview,
+  getSwipeTrends,
+  getMatchFactorsBreakdown,
+  getSwipeLogs,
+  getMatchOpportunities,
+  simulateUserOpportunities,
+  getPairDeepAnalysis,
+  exportSwipeLogsCSV
+} = require('../services/matchmaking.service');
 
 // ===================== ANALYTICS ENDPOINTS =====================
 router.get('/api/admin/analytics/overview', requireAdmin, async (req, res) => {
@@ -273,6 +283,97 @@ router.patch('/api/users/:id/enable', requireAdmin, async (req, res) => {
 
   await db.run('UPDATE users SET is_active = 1 WHERE id = ?', [Number(id)]);
   res.json({ message: 'เปิดการใช้งานผู้ใช้งานสำเร็จ', user: { ...user, is_active: 1 } });
+});
+
+// ===================== MATCHMAKING INTELLIGENCE & SWIPE ANALYTICS =====================
+router.get('/api/admin/matchmaking/overview', requireAdmin, async (req, res) => {
+  try {
+    const overview = await getMatchmakingOverview();
+    res.json(overview);
+  } catch (err) {
+    console.error('[Admin Matchmaking Overview Error]', err);
+    res.status(500).json({ message: 'เกิดข้อผิดพลาดในการดึงข้อมูลภาพรวมการจับคู่' });
+  }
+});
+
+router.get('/api/admin/matchmaking/trends', requireAdmin, async (req, res) => {
+  try {
+    const days = parseInt(req.query.days || '14', 10);
+    const trends = await getSwipeTrends(days);
+    res.json(trends);
+  } catch (err) {
+    console.error('[Admin Matchmaking Trends Error]', err);
+    res.status(500).json({ message: 'เกิดข้อผิดพลาดในการดึงข้อมูลแนวโน้มการปัด' });
+  }
+});
+
+router.get('/api/admin/matchmaking/factors', requireAdmin, async (req, res) => {
+  try {
+    const factors = await getMatchFactorsBreakdown();
+    res.json(factors);
+  } catch (err) {
+    console.error('[Admin Matchmaking Factors Error]', err);
+    res.status(500).json({ message: 'เกิดข้อผิดพลาดในการดึงข้อมูลปัจจัยการจับคู่' });
+  }
+});
+
+router.get('/api/admin/matchmaking/logs', requireAdmin, async (req, res) => {
+  try {
+    const { page, limit, action, search, minScore } = req.query;
+    const data = await getSwipeLogs({ page, limit, action, search, minScore });
+    res.json(data);
+  } catch (err) {
+    console.error('[Admin Swipe Logs Error]', err);
+    res.status(500).json({ message: 'เกิดข้อผิดพลาดในการดึงข้อมูลประวัติการปัด' });
+  }
+});
+
+router.get('/api/admin/matchmaking/opportunities', requireAdmin, async (req, res) => {
+  try {
+    const { limit, minScore, genderFilter, search } = req.query;
+    const data = await getMatchOpportunities({ limit, minScore, genderFilter, search });
+    res.json(data);
+  } catch (err) {
+    console.error('[Admin Match Opportunities Error]', err);
+    res.status(500).json({ message: 'เกิดข้อผิดพลาดในการคำนวณโอกาสการจับคู่' });
+  }
+});
+
+router.get('/api/admin/matchmaking/simulate/:userId', requireAdmin, async (req, res) => {
+  try {
+    const userId = Number(req.params.userId);
+    const data = await simulateUserOpportunities(userId);
+    res.json(data);
+  } catch (err) {
+    console.error('[Admin Simulate Opportunities Error]', err);
+    res.status(500).json({ message: err.message || 'เกิดข้อผิดพลาดในการจำลองคู่สมพงษ์' });
+  }
+});
+
+router.get('/api/admin/matchmaking/pair-analysis', requireAdmin, async (req, res) => {
+  try {
+    const { user_a, user_b } = req.query;
+    if (!user_a || !user_b) {
+      return res.status(400).json({ message: 'กรุณาระบุ user_a และ user_b' });
+    }
+    const data = await getPairDeepAnalysis(user_a, user_b);
+    res.json(data);
+  } catch (err) {
+    console.error('[Admin Pair Analysis Error]', err);
+    res.status(500).json({ message: err.message || 'เกิดข้อผิดพลาดในการวิเคราะห์คู่ผู้ใช้' });
+  }
+});
+
+router.get('/api/admin/matchmaking/export', requireAdmin, async (req, res) => {
+  try {
+    const csv = await exportSwipeLogsCSV();
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', 'attachment; filename="matchspace_swipe_intelligence_logs.csv"');
+    res.send('\uFEFF' + csv);
+  } catch (err) {
+    console.error('[Admin Export Logs Error]', err);
+    res.status(500).json({ message: 'เกิดข้อผิดพลาดในการส่งออกข้อมูล' });
+  }
 });
 
 module.exports = router;

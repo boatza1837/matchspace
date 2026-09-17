@@ -256,10 +256,50 @@ async function initDatabase() {
       referrer TEXT,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP
     );
+
+    CREATE TABLE IF NOT EXISTS swipe_logs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      swiper_id INTEGER NOT NULL,
+      target_id INTEGER NOT NULL,
+      action TEXT NOT NULL,
+      is_mutual_match INTEGER DEFAULT 0,
+      compatibility_score INTEGER DEFAULT 0,
+      match_reasons TEXT,
+      common_interests_count INTEGER DEFAULT 0,
+      common_interests TEXT,
+      same_major INTEGER DEFAULT 0,
+      same_university INTEGER DEFAULT 1,
+      age_diff INTEGER DEFAULT 0,
+      zodiac_compat_score INTEGER DEFAULT 0,
+      dwell_time_ms INTEGER DEFAULT 0,
+      device_type TEXT DEFAULT 'desktop',
+      ip TEXT,
+      user_agent TEXT,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS match_events (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      match_id INTEGER NOT NULL,
+      user_a_id INTEGER NOT NULL,
+      user_b_id INTEGER NOT NULL,
+      matched_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      first_message_at TEXT,
+      first_message_by INTEGER,
+      messages_count INTEGER DEFAULT 0,
+      is_unmatched INTEGER DEFAULT 0,
+      unmatched_at TEXT,
+      unmatch_reason TEXT
+    );
   `);
 
   try { await db.run("CREATE INDEX IF NOT EXISTS idx_page_visits_created_at ON page_visits(created_at)"); } catch(e) {}
   try { await db.run("CREATE INDEX IF NOT EXISTS idx_page_visits_path ON page_visits(path)"); } catch(e) {}
+  try { await db.run("CREATE INDEX IF NOT EXISTS idx_swipe_logs_swiper ON swipe_logs(swiper_id)"); } catch(e) {}
+  try { await db.run("CREATE INDEX IF NOT EXISTS idx_swipe_logs_target ON swipe_logs(target_id)"); } catch(e) {}
+  try { await db.run("CREATE INDEX IF NOT EXISTS idx_swipe_logs_action ON swipe_logs(action)"); } catch(e) {}
+  try { await db.run("CREATE INDEX IF NOT EXISTS idx_swipe_logs_created ON swipe_logs(created_at)"); } catch(e) {}
+  try { await db.run("CREATE INDEX IF NOT EXISTS idx_match_events_pair ON match_events(user_a_id, user_b_id)"); } catch(e) {}
 
   try { await db.run("ALTER TABLE users ADD COLUMN encrypted_password TEXT"); } catch(e) {}
   try { await db.run("ALTER TABLE users ADD COLUMN gender TEXT DEFAULT 'ไม่ระบุ'"); } catch(e) {}
