@@ -138,6 +138,33 @@ window.matchSpaceApp = (function () {
       }
     });
 
+    // Quick Navigation Items
+    document.getElementById('drawerBtnHome')?.addEventListener('click', () => {
+      closeDrawer();
+      switchTab('home');
+    });
+
+    document.getElementById('drawerBtnDiscover')?.addEventListener('click', () => {
+      closeDrawer();
+      switchTab('discover');
+    });
+
+    document.getElementById('drawerBtnChat')?.addEventListener('click', () => {
+      closeDrawer();
+      switchTab('chat');
+    });
+
+    document.getElementById('drawerBtnActivity')?.addEventListener('click', () => {
+      closeDrawer();
+      switchTab('activity');
+    });
+
+    document.getElementById('drawerBtnProfile')?.addEventListener('click', () => {
+      closeDrawer();
+      switchTab('profile');
+    });
+
+    // History items
     document.getElementById('drawerBtnLiked')?.addEventListener('click', () => {
       closeDrawer();
       switchTab('liked');
@@ -148,10 +175,40 @@ window.matchSpaceApp = (function () {
       switchTab('skipped');
     });
 
-    document.getElementById('drawerBtnInstallPwa')?.addEventListener('click', () => {
+    // Astrology & Icebreaker tools
+    document.getElementById('drawerBtnAstrology')?.addEventListener('click', () => {
       closeDrawer();
-      if (window.matchSpacePWA?.promptInstall) {
-        window.matchSpacePWA.promptInstall();
+      const modal = document.getElementById('incompleteProfileModal');
+      if (modal) modal.classList.remove('hidden');
+    });
+
+    document.getElementById('drawerBtnIcebreaker')?.addEventListener('click', () => {
+      closeDrawer();
+      const modal = document.getElementById('conversationStarterModal');
+      if (modal) modal.classList.remove('hidden');
+    });
+
+    // Safety & Verification
+    document.getElementById('drawerBtnVerify')?.addEventListener('click', () => {
+      closeDrawer();
+      document.getElementById('btnOpenStudentVerify')?.click() || document.getElementById('btnOpenStudentVerifyHome')?.click();
+    });
+
+    document.getElementById('drawerBtnBlocked')?.addEventListener('click', () => {
+      closeDrawer();
+      document.getElementById('btnOpenBlockedUsers')?.click();
+    });
+
+    document.getElementById('drawerBtnSafetyTips')?.addEventListener('click', () => {
+      closeDrawer();
+      alert('🛡️ กฎชุมชน & คำแนะนำความปลอดภัย MatchSpace มข.:\n\n1. คุยอย่างสุภาพและให้เกียรติซึ่งกันและกัน\n2. ระวังการเปิดเผยข้อมูลส่วนตัวทางการเงินหรือรหัสผ่าน\n3. นัดพบในที่สาธารณะ เช่น คาเฟ่หรือห้องสมุดมหาวิทยาลัย\n4. สามารถกด "รายงานปัญหา" หรือ "บล็อก" ได้ทันทีหากพบพฤติกรรมไม่เหมาะสม');
+    });
+
+    // PWA Install Guide & Push Notify
+    document.getElementById('drawerBtnInstallGuide')?.addEventListener('click', () => {
+      closeDrawer();
+      if (window.matchSpacePWA?.openInstallModal) {
+        window.matchSpacePWA.openInstallModal();
       }
     });
 
@@ -162,16 +219,6 @@ window.matchSpaceApp = (function () {
       } else {
         document.getElementById('btnSubscribePush')?.click();
       }
-    });
-
-    document.getElementById('drawerBtnVerify')?.addEventListener('click', () => {
-      closeDrawer();
-      document.getElementById('btnOpenStudentVerify')?.click();
-    });
-
-    document.getElementById('drawerBtnBlocked')?.addEventListener('click', () => {
-      closeDrawer();
-      document.getElementById('btnOpenBlockedUsers')?.click();
     });
 
     document.getElementById('drawerLogoutBtn')?.addEventListener('click', () => {
@@ -186,6 +233,7 @@ window.matchSpaceApp = (function () {
     const majorEl = document.getElementById('drawerUserMajor');
     const avatarEl = document.getElementById('drawerAvatar');
     const verifyPill = document.getElementById('drawerVerifyPill');
+    const adminSection = document.getElementById('drawerAdminSection');
 
     if (nameEl) nameEl.textContent = user.nickname || user.name || 'ผู้ใช้งาน';
     if (majorEl) majorEl.textContent = `${user.year ? user.year + ' · ' : ''}${user.major || 'มหาวิทยาลัยขอนแก่น'}`;
@@ -198,6 +246,9 @@ window.matchSpaceApp = (function () {
         verifyPill.textContent = 'รอยืนยัน';
         verifyPill.className = 'drawer-status-pill';
       }
+    }
+    if (adminSection) {
+      adminSection.style.display = (user.role === 'admin') ? 'block' : 'none';
     }
   }
 

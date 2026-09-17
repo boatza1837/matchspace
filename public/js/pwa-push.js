@@ -131,65 +131,195 @@
     }
   }
 
-  // PWA Install Prompt handling
+  // PWA Install Prompt handling & UI Synchronization
   window.addEventListener('beforeinstallprompt', (e) => {
     e.preventDefault();
     deferredInstallPrompt = e;
     console.log('[PWA] beforeinstallprompt fired and captured');
-    const drawerInstallBtn = document.getElementById('drawerBtnInstallPwa');
-    if (drawerInstallBtn) {
-      drawerInstallBtn.classList.remove('hidden');
-    }
+    updateInstallUI(true, false);
   });
 
   window.addEventListener('appinstalled', () => {
     deferredInstallPrompt = null;
     console.log('[PWA] MatchSpace was installed successfully');
-    const drawerInstallBtn = document.getElementById('drawerBtnInstallPwa');
-    if (drawerInstallBtn) {
-      drawerInstallBtn.classList.add('hidden');
-    }
+    updateInstallUI(false, true);
   });
+
+  function isStandaloneMode() {
+    return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+  }
+
+  function isIosDevice() {
+    return /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+  }
+
+  function updateInstallUI(canInstallDirectly, isInstalled) {
+    const isStandalone = isInstalled || isStandaloneMode();
+
+    const topbarBtn = document.getElementById('topbarInstallBtn');
+    const heroStatus = document.getElementById('drawerHeroInstallStatus');
+    const heroBtn = document.getElementById('drawerHeroInstallBtn');
+    const homeStatus = document.getElementById('homePwaStatusPill');
+    const homeBtn = document.getElementById('btnOpenHomeInstallPwa');
+    const modalActionBtn = document.getElementById('pwaModalActionBtn');
+    const modalActionText = document.getElementById('pwaModalActionText');
+
+    if (isStandalone) {
+      if (topbarBtn) {
+        topbarBtn.innerHTML = '<span class="install-pill-icon">✔️</span> <span class="install-pill-text">เปิดในแอป</span>';
+        topbarBtn.style.background = 'linear-gradient(135deg, #10b981 0%, #059669 100%)';
+      }
+      if (heroStatus) {
+        heroStatus.textContent = '✔️ ติดตั้งแล้ว';
+        heroStatus.className = 'pwa-status-pill';
+        heroStatus.style.background = '#10b981';
+      }
+      if (heroBtn) {
+        heroBtn.innerHTML = '<span>✔️ ใช้งานในโหมดแอปแล้ว</span>';
+        heroBtn.style.opacity = '0.9';
+      }
+      if (homeStatus) {
+        homeStatus.textContent = '✔️ ติดตั้งแล้ว';
+        homeStatus.style.background = '#10b981';
+      }
+      if (homeBtn) {
+        homeBtn.innerHTML = '<span>เปิดใช้เต็มจอ</span>';
+      }
+      if (modalActionBtn && modalActionText) {
+        modalActionText.textContent = '✔️ คุณได้ติดตั้งแอป MatchSpace เรียบร้อยแล้ว';
+        modalActionBtn.style.background = '#10b981';
+      }
+    } else {
+      if (heroStatus) {
+        heroStatus.textContent = canInstallDirectly ? '⚡ พร้อมติดตั้ง' : '📲 ติดตั้งง่าย';
+        heroStatus.className = 'pwa-status-pill ready';
+      }
+    }
+  }
+
+  function openInstallModal() {
+    const modal = document.getElementById('pwaInstallModal');
+    if (!modal) return;
+
+    const iosGuide = document.getElementById('pwaIosGuide');
+    const androidGuide = document.getElementById('pwaAndroidGuide');
+    const isIos = isIosDevice();
+
+    if (iosGuide && androidGuide) {
+      if (isIos) {
+        iosGuide.style.display = 'block';
+        androidGuide.style.display = 'none';
+      } else {
+        iosGuide.style.display = 'none';
+        androidGuide.style.display = 'block';
+      }
+    }
+
+    modal.classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+  }
+
+  function closeInstallModal() {
+    const modal = document.getElementById('pwaInstallModal');
+    if (!modal) return;
+    modal.classList.add('hidden');
+    document.body.style.overflow = '';
+  }
 
   async function promptInstallPWA() {
     if (deferredInstallPrompt) {
-      deferredInstallPrompt.prompt();
-      const { outcome } = await deferredInstallPrompt.userChoice;
-      console.log('[PWA] User response to install prompt:', outcome);
-      deferredInstallPrompt = null;
-    } else {
-      // Check if iOS Safari
-      const isIos = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
-      const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
-
-      if (isStandalone) {
-        alert('คุณติดตั้งและเปิดใช้งาน MatchSpace บนหน้าจอโฮมเรียบร้อยแล้ว');
-      } else if (isIos) {
-        alert('วิธีติดตั้งบน iPhone / iPad:\n\n1. กดปุ่มแชร์ (Share ⎋) ด้านล่างของ Safari\n2. เลื่อนลงมาเลือก "เพิ่มไปยังหน้าจอโฮม" (Add to Home Screen ➕)\n3. กด "เพิ่ม" (Add) ที่มุมขวาบน');
-      } else {
-        alert('วิธีติดตั้งบนมือถือ:\n\nกดปุ่มเมนู 3 จุด (⋮) ของเบราว์เซอร์ แล้วเลือก "ติดตั้งแอป" (Install app) หรือ "เพิ่มลงในหน้าจอโฮม"');
+      try {
+        deferredInstallPrompt.prompt();
+        const { outcome } = await deferredInstallPrompt.userChoice;
+        console.log('[PWA] User response to install prompt:', outcome);
+        if (outcome === 'accepted') {
+          updateInstallUI(false, true);
+        }
+        deferredInstallPrompt = null;
+      } catch (err) {
+        console.warn('[PWA] prompt error, falling back to modal:', err);
+        openInstallModal();
       }
+    } else {
+      // If native deferred prompt is not available (e.g. iOS Safari or desktop browser)
+      openInstallModal();
     }
   }
 
   // Setup UI event listeners
   function setupPwaEventListeners() {
-    const installBtn = document.getElementById('drawerBtnInstallPwa');
-    if (installBtn) {
-      installBtn.addEventListener('click', promptInstallPWA);
-    }
+    // Topbar Install Button
+    document.getElementById('topbarInstallBtn')?.addEventListener('click', () => {
+      promptInstallPWA();
+    });
 
+    // Drawer Hero Card Install Button
+    document.getElementById('drawerHeroInstallBtn')?.addEventListener('click', () => {
+      // Close drawer if open, then prompt
+      document.getElementById('closeDrawerBtn')?.click();
+      promptInstallPWA();
+    });
+
+    // Home Tab Promo Banner Button
+    document.getElementById('btnOpenHomeInstallPwa')?.addEventListener('click', () => {
+      promptInstallPWA();
+    });
+
+    // Drawer Install Guide Button
+    document.getElementById('drawerBtnInstallGuide')?.addEventListener('click', () => {
+      document.getElementById('closeDrawerBtn')?.click();
+      openInstallModal();
+    });
+
+    // Install Modal Buttons
+    document.getElementById('closePwaInstallModal')?.addEventListener('click', closeInstallModal);
+    document.getElementById('pwaInstallModal')?.addEventListener('click', (e) => {
+      if (e.target.id === 'pwaInstallModal') closeInstallModal();
+    });
+
+    document.getElementById('pwaModalActionBtn')?.addEventListener('click', () => {
+      if (deferredInstallPrompt) {
+        closeInstallModal();
+        deferredInstallPrompt.prompt();
+        deferredInstallPrompt = null;
+      } else if (isIosDevice()) {
+        alert('สำหรับ iPhone / iPad: แตะปุ่มแชร์ ⎋ ของ Safari แล้วเลือก "เพิ่มไปยังหน้าจอโฮม" ➕');
+      } else {
+        alert('สำหรับเบราว์เซอร์: แตะเมนู 3 จุด (⋮) ของเบราว์เซอร์ แล้วเลือก "ติดตั้งแอป" หรือ "เพิ่มลงในหน้าจอหลัก"');
+      }
+    });
+
+    document.getElementById('pwaCopyLinkBtn')?.addEventListener('click', async () => {
+      const url = window.location.origin + '/app.html';
+      try {
+        if (navigator.clipboard) {
+          await navigator.clipboard.writeText(url);
+          alert('คัดลอกลิงก์ MatchSpace แล้ว:\n' + url);
+        } else {
+          prompt('คัดลอกลิงก์แอป MatchSpace:', url);
+        }
+      } catch (e) {
+        prompt('คัดลอกลิงก์แอป MatchSpace:', url);
+      }
+    });
+
+    // Push notification toggle button in drawer
     const pushBtn = document.getElementById('drawerBtnPushNotify');
     if (pushBtn) {
       pushBtn.addEventListener('click', () => {
         if (isPushSubscribed) {
-          if (confirm('คุณต้องการปิดการแจ้งเตือนใช่หรือไม่?')) {
+          if (confirm('คุณต้องการปิดการแจ้งเตือนพุชใช่หรือไม่?')) {
             unsubscribeUserFromPush();
           }
         } else {
           subscribeUserToPush();
         }
       });
+    }
+
+    // Initial check for standalone mode
+    if (isStandaloneMode()) {
+      updateInstallUI(false, true);
     }
   }
 
@@ -207,7 +337,11 @@
   window.matchSpacePWA = {
     subscribeUserToPush,
     unsubscribeUserFromPush,
+    promptInstall: promptInstallPWA,
     promptInstallPWA,
+    openInstallModal,
+    closeInstallModal,
+    isStandaloneMode,
     isPushSubscribed: () => isPushSubscribed
   };
 })();

@@ -21,10 +21,15 @@
           <span>MatchSpace</span>
         </div>
         <div class="mobile-topbar-actions">
+          <button id="topbarInstallBtn" class="topbar-install-pill" type="button" aria-label="ติดตั้งเว็บลงเป็นแอป MatchSpace" title="ติดตั้งลงเครื่องเป็นแอป">
+            <span class="install-pill-icon">📲</span>
+            <span class="install-pill-text">ติดตั้งแอป</span>
+            <span class="install-pill-sparkle">✨</span>
+          </button>
           <a href="https://kku-creative.my.canva.site/matchspace-satisfaction-survey" target="_blank" rel="noopener noreferrer" class="mobile-icon-btn survey-btn" aria-label="แบบประเมินความพึงพอใจ" title="แบบประเมินความพึงพอใจ">
             📋
           </a>
-          <button id="mobileMenuToggleBtn" class="mobile-icon-btn hamburger-btn" type="button" aria-label="เปิดเมนูเพิ่มเติม" title="เมนูเพิ่มเติม">
+          <button id="mobileMenuToggleBtn" class="mobile-icon-btn hamburger-btn" type="button" aria-label="เปิดเมนูเพิ่มเติม (รองรับทั้งแนวตั้งและแนวนอน)" title="เมนูเพิ่มเติม">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
               <line x1="3" y1="6" x2="21" y2="6"></line>
               <line x1="3" y1="12" x2="21" y2="12"></line>
@@ -99,6 +104,29 @@
               <button id="btnOpenStudentVerifyHome" type="button" class="btn-verify-student-cta">
                 ยืนยันทันที
               </button>
+            </div>
+
+            <!-- Install Web App as Native Mobile App Banner (PWA Highlight) -->
+            <div id="homePwaInstallBanner" class="home-pwa-install-banner">
+              <div class="home-pwa-banner-sparkle-bg" aria-hidden="true"></div>
+              <div class="home-pwa-banner-content">
+                <div class="home-pwa-icon-box">
+                  <span class="home-pwa-icon">📲</span>
+                  <span class="home-pwa-ping"></span>
+                </div>
+                <div class="home-pwa-text-box">
+                  <div class="home-pwa-tag-row">
+                    <span class="home-pwa-tag">✨ แนะนำเพื่อความสะดวกสูงสุด</span>
+                    <span id="homePwaStatusPill" class="home-pwa-status-pill">Web App PWA</span>
+                  </div>
+                  <h3 class="home-pwa-title">ติดตั้ง MatchSpace ลงบนหน้าจอมือถือ</h3>
+                  <p class="home-pwa-desc">เปิดใช้งานเร็วเต็มหน้าจอเหมือนแอปจริง ไม่ต้องเข้าเบราว์เซอร์ พร้อมรับการแจ้งเตือนข้อความใหม่ทันใจ</p>
+                </div>
+                <button id="btnOpenHomeInstallPwa" type="button" class="btn-home-install-cta">
+                  <span>ติดตั้งเป็นแอป</span>
+                  <span class="cta-arrow">›</span>
+                </button>
+              </div>
             </div>
 
             <!-- Section: สรุปของคุณ -->
@@ -1349,6 +1377,8 @@
     <div id="mobileDrawerBackdrop" class="mobile-drawer-backdrop hidden"></div>
     <aside id="mobileMenuDrawer" class="mobile-menu-drawer hidden" aria-label="เมนูการใช้งาน MatchSpace">
       <div class="drawer-top-drag-handle" aria-hidden="true"></div>
+      
+      <!-- Drawer Header -->
       <div class="drawer-header">
         <div class="drawer-user-info">
           <img id="drawerAvatar" class="drawer-avatar" src="/icons/default-avatar.svg" alt="" onerror="this.onerror=null; this.src='/icons/default-avatar.svg';" />
@@ -1360,8 +1390,58 @@
         <button id="closeDrawerBtn" class="drawer-close-btn" type="button" aria-label="ปิดเมนู">✕</button>
       </div>
 
+      <!-- VIP PWA Install Hero Card inside Drawer -->
+      <div id="drawerPwaHeroCard" class="drawer-pwa-hero-card">
+        <div class="drawer-pwa-card-top">
+          <div class="drawer-pwa-badge">
+            <span class="pwa-badge-pulse"></span>
+            <span class="pwa-badge-text">Web App (PWA)</span>
+          </div>
+          <span id="drawerHeroInstallStatus" class="pwa-status-pill ready">⚡ พร้อมติดตั้ง</span>
+        </div>
+        <div class="drawer-pwa-hero-body">
+          <div class="drawer-pwa-icon-glow">
+            <img src="/icons/icon.svg" alt="MatchSpace App" class="drawer-pwa-icon-img" onerror="this.src='/icons/default-avatar.svg';" />
+          </div>
+          <div class="drawer-pwa-text-wrap">
+            <h4 class="drawer-pwa-title">ติดตั้ง MatchSpace ลงเครื่อง</h4>
+            <p class="drawer-pwa-desc">เปิดเร็วเต็มจอ ไม่ต้องเข้าเบราว์เซอร์ พร้อมรับการแจ้งเตือนข้อความทันใจ</p>
+          </div>
+        </div>
+        <button id="drawerHeroInstallBtn" type="button" class="drawer-hero-install-btn">
+          <span class="btn-sparkle">✨</span>
+          <span>ติดตั้งเป็นแอปเลย (Install App)</span>
+          <span class="btn-arrow">›</span>
+        </button>
+      </div>
+
       <div class="drawer-body">
-        <div class="drawer-section-title">การค้นหา & ประวัติ</div>
+        <!-- 1. การนำทางหลัก -->
+        <div class="drawer-section-title">🧭 นำทางด่วน</div>
+        <button id="drawerBtnHome" class="drawer-item" type="button">
+          <span class="drawer-item-icon">🏠</span>
+          <span class="drawer-item-text">หน้าแรก (Home)</span>
+        </button>
+        <button id="drawerBtnDiscover" class="drawer-item" type="button">
+          <span class="drawer-item-icon">🔍</span>
+          <span class="drawer-item-text">ค้นหาเพื่อน (Discover)</span>
+        </button>
+        <button id="drawerBtnChat" class="drawer-item" type="button">
+          <span class="drawer-item-icon">💬</span>
+          <span class="drawer-item-text">ห้องแชท &amp; ข้อความ</span>
+          <span id="drawerChatBadge" class="drawer-badge-pill hidden">0</span>
+        </button>
+        <button id="drawerBtnActivity" class="drawer-item" type="button">
+          <span class="drawer-item-icon">📅</span>
+          <span class="drawer-item-text">กิจกรรมรอบตัว (Activity)</span>
+        </button>
+        <button id="drawerBtnProfile" class="drawer-item" type="button">
+          <span class="drawer-item-icon">👤</span>
+          <span class="drawer-item-text">โปรไฟล์ &amp; การตั้งค่า</span>
+        </button>
+
+        <!-- 2. การค้นหา & ประวัติ -->
+        <div class="drawer-section-title">💖 การค้นหา &amp; ประวัติ</div>
         <button id="drawerBtnLiked" class="drawer-item" type="button">
           <span class="drawer-item-icon">💖</span>
           <span class="drawer-item-text">คนที่คุณกดสนใจ</span>
@@ -1373,7 +1453,67 @@
           <span id="drawerSkippedBadge" class="drawer-badge-pill">0</span>
         </button>
 
-        <div class="drawer-section-title">ช่วยเหลือ & ติชม</div>
+        <!-- 3. เครื่องมือดูดวง & ชวนคุย -->
+        <div class="drawer-section-title">🔮 ดูดวง &amp; เครื่องมือชวนคุย</div>
+        <button id="drawerBtnAstrology" class="drawer-item" type="button">
+          <span class="drawer-item-icon">🔮</span>
+          <span class="drawer-item-text">ดูดวงสมพงษ์ &amp; ราศี (Astrology)</span>
+          <span class="drawer-status-pill special">✨ แม่นยำ</span>
+        </button>
+        <button id="drawerBtnIcebreaker" class="drawer-item" type="button">
+          <span class="drawer-item-icon">💡</span>
+          <span class="drawer-item-text">ไอเดียเปิดบทสนทนา (Icebreaker)</span>
+        </button>
+
+        <!-- 4. ความปลอดภัย & สิทธิพิเศษ -->
+        <div class="drawer-section-title">🛡️ ความปลอดภัย &amp; การยืนยัน</div>
+        <button id="drawerBtnVerify" class="drawer-item" type="button">
+          <span class="drawer-item-icon">🎓</span>
+          <span class="drawer-item-text">ยืนยันตัวตนนักศึกษา</span>
+          <span id="drawerVerifyPill" class="drawer-status-pill">รอยืนยัน</span>
+        </button>
+        <button id="drawerBtnPushNotify" class="drawer-item" type="button">
+          <span class="drawer-item-icon">🔔</span>
+          <span class="drawer-item-text">การแจ้งเตือนพุช (Push Alert)</span>
+          <span id="drawerPushPill" class="drawer-status-pill">เปิดใช้งาน</span>
+        </button>
+        <button id="drawerBtnBlocked" class="drawer-item" type="button">
+          <span class="drawer-item-icon">🚫</span>
+          <span class="drawer-item-text">รายชื่อผู้ใช้ที่บล็อก</span>
+          <span class="drawer-external-arrow">›</span>
+        </button>
+        <button id="drawerBtnSafetyTips" class="drawer-item" type="button">
+          <span class="drawer-item-icon">🛡️</span>
+          <span class="drawer-item-text">แนวทางความปลอดภัย &amp; กฎชุมชน</span>
+        </button>
+
+        <!-- 5. เมนูผู้ดูแลระบบ (สำหรับ Admin) -->
+        <div id="drawerAdminSection" class="drawer-admin-section" style="display:none;">
+          <div class="drawer-section-title admin-title">👑 ผู้ดูแลระบบ (Admin Console)</div>
+          <a href="/admin" class="drawer-item admin-item">
+            <span class="drawer-item-icon">📊</span>
+            <span class="drawer-item-text">แดชบอร์ดภาพรวมผู้ดูแล</span>
+            <span class="drawer-external-arrow">↗</span>
+          </a>
+          <a href="/admin#matchmakingSection" class="drawer-item admin-item">
+            <span class="drawer-item-icon">🎯</span>
+            <span class="drawer-item-text">Matchmaking Intelligence</span>
+            <span class="drawer-status-pill admin-pill">ใหม่</span>
+          </a>
+          <a href="/admin-users" class="drawer-item admin-item">
+            <span class="drawer-item-icon">👥</span>
+            <span class="drawer-item-text">จัดการบัญชีผู้ใช้งาน</span>
+            <span class="drawer-external-arrow">↗</span>
+          </a>
+        </div>
+
+        <!-- 6. ช่วยเหลือ & ติชม -->
+        <div class="drawer-section-title">💬 ช่วยเหลือ &amp; ติชม</div>
+        <button id="drawerBtnInstallGuide" class="drawer-item" type="button">
+          <span class="drawer-item-icon">📲</span>
+          <span class="drawer-item-text">วิธีติดตั้งเว็บลงเป็นแอป</span>
+          <span class="drawer-status-pill guide">คำแนะนำ</span>
+        </button>
         <a href="https://kku-creative.my.canva.site/matchspace-satisfaction-survey" target="_blank" rel="noopener noreferrer" class="drawer-item">
           <span class="drawer-item-icon">📋</span>
           <span class="drawer-item-text">ทำแบบประเมินความพึงพอใจ</span>
@@ -1384,38 +1524,113 @@
           <span class="drawer-item-text">รายงานปัญหาการใช้งาน</span>
           <span class="drawer-external-arrow">›</span>
         </a>
-
-        <div class="drawer-section-title">แอปพลิเคชัน &amp; การแจ้งเตือน</div>
-        <button id="drawerBtnInstallPwa" class="drawer-item" type="button">
-          <span class="drawer-item-icon">📱</span>
-          <span class="drawer-item-text">ติดตั้งแอป MatchSpace (PWA)</span>
-          <span id="drawerInstallPill" class="drawer-status-pill verified">ติดตั้งได้</span>
-        </button>
-        <button id="drawerBtnPushNotify" class="drawer-item" type="button">
-          <span class="drawer-item-icon">🔔</span>
-          <span class="drawer-item-text">การแจ้งเตือนพุช (Push Alert)</span>
-          <span id="drawerPushPill" class="drawer-status-pill">เปิดใช้งาน</span>
-        </button>
-
-        <div class="drawer-section-title">ความปลอดภัย &amp; การยืนยัน</div>
-        <button id="drawerBtnVerify" class="drawer-item" type="button">
-          <span class="drawer-item-icon">🎓</span>
-          <span class="drawer-item-text">ยืนยันตัวตนนักศึกษา</span>
-          <span id="drawerVerifyPill" class="drawer-status-pill">รอยืนยัน</span>
-        </button>
-        <button id="drawerBtnBlocked" class="drawer-item" type="button">
-          <span class="drawer-item-icon">🚫</span>
-          <span class="drawer-item-text">รายชื่อผู้ใช้ที่บล็อก</span>
-          <span class="drawer-external-arrow">›</span>
-        </button>
       </div>
 
       <div class="drawer-footer">
         <button id="drawerLogoutBtn" class="drawer-logout-btn" type="button">
           <span>🚪 ออกจากระบบ</span>
         </button>
+        <div class="drawer-footer-note">
+          <span>MatchSpace • Web &amp; App (PWA) • KKU</span>
+        </div>
       </div>
     </aside>
+
+    <!-- Interactive PWA Install Guide Modal (รองรับ iOS, Android, PC) -->
+    <div id="pwaInstallModal" class="modal hidden pwa-install-modal-backdrop">
+      <div class="pwa-install-modal-card">
+        <button type="button" id="closePwaInstallModal" class="pwa-modal-close" title="ปิดหน้าต่าง" aria-label="ปิด">✕</button>
+        
+        <div class="pwa-modal-header">
+          <div class="pwa-modal-app-icon">
+            <img src="/icons/icon.svg" alt="MatchSpace" class="pwa-modal-icon-img" onerror="this.src='/icons/default-avatar.svg';" />
+            <span class="pwa-modal-heart-badge">♥</span>
+          </div>
+          <div class="pwa-modal-title-group">
+            <span class="pwa-modal-badge">Progressive Web App</span>
+            <h3 class="pwa-modal-title">ติดตั้ง MatchSpace ลงเครื่อง</h3>
+            <p class="pwa-modal-sub">สัมผัสประสบการณ์เสมือน Native App ใช้งานเต็มจอ รวดเร็ว และสะดวกที่สุด</p>
+          </div>
+        </div>
+
+        <!-- 3 Key Perks of Installing -->
+        <div class="pwa-perks-grid">
+          <div class="pwa-perk-card">
+            <div class="pwa-perk-icon">⚡</div>
+            <div class="pwa-perk-text">
+              <strong>เปิดได้ทันที</strong>
+              <span>แตะไอคอนหน้าจอโฮม ไม่ต้องเปิดเบราว์เซอร์</span>
+            </div>
+          </div>
+          <div class="pwa-perk-card">
+            <div class="pwa-perk-icon">🔔</div>
+            <div class="pwa-perk-text">
+              <strong>แจ้งเตือนเรียลไทม์</strong>
+              <span>ไม่พลาดข้อความแชทและคู่แมตช์ใหม่</span>
+            </div>
+          </div>
+          <div class="pwa-perk-card">
+            <div class="pwa-perk-icon">📱</div>
+            <div class="pwa-perk-text">
+              <strong>เต็มหน้าจอ</strong>
+              <span>ไม่มีแถบ URL มากวนใจ ลื่นไหลทุกมุมมอง</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Dynamic Device Guide Section -->
+        <div id="pwaDeviceGuideSection" class="pwa-device-guide-box">
+          <!-- Step Instructions injected or visible -->
+          <div id="pwaIosGuide" class="pwa-platform-guide">
+            <div class="pwa-guide-header">
+              <span class="platform-icon">🍏</span>
+              <strong>วิธีติดตั้งสำหรับ iPhone / iPad (Safari)</strong>
+            </div>
+            <div class="pwa-steps-list">
+              <div class="pwa-step-item">
+                <div class="step-number">1</div>
+                <div class="step-text">แตะปุ่ม <strong>แชร์ (Share <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>)</strong> ที่แถบล่างของเบราว์เซอร์ Safari</div>
+              </div>
+              <div class="pwa-step-item">
+                <div class="step-number">2</div>
+                <div class="step-text">เลื่อนลงมาแล้วเลือก <strong>"เพิ่มไปยังหน้าจอโฮม" (Add to Home Screen ➕)</strong></div>
+              </div>
+              <div class="pwa-step-item">
+                <div class="step-number">3</div>
+                <div class="step-text">แตะ <strong>"เพิ่ม" (Add)</strong> ที่มุมขวาบน จะได้ไอคอนแอป MatchSpace บนหน้าจอโฮมทันที</div>
+              </div>
+            </div>
+          </div>
+
+          <div id="pwaAndroidGuide" class="pwa-platform-guide">
+            <div class="pwa-guide-header">
+              <span class="platform-icon">🤖</span>
+              <strong>วิธีติดตั้งสำหรับ Android / Google Chrome</strong>
+            </div>
+            <div class="pwa-steps-list">
+              <div class="pwa-step-item">
+                <div class="step-number">1</div>
+                <div class="step-text">กดปุ่ม <strong>"ติดตั้งแอปทันที"</strong> ด้านล่าง หรือแตะปุ่มเมนู 3 จุด (⋮) ที่มุมบนขวา</div>
+              </div>
+              <div class="pwa-step-item">
+                <div class="step-number">2</div>
+                <div class="step-text">เลือก <strong>"ติดตั้งแอป" (Install app)</strong> หรือ <strong>"เพิ่มลงในหน้าจอหลัก"</strong></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="pwa-modal-actions">
+          <button id="pwaModalActionBtn" type="button" class="pwa-modal-primary-btn">
+            <span class="btn-sparkle">📲</span>
+            <span id="pwaModalActionText">ติดตั้งแอปทันที (Install Now)</span>
+          </button>
+          <button id="pwaCopyLinkBtn" type="button" class="pwa-modal-secondary-btn">
+            <span>🔗 คัดลอกลิงก์แอป</span>
+          </button>
+        </div>
+      </div>
+    </div>
 
     <!-- Incomplete Profile Onboarding Modal (DoB & Preferences) -->
     <div id="incompleteProfileModal" class="modal hidden astrology-modal-backdrop">
