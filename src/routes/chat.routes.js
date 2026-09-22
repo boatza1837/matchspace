@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+const { getChatAccess } = require('../services/chat-access');
 const { db } = require('../config/db');
 const { requireAuth } = require('../middlewares/auth');
 const { broadcastToChat, sendToUser } = require('../services/websocket');
@@ -194,18 +195,8 @@ router.get('/api/chats/:id/messages', requireAuth, async (req, res) => {
       return res.status(404).json({ message: 'ไม่พบแชทนี้' });
     }
 
-    let hasAccess = isOwner;
-    if (!hasAccess) {
-      if (chat.activity_id || chat.type === 'group') {
-        const isCreator = Number(chat.creator_id) === Number(userId);
-        const isMember = await db.get('SELECT 1 FROM activity_members WHERE activity_id = ? AND user_id = ?', [chat.activity_id, userId]);
-        if (isCreator || isMember) hasAccess = true;
-      } else {
-        if (Number(chat.user_a) === Number(userId) || Number(chat.user_b) === Number(userId)) {
-          hasAccess = true;
-        }
-      }
-    }
+    const hasAccess = await getChatAccess(userId, chatId);
+    if (!hasAccess) return res.status(403).json({ message: 'คุณไม่มีสิทธิ์เข้าถึงแชทนี้' });
 
     let partnerId = null;
     if (chat.type !== 'group' && !chat.activity_id) {
@@ -261,6 +252,7 @@ router.post('/api/chats/:id/read', requireAuth, async (req, res) => {
   try {
     const userId = req.session.user.id;
     const chatId = Number(req.params.id);
+    if (!await getChatAccess(userId, chatId)) return res.status(403).json({ message: 'คุณไม่มีสิทธิ์เข้าถึงแชทนี้' });
     const now = new Date().toISOString();
 
     await db.run(`
@@ -299,22 +291,9 @@ router.post('/api/chats/:id/messages', requireAuth, async (req, res) => {
       return res.status(404).json({ message: 'ไม่พบแชทนี้' });
     }
 
-    let hasAccess = isOwner;
-    if (!hasAccess) {
-      if (chat.activity_id || chat.type === 'group') {
-        const isCreator = Number(chat.creator_id) === Number(userId);
-        const isMember = await db.get('SELECT 1 FROM activity_members WHERE activity_id = ? AND user_id = ?', [chat.activity_id, userId]);
-        if (isCreator || isMember) hasAccess = true;
-      } else {
-        if (Number(chat.user_a) === Number(userId) || Number(chat.user_b) === Number(userId)) {
-          hasAccess = true;
-        }
-      }
-    }
+    const hasAccess = await getChatAccess(userId, chatId);
+    if (!hasAccess) return res.status(403).json({ message: 'คุณไม่มีสิทธิ์เข้าถึงแชทนี้' });
 
-    if (!hasAccess) {
-      return res.status(403).json({ message: 'คุณไม่มีสิทธิ์ส่งข้อความในแชทนี้' });
-    }
 
     // Check if blocked in direct chat
     if (chat.type !== 'group' && !chat.activity_id) {

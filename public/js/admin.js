@@ -241,13 +241,14 @@ function initAdminModule() {
                </a>`
             : '<span style="color:#aaa; font-size:0.85rem;">ไม่มี</span>';
 
-          const targetName = report.target_user_name || report.reported_user;
+          const isPrivacyRequest = String(report.report_type || '').startsWith('privacy:');
+          const targetName = escapeHtml(report.target_user_name || report.reported_user);
           const isBanned = report.target_user_active === 0;
-          const targetUserId = report.target_user_id;
+          const targetUserId = isPrivacyRequest ? null : report.target_user_id;
 
           let reportedUserHtml = `<div><strong>${targetName}</strong></div>`;
           if (report.target_user_email) {
-            reportedUserHtml += `<small style="color:#777;">${report.target_user_email}</small>`;
+            reportedUserHtml += `<small style="color:#777;">${escapeHtml(report.target_user_email)}</small>`;
           }
           if (isBanned) {
             reportedUserHtml += `<div><span class="badge rejected" style="font-size:0.75rem; margin-top:2px;">ถูกแบนแล้ว</span></div>`;
@@ -265,23 +266,23 @@ function initAdminModule() {
                   ? `<button class="inline-button resolve" data-action-unban-user="${targetUserId}" data-report-id="${report.id}">✅ ยกเลิกแบน</button>`
                   : `<button class="inline-button reject" data-action-ban-user="${targetUserId}" data-report-id="${report.id}">🚫 แบนผู้ใช้</button>`
               ) : ''}
-              <button class="inline-button review" data-action-warn-user="${report.id}" data-target-name="${targetName}" data-target-user-id="${targetUserId || ''}">⚠️ ส่งเตือน</button>
+              ${isPrivacyRequest ? '<span class="badge">คำขอ PDPA ของเจ้าของบัญชี</span>' : `<button class="inline-button review" data-action-warn-user="${report.id}" data-target-name="${targetName}" data-target-user-id="${targetUserId || ''}">⚠️ ส่งเตือน</button>`}
             </div>
           `;
 
           return `
             <tr>
               <td>${report.id}</td>
-              <td>${report.reporter_name}<br><small>${report.reporter_email}</small></td>
+              <td>${escapeHtml(report.reporter_name)}<br><small>${escapeHtml(report.reporter_email)}</small></td>
               <td>${reportedUserHtml}</td>
-              <td>${report.report_type}</td>
-              <td>${report.description}</td>
+              <td>${escapeHtml(report.report_type)}</td>
+              <td>${escapeHtml(report.description)}</td>
               <td>${evidenceHtml}</td>
               <td><span class="badge ${report.status}">${report.status}</span></td>
               <td>
                 ${actionButtonsHtml}
                 <div style="margin-top:8px;">
-                  <textarea data-note-id="${report.id}" rows="2" placeholder="Note for reviewer">${report.admin_note || ''}</textarea>
+                  <textarea data-note-id="${report.id}" rows="2" placeholder="Note for reviewer">${escapeHtml(report.admin_note || '')}</textarea>
                 </div>
               </td>
             </tr>

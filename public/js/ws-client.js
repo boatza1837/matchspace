@@ -54,10 +54,10 @@ class MatchSpaceWebSocketClient {
         }
       };
 
-      this.ws.onclose = () => {
+      this.ws.onclose = (event) => {
         this.isConnected = false;
         this.emit('disconnected');
-        this.scheduleReconnect();
+        if (event.code !== 1008) this.scheduleReconnect();
       };
 
       this.ws.onerror = (err) => {

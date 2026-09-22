@@ -4,6 +4,7 @@
  */
 
 const { db } = require('../config/db');
+const { analyticsAllowed } = require('./privacy');
 
 // In-memory debounce cache to prevent duplicate visit logs within 5 seconds
 const visitDebounceCache = new Map();
@@ -14,7 +15,7 @@ setInterval(() => {
       visitDebounceCache.delete(key);
     }
   }
-}, 30000);
+}, 30000).unref();
 
 /**
  * Parse detailed Device, OS, and Browser from User-Agent
@@ -71,6 +72,7 @@ function parseUserAgentDetails(userAgent = '') {
  */
 async function recordPageVisit(req, customPath = null) {
   try {
+    if (!await analyticsAllowed(req)) return;
     const rawIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress || '127.0.0.1';
     const ip = rawIp.split(',')[0].trim().replace('::ffff:', '');
     const userAgent = req.headers['user-agent'] || '';

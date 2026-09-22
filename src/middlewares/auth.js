@@ -13,7 +13,7 @@ async function requireAuth(req, res, next) {
     return res.status(401).json({ message: 'กรุณาเข้าสู่ระบบก่อน' });
   }
 
-  const dbUser = await db.get('SELECT is_active FROM users WHERE id = ?', [req.session.user.id]);
+  const dbUser = await db.get('SELECT is_active, role FROM users WHERE id = ?', [req.session.user.id]);
   if (!dbUser || dbUser.is_active === 0) {
     req.session.destroy(() => {
       if (isHtmlReq) return res.redirect('/');
@@ -21,6 +21,8 @@ async function requireAuth(req, res, next) {
     });
     return;
   }
+  // Revoke stale owner privileges; this never grants a new role.
+  if (req.session.user.role === 'owner' && dbUser.role !== 'owner') req.session.user.role = 'user';
   next();
 }
 

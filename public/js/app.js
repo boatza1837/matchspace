@@ -569,7 +569,7 @@ window.matchSpaceApp = (function () {
   }
 
   function checkIncompleteProfile(user) {
-    if (!user) return;
+    if (!user || !user.matching_consent) return;
 
     // Check if user snoozed the reminder for 7 days or dismissed for this session
     try {

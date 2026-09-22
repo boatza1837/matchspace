@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+const { getPreferences } = require('../services/privacy');
 const { db } = require('../config/db');
 const { requireAuth, formatUser } = require('../middlewares/auth');
 const { upload, multiUpload } = require('../middlewares/upload');
@@ -31,10 +32,13 @@ router.get('/api/astrology/sources', (req, res) => {
 router.get('/api/me', requireAuth, async (req, res) => {
   const user = await db.get('SELECT * FROM users WHERE id = ?', [req.session.user.id]);
   const photos = await db.all('SELECT * FROM user_photos WHERE user_id = ? ORDER BY id ASC', [req.session.user.id]);
-  res.json({ user: formatUser(user), photos });
+  const privacy = await getPreferences(user.id);
+  res.json({ user: formatUser({ ...user, interested_gender: privacy.matching ? user.interested_gender : 'ทุกเพศ', matching_consent: privacy.matching }), photos });
 });
 
 router.put('/api/me', requireAuth, multiUpload, async (req, res) => {
+  const privacy = await getPreferences(req.session.user.id);
+  if (!privacy.matching) req.body.interested_gender = 'ทุกเพศ';
   const { name, gender, interested_gender, birthdate, university, major, year, interests, bio, nickname, age, phone } = req.body || {};
   const userId = req.session.user.id;
 
@@ -101,6 +105,8 @@ router.put('/api/me', requireAuth, multiUpload, async (req, res) => {
 router.post('/api/me/complete-profile', requireAuth, async (req, res) => {
   try {
     const userId = req.session.user.id;
+    const privacy = await getPreferences(userId);
+    if (!privacy.matching) req.body.interested_gender = 'ทุกเพศ';
     const { birthdate, gender, interested_gender } = req.body || {};
 
     if (!birthdate || !gender || !interested_gender) {
@@ -171,6 +177,8 @@ router.get('/api/users/:id/profile', requireAuth, async (req, res) => {
   res.json({ 
     user: {
       ...user,
+      birthdate: undefined,
+      interested_gender: undefined,
       zodiac: user.zodiac || targetAstro?.zodiacName || 'ไม่ระบุราศี',
       element: targetAstro?.element || 'ไม่ระบุ',
       elementColor: targetAstro?.elementColor || '#6366f1',
@@ -223,11 +231,12 @@ router.get('/api/candidates', requireAuth, async (req, res) => {
   try {
     const myId = req.session.user.id;
     // Query current user from DB to always have the latest preferences
-    const me = await db.get('SELECT id, gender, interested_gender FROM users WHERE id = ?', [myId]);
-    const myInterestedGender = (me?.interested_gender || req.session.user?.interested_gender || 'ทุกเพศ').trim();
+    const me = await db.get('SELECT id, gender, interested_gender, birthdate FROM users WHERE id = ?', [myId]);
+    const privacy = await getPreferences(myId);
+    const myInterestedGender = privacy.matching ? (me?.interested_gender || 'ทุกเพศ').trim() : 'ทุกเพศ';
 
     // Allow override from ?gender= if user specifically filters in Discover, otherwise default to user's interested_gender
-    const targetGender = req.query.gender !== undefined && req.query.gender !== ''
+    const targetGender = privacy.matching && req.query.gender !== undefined && req.query.gender !== ''
       ? req.query.gender.trim()
       : myInterestedGender;
 
@@ -263,6 +272,9 @@ router.get('/api/candidates', requireAuth, async (req, res) => {
       const candAstro = getUserAstrologyProfile(cand.birthdate);
       return {
         ...cand,
+        birthdate: undefined,
+        email: undefined,
+        interested_gender: undefined,
         zodiac: cand.zodiac || candAstro?.zodiacName || 'ไม่ระบุราศี',
         element: candAstro?.element || 'ไม่ระบุ',
         elementColor: candAstro?.elementColor || '#6366f1',
@@ -427,7 +439,7 @@ router.get('/api/skipped', requireAuth, async (req, res) => {
   try {
     const rows = await db.all(`
       SELECT m.id AS match_id, m.created_at AS skipped_at, m.note,
-             u.id, u.name, u.nickname, u.email, u.gender, u.interested_gender, u.university, u.age, u.major, u.year, 
+             u.id, u.name, u.nickname, u.email, u.gender, 'ไม่ระบุ' AS interested_gender, u.university, u.age, u.major, u.year,
              u.interests, u.bio, u.profile_image, u.is_student_verified
       FROM matches m
       JOIN users u ON u.id = m.matched_user_id
@@ -481,7 +493,7 @@ router.get('/api/liked', requireAuth, async (req, res) => {
     const userId = req.session.user.id;
     const rows = await db.all(`
       SELECT m.id AS match_id, m.created_at AS liked_at, m.status, m.note,
-             u.id, u.name, u.nickname, u.email, u.gender, u.interested_gender, u.university, u.age, u.major, u.year, 
+             u.id, u.name, u.nickname, u.email, u.gender, 'ไม่ระบุ' AS interested_gender, u.university, u.age, u.major, u.year,
              u.interests, u.bio, u.profile_image, u.is_student_verified,
              (
                SELECT c.id FROM chats c 

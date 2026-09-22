@@ -8,10 +8,13 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css" />
+    <link rel="stylesheet" href="landing.css" />
     <!-- Google Identity Services -->
     <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <link rel="stylesheet" href="/privacy.css">
+    <script src="/js/privacy.js" defer></script>
   </head>
-  <body class="auth-page-body">
+  <body class="auth-page-body familiar-landing">
     <!-- Ambient Background Glows -->
     <div class="auth-ambient-glow glow-1" aria-hidden="true"></div>
     <div class="auth-ambient-glow glow-2" aria-hidden="true"></div>
@@ -32,7 +35,7 @@
       </header>
 
       <!-- Main Login Content Grid -->
-      <main class="auth-main-grid">
+      <main class="auth-main-grid" id="login">
         <!-- Left Hero Section: Minimal & Aesthetic -->
         <section class="auth-hero-col">
           <div class="auth-hero-badge">
@@ -56,7 +59,7 @@
               <div class="benefit-icon-bubble">🎓</div>
               <div class="benefit-text">
                 <strong>ยืนยันตัวตนนักศึกษาจริง (Verified Student)</strong>
-                <span>ตรวจสอบผ่านอีเมลมหาวิทยาลัย (@kkumail.com หรือ .ac.th) มั่นใจได้ ไม่เจอโปรไฟล์ปลอมหรือแอคหลุม</span>
+                <span>เลือกยืนยันอีเมลมหาวิทยาลัย (@kkumail.com หรือ .ac.th) เพื่อแสดงสถานะการยืนยันบนโปรไฟล์</span>
               </div>
             </div>
 
@@ -79,7 +82,7 @@
             <div class="auth-benefit-item">
               <div class="benefit-icon-bubble">🛡️</div>
               <div class="benefit-text">
-                <strong>ปลอดภัย & เป็นส่วนตัวสูง</strong>
+                <strong>เลือกได้ว่าจะคุยกับใคร</strong>
                 <span>ระบบบล็อกผู้ใช้ไม่พึงประสงค์ รายงานปัญหา 24 ชม. และแจ้งเตือนผ่านอีเมลเมื่อมีคู่แมตช์หรือข้อความใหม่</span>
               </div>
             </div>
@@ -126,11 +129,7 @@
             </div>
 
             <!-- Official Google Sign-In Container -->
-            <div id="g_id_onload"
-                 data-client_id="186015897078-3qtjge4dbi3e6sjvp4e4lbulolipioug.apps.googleusercontent.com"
-                 data-callback="handleGoogleLoginResponse"
-                 data-auto_select="false">
-            </div>
+
             <div id="googleSignInButton" class="google-gis-container"></div>
 
             <!-- Fallback button always available for instant 1-click Google Sign-In -->
@@ -147,13 +146,39 @@
               <a href="/register" class="auth-switch-link">สมัครสมาชิกใหม่ ✨</a>
             </div>
 
-            <div id="loginMessage" class="message"></div>
+            <div id="loginMessage" class="message" role="status" aria-live="polite"></div>
           </div>
         </section>
       </main>
     </div>
 
+    <div class="story-intro"><span>MatchSpace ในจังหวะของคุณ</span><h2>จากความสนใจเล็ก ๆ สู่มิตรภาพดี ๆ</h2><a href="#story">เลื่อนเพื่อทำความรู้จัก <span aria-hidden="true">↓</span></a></div>
+    <section class="story" id="story" aria-label="จากความสนใจ สู่มิตรภาพ">
+      <div class="story-stage">
+        <div class="story-copy"><p class="eyebrow">SMALL MOMENTS. REAL CONNECTIONS.</p><div class="story-chapters">
+          <article class="chapter is-current"><span class="chapter-number">01 / DISCOVER</span><h2>เริ่มจาก<br>ชอบอะไรเหมือนกัน</h2><p>เพลงที่ฟัง ร้านที่ชอบ วิชาที่เรียน<br>รายละเอียดเล็ก ๆ ที่ทำให้เริ่มคุยง่ายขึ้น</p></article>
+          <article class="chapter"><span class="chapter-number">02 / SAY HELLO</span><h2>จากคนไม่รู้จัก<br>เป็นคนที่คุยถูกคอ</h2><p>ส่งความสนใจให้กัน แล้วเริ่มบทสนทนา<br>ไม่ต้องคิดคำทักทายให้สมบูรณ์แบบ</p></article>
+          <article class="chapter"><span class="chapter-number">03 / MEET UP</span><h2>แล้ววันธรรมดา<br>ก็น่าออกไปเจอ</h2><p>ชวนไปอ่านหนังสือ วิ่งรอบบึง หรือจิบกาแฟ<br>ให้มิตรภาพค่อย ๆ เกิดขึ้น ในแบบของคุณ</p></article>
+        </div><div class="story-progress" aria-hidden="true"><span class="active"></span><span></span><span></span></div></div>
+        <div class="phone-scene" aria-label="ตัวอย่างหน้าจอแอป ข้อมูลสมมติ">
+          <span class="scene-orbit orbit-one" aria-hidden="true"></span><span class="scene-orbit orbit-two" aria-hidden="true"></span>
+          <div class="floating-note note-one" aria-hidden="true">เพลงเดียวกัน.<br>ความรู้สึกเดียวกัน.</div>
+          <div class="phone"><div class="phone-camera" aria-hidden="true"></div><div class="phone-top"><span>matchspace</span><span class="tiny-mark" aria-hidden="true">✳</span></div>
+            <div class="phone-screen">
+              <div class="demo-screen discover-screen"><p class="demo-caption">คนที่อาจคุยถูกคอ</p><div class="portrait-art" aria-hidden="true"><div class="sun-disc"></div><div class="portrait-body"></div><div class="portrait-head"></div><div class="portrait-hair"></div><span class="art-flower">✳</span><span class="art-label">NICE TO<br>MEET YOU.</span></div><h3>พลอย <span>ปี 3</span></h3><p>ชอบฟังเพลง และตามหาร้านกาแฟร้านใหม่</p><div class="demo-tags"><span>กาแฟ</span><span>เพลงอินดี้</span><span>ถ่ายรูป</span></div><div class="demo-actions" aria-hidden="true"><span>↻</span><span>♡</span></div></div>
+              <div class="demo-screen chat-screen"><p class="demo-caption">บทสนทนาใหม่ของคุณ</p><div class="chat-avatar" aria-hidden="true">p.</div><h3>เริ่มต้นด้วย “สวัสดี”</h3><div class="bubble incoming">เห็นว่าชอบเพลงอินดี้เหมือนกัน</div><div class="bubble outgoing">ใช่! ช่วงนี้ฟังวงอะไรอยู่?</div><div class="bubble incoming">ไว้แลกเพลย์ลิสต์กันไหม :)</div><div class="chat-composer">พิมพ์ข้อความ… <span aria-hidden="true">↑</span></div></div>
+              <div class="demo-screen activity-screen"><p class="demo-caption">นัดหมายเล็ก ๆ หลังเลิกเรียน</p><div class="activity-art" aria-hidden="true"><span>GOOD<br>COMPANY.</span><div class="coffee-cup"></div></div><span class="event-label">COFFEE CLUB</span><h3>กาแฟสักแก้ว<br>กับเพื่อนใหม่สักคน</h3><p>แวะคาเฟ่หลังเลิกเรียน<br>คุยเรื่องอะไรก็ได้ที่อยากเล่า</p><div class="event-footer"><span>บอร์ดกิจกรรม</span><span aria-hidden="true">↗</span></div></div>
+            </div><div class="phone-bottom" aria-hidden="true"></div>
+          </div>
+          <div class="floating-note note-two" aria-hidden="true"><span>↗</span> เริ่มจากคำว่าสวัสดี</div><span class="demo-disclaimer">ตัวอย่างการใช้งาน · ข้อมูลสมมติ</span>
+        </div>
+      </div>
+    </section>
+
+
+    <div class="story-outro"><h2>พร้อมเริ่มต้นใหม่แล้วหรือยัง?</h2><a href="/register" class="button primary">สมัครสมาชิก</a><a href="#login" class="button secondary">เข้าสู่ระบบ</a><p><a href="/privacy">ความเป็นส่วนตัวและการใช้ข้อมูล</a></p></div>
     <script src="js/core.js"></script>
     <script src="js/auth.js"></script>
+    <script src="js/landing.js"></script>
   </body>
 </html>

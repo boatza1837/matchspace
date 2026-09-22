@@ -1,5 +1,7 @@
 const express = require('express');
 const router = express.Router();
+const { PRIVACY_VERSION, parseChoices, savePreferences, getPreferences } = require('../services/privacy');
+const { verifyGoogleCredential } = require('../services/google-auth');
 const { db } = require('../config/db');
 const { formatUser } = require('../middlewares/auth');
 const { multiUpload } = require('../middlewares/upload');
@@ -19,12 +21,13 @@ router.get('/api/session', async (req, res) => {
     });
     return;
   }
-  res.json({ user: req.session.user });
+  const privacy = await getPreferences(req.session.user.id);
+  res.json({ user: { ...req.session.user, interested_gender: privacy.matching ? req.session.user.interested_gender : 'ทุกเพศ', matching_consent: privacy.matching } });
 });
 
 router.get('/api/public/users', async (req, res) => {
   const users = await db.all(`
-    SELECT id, name, email, major
+    SELECT id, name, major
     FROM users
     WHERE is_active != 0 
       AND (is_admin IS NULL OR is_admin = 0)
@@ -59,8 +62,10 @@ router.post('/api/login', async (req, res) => {
       return res.status(403).json({ message: 'บัญชีนี้ถูกปิดใช้งาน กรุณาติดต่อผู้ดูแล' });
     }
 
-    const safeUser = formatUser(user);
+    const privacy = await getPreferences(user.id);
+    const safeUser = formatUser({ ...user, interested_gender: privacy.matching ? user.interested_gender : 'ทุกเพศ', matching_consent: privacy.matching });
     const isAdmin = Boolean(user.is_admin || user.role === 'admin' || user.role === 'owner');
+    await new Promise((resolve, reject) => req.session.regenerate(err => err ? reject(err) : resolve()));
     req.session.user = { ...safeUser, is_admin: isAdmin };
 
     const actionName = isAdmin ? 'Admin Login' : 'Email Login';
@@ -82,28 +87,15 @@ router.post('/api/login', async (req, res) => {
 
 router.post('/api/auth/google', async (req, res) => {
   try {
-    const { credential, email, name, picture } = req.body || {};
-
-    let googleEmail = email;
-    let googleName = name;
-    let googlePicture = picture;
-
-    if (credential) {
-      try {
-        const payloadBase64 = credential.split('.')[1];
-        const decodedJson = Buffer.from(payloadBase64, 'base64').toString('utf8');
-        const payload = JSON.parse(decodedJson);
-        googleEmail = payload.email;
-        googleName = payload.name || payload.email.split('@')[0];
-        googlePicture = payload.picture || '';
-      } catch (e) {
-        return res.status(400).json({ message: 'Token Google ไม่ถูกต้อง' });
-      }
+    let payload;
+    try {
+      payload = await verifyGoogleCredential(req.body?.credential);
+    } catch (err) {
+      return res.status(401).json({ message: 'ยืนยันบัญชี Google ไม่สำเร็จ กรุณาลองอีกครั้งหรือเข้าสู่ระบบด้วยรหัสผ่าน' });
     }
-
-    if (!googleEmail) {
-      return res.status(400).json({ message: 'ไม่พบข้อมูลอีเมลจาก Google' });
-    }
+    const googleEmail = payload.email;
+    const googleName = payload.name || payload.email.split('@')[0];
+    const googlePicture = payload.picture || '';
 
     const normalizedEmail = String(googleEmail).trim().toLowerCase();
     let user = await db.get('SELECT * FROM users WHERE email = ?', [normalizedEmail]);
@@ -121,8 +113,10 @@ router.post('/api/auth/google', async (req, res) => {
       return res.status(403).json({ message: 'บัญชีนี้ถูกปิดใช้งาน กรุณาติดต่อผู้ดูแล', banned: true });
     }
 
-    const safeUser = formatUser(user);
+    const privacy = await getPreferences(user.id);
+    const safeUser = formatUser({ ...user, interested_gender: privacy.matching ? user.interested_gender : 'ทุกเพศ', matching_consent: privacy.matching });
     const isAdmin = Boolean(user.is_admin || user.role === 'admin' || user.role === 'owner');
+    await new Promise((resolve, reject) => req.session.regenerate(err => err ? reject(err) : resolve()));
     req.session.user = { ...safeUser, is_admin: isAdmin };
 
     await logLogin(req, normalizedEmail, user.id, 'success', 'Google OAuth', 'เข้าสู่ระบบด้วย Google');
@@ -151,7 +145,15 @@ router.post('/api/logout', (req, res) => {
   });
 });
 
-router.post('/api/register', multiUpload, async (req, res) => {
+router.post('/api/register', multiUpload, async (req, res, next) => {
+  try {
+  if (req.body?.privacy_version !== PRIVACY_VERSION || req.body?.privacy_acknowledged !== 'true') {
+    const fs = require('fs/promises');
+    await Promise.all(Object.values(req.files || {}).flat().map(file => fs.unlink(file.path).catch(() => {})));
+    return res.status(400).json({ message: 'โปรดอ่านและรับทราบประกาศความเป็นส่วนตัวฉบับปัจจุบันก่อนสมัครสมาชิก' });
+  }
+  const privacyChoices = parseChoices({ ...req.body, email: req.body.email_consent });
+  if (!privacyChoices.matching) req.body.interested_gender = 'ทุกเพศ';
   const { name, email, password, gender, interested_gender, birthdate, university, major, year, interests, bio, nickname, age, phone, google_profile_image } = req.body || {};
 
   if (!name || !email || !password || !phone) {
@@ -216,7 +218,8 @@ router.post('/api/register', multiUpload, async (req, res) => {
     profileImage
   ]);
 
-  const userId = result.lastInsertRowid;
+  const userId = Number(result.lastInsertRowid);
+  await savePreferences(userId, privacyChoices, 'registration');
 
   if (profileImage) {
     await db.run('INSERT INTO user_photos (user_id, photo_url) VALUES (?, ?)', [userId, profileImage]);
@@ -230,9 +233,12 @@ router.post('/api/register', multiUpload, async (req, res) => {
   }
 
   const user = await db.get('SELECT * FROM users WHERE id = ?', [userId]);
-  const safeUser = formatUser(user);
+  const privacy = await getPreferences(user.id);
+    const safeUser = formatUser({ ...user, interested_gender: privacy.matching ? user.interested_gender : 'ทุกเพศ', matching_consent: privacy.matching });
+  await new Promise((resolve, reject) => req.session.regenerate(err => err ? reject(err) : resolve()));
   req.session.user = safeUser;
-  res.status(201).json({ message: 'สมัครสมาชิกสำเร็จ', user: safeUser });
+  req.session.save(err => err ? next(err) : res.status(201).json({ message: 'สมัครสมาชิกสำเร็จ', user: safeUser }));
+  } catch (err) { next(err); }
 });
 
 module.exports = router;

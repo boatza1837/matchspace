@@ -10,6 +10,11 @@
  */
 
 const { db } = require('../config/db');
+const { getPreferences } = require('./privacy');
+async function bothAllowAnalytics(a,b) {
+  const choices = await Promise.all([getPreferences(a),getPreferences(b)]);
+  return choices.every(p => p.analytics);
+}
 const { calculateSoulmateCompatibility, getUserAstrologyProfile, calculateAge } = require('./astrology');
 
 /**
@@ -144,6 +149,7 @@ function getDeviceType(ua) {
  */
 async function logSwipe({ swiperId, targetId, action, dwellTimeMs = 0, req = null, isMutual = 0 }) {
   try {
+    if (!await bothAllowAnalytics(swiperId,targetId)) return null;
     const swiper = await db.get('SELECT * FROM users WHERE id = ?', [Number(swiperId)]);
     const target = await db.get('SELECT * FROM users WHERE id = ?', [Number(targetId)]);
 
@@ -212,6 +218,7 @@ async function logSwipe({ swiperId, targetId, action, dwellTimeMs = 0, req = nul
  */
 async function recordMutualMatch(matchId, userAId, userBId) {
   try {
+    if (!await bothAllowAnalytics(userAId,userBId)) return;
     const uA = Number(userAId);
     const uB = Number(userBId);
 
@@ -248,6 +255,7 @@ async function recordChatActivity(chatId, senderId) {
   try {
     const chat = await db.get('SELECT * FROM chats WHERE id = ?', [Number(chatId)]);
     if (!chat || !chat.user_a || !chat.user_b) return;
+    if (!await bothAllowAnalytics(chat.user_a,chat.user_b)) return;
 
     const uA = Math.min(chat.user_a, chat.user_b);
     const uB = Math.max(chat.user_a, chat.user_b);
@@ -286,6 +294,7 @@ async function recordChatActivity(chatId, senderId) {
  */
 async function recordUnmatch(userAId, userBId, reason = 'ผู้ใช้ยกเลิกการแมตช์') {
   try {
+    if (!await bothAllowAnalytics(userAId,userBId)) return;
     const uA = Math.min(Number(userAId), Number(userBId));
     const uB = Math.max(Number(userAId), Number(userBId));
 

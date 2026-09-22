@@ -1,0 +1,10 @@
+.git/
+node_modules/
+.env
+.env.*
+*.db
+*.sqlite
+railway_dump.json
+scratch/
+tests/
+test-*.js

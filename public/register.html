@@ -8,6 +8,8 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="/privacy.css">
+    <script src="/js/privacy.js" defer></script>
   </head>
   <body class="auth-page-body">
     <!-- Ambient Background Glows -->
@@ -122,10 +124,10 @@
 
               <div class="auth-input-field">
                 <label for="interestedGender" class="auth-label">
-                  <span>สนใจเพศไหน (Looking for) *</span>
+                  <span>สนใจเพศไหน (เลือกได้เมื่อยินยอมด้านล่าง)</span>
                 </label>
                 <div class="input-control-wrap">
-                  <select id="interestedGender" name="interested_gender" required class="auth-input select-styled">
+                  <select id="interestedGender" name="interested_gender" disabled class="auth-input select-styled">
                     <option value="ทุกเพศ" selected>🌈 ทุกเพศ (All / Any)</option>
                     <option value="หญิง">👩 หญิง</option>
                     <option value="ชาย">👨 ชาย</option>
@@ -276,46 +278,14 @@
             </div>
           </div>
 
-          <!-- SECTION 4: นโยบายและความยินยอมข้อมูลส่วนบุคคล (PDPA) -->
           <div class="form-section-block consent-section">
-            <div class="form-section-header">
-              <span class="section-step-badge">4</span>
-              <div>
-                <h3 class="form-section-title">ความยินยอมในการใช้ข้อมูลส่วนบุคคล (PDPA)</h3>
-                <p class="form-section-desc">โปรดอ่านและให้ความยินยอมตาม พ.ร.บ. คุ้มครองข้อมูลส่วนบุคคล</p>
-              </div>
-            </div>
-
-            <div class="consent-box-modern">
-              <p>เว็บไซต์ <strong>MatchSpace</strong> ขอความยินยอมจากท่านในการเก็บรวบรวม ใช้ และประมวลผลข้อมูลส่วนบุคคล เพื่อให้บริการจับคู่และแนะนำผู้ใช้งานที่มีความสนใจหรือมีกิจกรรมที่เหมาะสมร่วมกัน</p>
-              
-              <h4>ข้อมูลส่วนบุคคลที่เก็บรวบรวม</h4>
-              <ul>
-                <li>รูปภาพหรือรูปโปรไฟล์</li>
-                <li>ชั้นปี คณะ และสถาบันการศึกษา</li>
-                <li>ความสนใจและงานอดิเรก</li>
-                <li>เบอร์โทรศัพท์และอีเมลสำหรับติดต่อ</li>
-              </ul>
-
-              <h4>วัตถุประสงค์ในการเก็บและใช้ข้อมูล</h4>
-              <p>เพื่อสร้างโปรไฟล์ผู้ใช้งาน แนะนำเพื่อนที่เข้ากัน แนะนำกิจกรรม และเพื่อปรับปรุงประสบการณ์การใช้งาน โดยจะเก็บรักษาข้อมูลอย่างปลอดภัยตามมาตรฐานความมั่นคงปลอดภัย</p>
-            </div>
-
-            <div class="consent-checkbox-wrap">
-              <label class="consent-custom-label" for="consentCheckbox">
-                <input type="checkbox" id="consentCheckbox" class="custom-checkbox" />
-                <span class="checkbox-text">ข้าพเจ้าได้อ่านและเข้าใจรายละเอียดการเก็บรวบรวมและใช้ข้อมูลส่วนบุคคลแล้ว และยินยอมให้ MatchSpace ดำเนินการตามวัตถุประสงค์ที่ระบุไว้</span>
-              </label>
-            </div>
-
-            <div class="consent-quick-buttons">
-              <button type="button" id="btnAcceptConsent" class="btn-consent-quick accept">
-                ✓ กดเพื่อยินยอมข้อตกลง
-              </button>
-              <button type="button" id="btnDeclineConsent" class="btn-consent-quick decline">
-                ✕ ไม่ยินยอม
-              </button>
-            </div>
+            <div class="form-section-header"><span class="section-step-badge">4</span><div><h3 class="form-section-title">ข้อมูลของคุณ คุณเลือกได้</h3><p class="form-section-desc">อ่านรายละเอียด แล้วเลือกเฉพาะสิ่งที่คุณต้องการ</p></div></div>
+            <div class="consent-box-modern"><p>เราใช้ชื่อ อีเมล รหัสผ่าน เบอร์โทร และข้อมูลโปรไฟล์เพื่อสร้างบัญชีและให้บริการ ส่วนข้อความ การจับคู่ กิจกรรม และบันทึกความปลอดภัยจะเกิดขึ้นเมื่อคุณใช้งาน</p><p>ชื่อ รูป อายุ เพศ ข้อมูลการศึกษา ความสนใจ และประวัติแนะนำตัวอาจแสดงแก่สมาชิกคนอื่น รูปที่อัปโหลดเข้าถึงได้ผ่านลิงก์ของรูป โปรดไม่ใส่ข้อมูลลับในโปรไฟล์</p><p><a href="/privacy" target="_blank" rel="noopener">อ่านประกาศฉบับเต็ม: ข้อมูล ผู้รับข้อมูล ระยะเวลา และสิทธิของคุณ ↗</a></p></div>
+            <div class="consent-checkbox-wrap"><label class="consent-custom-label"><input type="checkbox" id="consentCheckbox" class="custom-checkbox" required><span class="checkbox-text">ฉันได้อ่านประกาศความเป็นส่วนตัว ฉบับ 22 กันยายน 2569 แล้ว (เป็นการรับทราบ ไม่ใช่การยินยอมทุกอย่าง)</span></label></div>
+            <div class="consent-checkbox-wrap"><label class="consent-custom-label"><input type="checkbox" id="matchingConsent" class="custom-checkbox"><span class="checkbox-text">ยินยอมให้เก็บและใช้ข้อมูล “เพศที่สนใจ” เพื่อกรองและแนะนำคนที่ตรงกับความต้องการ ข้อมูลนี้อาจบ่งชี้รสนิยมทางเพศได้ — ไม่บังคับ และถอนความยินยอมได้</span></label></div>
+            <div class="consent-checkbox-wrap"><label class="consent-custom-label"><input type="checkbox" id="analyticsConsent" class="custom-checkbox"><span class="checkbox-text">ยินยอมให้วิเคราะห์การเข้าชม อุปกรณ์ IP และพฤติกรรมการปัดเพื่อปรับปรุงบริการ — ไม่บังคับ</span></label></div>
+            <div class="consent-checkbox-wrap"><label class="consent-custom-label"><input type="checkbox" id="emailConsent" class="custom-checkbox"><span class="checkbox-text">ต้องการอีเมลแจ้งเตือนเมื่อมีคู่แมตช์หรือข้อความใหม่ — ไม่บังคับ (อีเมล OTP ยังส่งเมื่อคุณขอ)</span></label></div>
+            <p class="form-section-desc">ไม่เลือกตัวเลือกเสริมก็สมัครและใช้แชทกับกิจกรรมได้ แก้ไขหรือถอนการเลือกได้ที่ “ความเป็นส่วนตัว”</p>
           </div>
 
           <!-- Submit Button & Footer -->

@@ -1,208 +1,146 @@
 const { WebSocketServer, WebSocket } = require('ws');
+const { ServerResponse } = require('http');
+const { db } = require('../config/db');
+const { getChatAccess } = require('./chat-access');
 
 let wss = null;
-// Map: userId -> Set<WebSocket>
 const userSockets = new Map();
-// Map: chatId -> Set<WebSocket>
 const chatRooms = new Map();
 
-function initWebSocketServer(httpServer) {
-  wss = new WebSocketServer({ server: httpServer, path: '/ws' });
+async function sessionUser(req) {
+  await new Promise((resolve, reject) => req.session.reload(err => err ? reject(err) : resolve()));
+  const id = req.session?.user?.id;
+  if (!id) return null;
+  const user = await db.get('SELECT id, name, is_active FROM users WHERE id = ?', [id]);
+  return user && user.is_active !== 0 ? user : null;
+}
 
-  wss.on('connection', (ws, req) => {
-    ws.isAlive = true;
-    ws.userId = null;
-    ws.currentChatId = null;
-
-    ws.on('pong', () => {
-      ws.isAlive = true;
-    });
-
-    ws.on('message', (data) => {
+function initWebSocketServer(httpServer, sessionMiddleware) {
+  wss = new WebSocketServer({ noServer: true, maxPayload: 8192 });
+  httpServer.on('upgrade', (req, socket, head) => {
+    socket.on('error', () => {});
+    const reject = () => { socket.write('HTTP/1.1 401 Unauthorized\r\nConnection: close\r\n\r\n'); socket.destroy(); };
+    try {
+      if (new URL(req.url, 'http://localhost').pathname !== '/ws') return reject();
+      if (req.headers.origin && new URL(req.headers.origin).host !== req.headers.host) return reject();
+    } catch { return reject(); }
+    sessionMiddleware(req, new ServerResponse(req), async err => {
       try {
-        const msg = JSON.parse(data);
-        handleWsMessage(ws, msg);
-      } catch (err) {
-        console.error('[WS Parse Error]', err.message);
-      }
-    });
-
-    ws.on('close', () => {
-      cleanupSocket(ws);
-    });
-
-    ws.on('error', (err) => {
-      console.error('[WS Socket Error]', err.message);
-      cleanupSocket(ws);
+        if (err || !req.session?.user) return reject();
+        const user = await sessionUser(req);
+        if (!user) return reject();
+        req.wsUser = user;
+        wss.handleUpgrade(req, socket, head, ws => wss.emit('connection', ws, req));
+      } catch { reject(); }
     });
   });
 
-  // Heartbeat ping interval to prune dead connections
+  wss.on('connection', (ws, req) => {
+    ws.isAlive = true;
+    ws.userId = Number(req.wsUser.id);
+    ws.currentChatId = null;
+    ws.request = req;
+    if (!userSockets.has(ws.userId)) userSockets.set(ws.userId, new Set());
+    userSockets.get(ws.userId).add(ws);
+    ws.send(JSON.stringify({ type: 'auth_success', userId: ws.userId }));
+    ws.on('pong', () => { ws.isAlive = true; });
+    let queue = Promise.resolve();
+    let pending = 0;
+    ws.on('message', data => {
+      if (++pending > 30) { ws.close(1008, 'Too many messages'); pending--; return; }
+      queue = queue.then(async () => {
+        if (ws.readyState !== WebSocket.OPEN) return;
+        const msg = JSON.parse(data);
+        const user = await sessionUser(req);
+        if (!user || Number(user.id) !== ws.userId) return ws.close(1008, 'Session expired');
+        await handleWsMessage(ws, msg, user);
+      }).catch(() => {
+        ws.close(1008, 'Invalid message or session');
+      }).finally(() => { pending--; });
+    });
+    ws.on('close', () => cleanupSocket(ws));
+    ws.on('error', () => cleanupSocket(ws));
+  });
+
   const interval = setInterval(() => {
-    wss.clients.forEach((ws) => {
+    wss.clients.forEach(ws => {
       if (!ws.isAlive) return ws.terminate();
       ws.isAlive = false;
       ws.ping();
     });
   }, 30000);
-
-  wss.on('close', () => {
-    clearInterval(interval);
-  });
-
-  console.log('[WebSocket] Real-time WebSocket server initialized on /ws');
+  interval.unref();
+  wss.on('close', () => clearInterval(interval));
   return wss;
 }
 
-function handleWsMessage(ws, msg) {
-  switch (msg.type) {
-    case 'auth': {
-      // Associate socket with userId
-      const userId = Number(msg.userId);
-      if (userId) {
-        ws.userId = userId;
-        if (!userSockets.has(userId)) {
-          userSockets.set(userId, new Set());
-        }
-        userSockets.get(userId).add(ws);
-        ws.send(JSON.stringify({ type: 'auth_success', userId }));
-      }
-      break;
-    }
-
-    case 'join_chat': {
-      const chatId = Number(msg.chatId);
-      if (chatId) {
-        if (ws.currentChatId && chatRooms.has(ws.currentChatId)) {
-          chatRooms.get(ws.currentChatId).delete(ws);
-        }
-        ws.currentChatId = chatId;
-        if (!chatRooms.has(chatId)) {
-          chatRooms.set(chatId, new Set());
-        }
-        chatRooms.get(chatId).add(ws);
-      }
-      break;
-    }
-
-    case 'leave_chat': {
-      if (ws.currentChatId && chatRooms.has(ws.currentChatId)) {
-        chatRooms.get(ws.currentChatId).delete(ws);
-        ws.currentChatId = null;
-      }
-      break;
-    }
-
-    case 'typing': {
-      const chatId = Number(msg.chatId);
-      if (chatId && chatRooms.has(chatId)) {
-        const payload = JSON.stringify({
-          type: 'typing',
-          chatId,
-          userId: ws.userId,
-          userName: msg.userName || 'คู่สนทนา'
-        });
-        chatRooms.get(chatId).forEach((client) => {
-          if (client !== ws && client.readyState === WebSocket.OPEN) {
-            client.send(payload);
-          }
-        });
-      }
-      break;
-    }
-
-    case 'stop_typing': {
-      const chatId = Number(msg.chatId);
-      if (chatId && chatRooms.has(chatId)) {
-        const payload = JSON.stringify({
-          type: 'stop_typing',
-          chatId,
-          userId: ws.userId
-        });
-        chatRooms.get(chatId).forEach((client) => {
-          if (client !== ws && client.readyState === WebSocket.OPEN) {
-            client.send(payload);
-          }
-        });
-      }
-      break;
-    }
-
-    case 'mark_read': {
-      const chatId = Number(msg.chatId);
-      if (chatId && ws.userId) {
-        const { db } = require('../config/db');
-        const now = new Date().toISOString();
-        db.run('UPDATE chat_messages SET is_read = 1, read_at = ? WHERE chat_id = ? AND sender_id != ? AND (is_read = 0 OR is_read IS NULL)', [now, chatId, ws.userId])
-          .then(() => {
-            broadcastToChat(chatId, {
-              type: 'messages_read',
-              chatId,
-              readerId: ws.userId,
-              readAt: now
-            });
-          })
-          .catch(err => console.error('[Mark Read WS Error]', err.message));
-      }
-      break;
-    }
-
-    default:
-      break;
+async function handleWsMessage(ws, msg, user) {
+  // Older clients send auth; acknowledge only the identity from their session.
+  if (msg.type === 'auth') {
+    ws.send(JSON.stringify({ type: 'auth_success', userId: ws.userId }));
+    return;
   }
+  if (msg.type === 'leave_chat') { leaveRoom(ws); return; }
+  if (!['join_chat', 'typing', 'stop_typing', 'mark_read'].includes(msg.type)) return;
+  const chatId = Number(msg.chatId);
+  if (!await getChatAccess(ws.userId, chatId)) {
+    ws.send(JSON.stringify({ type: 'error', code: 'FORBIDDEN', chatId }));
+    return;
+  }
+  if (msg.type === 'join_chat') {
+    leaveRoom(ws);
+    ws.currentChatId = chatId;
+    if (!chatRooms.has(chatId)) chatRooms.set(chatId, new Set());
+    chatRooms.get(chatId).add(ws);
+  } else if (msg.type === 'mark_read') {
+    const now = new Date().toISOString();
+    await db.run('UPDATE chat_messages SET is_read = 1, read_at = ? WHERE chat_id = ? AND sender_id != ? AND (is_read = 0 OR is_read IS NULL)', [now, chatId, ws.userId]);
+    broadcastToChat(chatId, { type: 'messages_read', chatId, readerId: ws.userId, readAt: now });
+  } else if (ws.currentChatId === chatId) {
+    broadcastToChat(chatId, { type: msg.type, chatId, userId: ws.userId, userName: user.name }, ws.userId);
+  }
+}
+
+function leaveRoom(ws) {
+  const room = chatRooms.get(ws.currentChatId);
+  if (room) {
+    room.delete(ws);
+    if (!room.size) chatRooms.delete(ws.currentChatId);
+  }
+  ws.currentChatId = null;
 }
 
 function cleanupSocket(ws) {
-  if (ws.userId && userSockets.has(ws.userId)) {
-    const sockets = userSockets.get(ws.userId);
+  const sockets = userSockets.get(ws.userId);
+  if (sockets) {
     sockets.delete(ws);
-    if (sockets.size === 0) userSockets.delete(ws.userId);
+    if (!sockets.size) userSockets.delete(ws.userId);
   }
-  if (ws.currentChatId && chatRooms.has(ws.currentChatId)) {
-    chatRooms.get(ws.currentChatId).delete(ws);
-    if (chatRooms.get(ws.currentChatId).size === 0) chatRooms.delete(ws.currentChatId);
-  }
+  leaveRoom(ws);
+}
+
+async function deliver(ws, payload, chatId) {
+  try {
+    const user = await sessionUser(ws.request);
+    if (!user || Number(user.id) !== ws.userId) return ws.close(1008, 'Session expired');
+    if (chatId && (!await getChatAccess(ws.userId, chatId) || ws.currentChatId !== chatId)) return;
+    if (ws.readyState === WebSocket.OPEN) ws.send(typeof payload === 'string' ? payload : JSON.stringify(payload));
+  } catch { ws.close(1008, 'Session expired'); }
 }
 
 function broadcastToChat(chatId, payload, excludeUserId = null) {
-  const cId = Number(chatId);
-  const data = typeof payload === 'string' ? payload : JSON.stringify(payload);
-
-  if (chatRooms.has(cId)) {
-    chatRooms.get(cId).forEach((client) => {
-      if (client.readyState === WebSocket.OPEN && (!excludeUserId || client.userId !== Number(excludeUserId))) {
-        client.send(data);
-      }
-    });
+  const id = Number(chatId);
+  for (const ws of chatRooms.get(id) || []) {
+    if (ws.userId !== Number(excludeUserId)) void deliver(ws, payload, id);
   }
 }
 
 function sendToUser(userId, payload) {
-  const uId = Number(userId);
-  const data = typeof payload === 'string' ? payload : JSON.stringify(payload);
-
-  if (userSockets.has(uId)) {
-    userSockets.get(uId).forEach((client) => {
-      if (client.readyState === WebSocket.OPEN) {
-        client.send(data);
-      }
-    });
-  }
+  for (const ws of userSockets.get(Number(userId)) || []) void deliver(ws, payload);
 }
 
 function broadcastGlobal(payload) {
-  if (!wss) return;
-  const data = typeof payload === 'string' ? payload : JSON.stringify(payload);
-  wss.clients.forEach((client) => {
-    if (client.readyState === WebSocket.OPEN) {
-      client.send(data);
-    }
-  });
+  if (wss) for (const ws of wss.clients) void deliver(ws, payload);
 }
 
-module.exports = {
-  initWebSocketServer,
-  broadcastToChat,
-  sendToUser,
-  broadcastGlobal
-};
+module.exports = { initWebSocketServer, broadcastToChat, sendToUser, broadcastGlobal };
