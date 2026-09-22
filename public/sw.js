@@ -3,7 +3,7 @@
  * Progressive Web App (PWA) & Web Push Notifications
  */
 
-const CACHE_NAME = 'matchspace-v2-privacy';
+const CACHE_NAME = 'matchspace-v3-home-motion';
 const STATIC_ASSETS = [
   '/',
   '/app.html',

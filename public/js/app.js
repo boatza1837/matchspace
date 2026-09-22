@@ -323,16 +323,25 @@ window.matchSpaceApp = (function () {
     if (homeUserNameEl && sessionUser) {
       homeUserNameEl.textContent = sessionUser.nickname || sessionUser.name || 'คุณผู้ใช้';
     }
-    if (homeCompatibleCountEl) {
-      homeCompatibleCountEl.textContent = discoverUsers ? discoverUsers.length : 0;
-    }
-    if (homeActivitiesCountEl) {
-      homeActivitiesCountEl.textContent = latestActivitiesList ? latestActivitiesList.length : 0;
-    }
-    if (homeNewMessagesCountEl) {
-      const countEl = document.getElementById('chatTotalCountBadge');
-      homeNewMessagesCountEl.textContent = countEl ? countEl.textContent : 0;
-    }
+    const animateNumber = (element, value) => {
+      if (!element) return;
+      const target = Math.max(0, Number.parseInt(value, 10) || 0);
+      if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        element.textContent = target;
+        return;
+      }
+      const started = performance.now();
+      const tick = (now) => {
+        const progress = Math.min(1, (now - started) / 650);
+        element.textContent = Math.round(target * (1 - Math.pow(1 - progress, 3)));
+        if (progress < 1) requestAnimationFrame(tick);
+      };
+      requestAnimationFrame(tick);
+    };
+    animateNumber(homeCompatibleCountEl, discoverUsers ? discoverUsers.length : 0);
+    animateNumber(homeActivitiesCountEl, latestActivitiesList ? latestActivitiesList.length : 0);
+    const countEl = document.getElementById('chatTotalCountBadge');
+    animateNumber(homeNewMessagesCountEl, countEl ? countEl.textContent : 0);
   }
 
   function loadHomeScreen() {

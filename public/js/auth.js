@@ -323,28 +323,21 @@ function initAuthModule() {
     const regCustomMajorEl = document.getElementById('customMajor');
     const regMajorLabelEl = document.getElementById('majorLabel');
 
-    if (regUniversityEl) {
-      regUniversityEl.addEventListener('change', () => {
-        if (regUniversityEl.value === 'other') {
-          if (regCustomUniversityEl) {
-            regCustomUniversityEl.classList.remove('hidden');
-            regCustomUniversityEl.focus();
-          }
-          if (regMajorEl) regMajorEl.classList.add('hidden');
-          if (regCustomMajorEl) regCustomMajorEl.classList.remove('hidden');
-          if (regMajorLabelEl) regMajorLabelEl.textContent = 'คณะ / สาขาวิชา (ระบุเอง)';
-        } else {
-          if (regCustomUniversityEl) regCustomUniversityEl.classList.add('hidden');
-          if (regMajorEl) regMajorEl.classList.remove('hidden');
-          if (regMajorLabelEl) regMajorLabelEl.textContent = 'คณะ / วิทยาลัย (ม.ขอนแก่น)';
-          if (regMajorEl && regMajorEl.value === 'other') {
-            if (regCustomMajorEl) regCustomMajorEl.classList.remove('hidden');
-          } else {
-            if (regCustomMajorEl) regCustomMajorEl.classList.add('hidden');
-          }
-        }
-      });
+    function syncUniversityFields({ focus = false } = {}) {
+      const isKku = regUniversityEl?.value === 'มหาวิทยาลัยขอนแก่น';
+      const isOther = regUniversityEl?.value === 'other';
+      regCustomUniversityEl?.classList.toggle('hidden', !isOther);
+      if (regCustomUniversityEl) regCustomUniversityEl.required = isOther;
+      regMajorEl?.classList.toggle('hidden', !isKku);
+      if (regMajorEl) regMajorEl.required = isKku;
+      regCustomMajorEl?.classList.toggle('hidden', isKku && regMajorEl?.value !== 'other');
+      if (regCustomMajorEl) regCustomMajorEl.required = !isKku || regMajorEl?.value === 'other';
+      if (regMajorLabelEl) regMajorLabelEl.textContent = isKku ? 'คณะ / วิทยาลัย (ม.ขอนแก่น) *' : 'คณะ / สาขาวิชา *';
+      if (focus) (isOther ? regCustomUniversityEl : (!isKku ? regCustomMajorEl : null))?.focus();
     }
+
+    regUniversityEl?.addEventListener('change', () => syncUniversityFields({ focus: true }));
+    syncUniversityFields();
 
     if (regMajorEl) {
       regMajorEl.addEventListener('change', () => {
@@ -353,10 +346,9 @@ function initAuthModule() {
             regCustomMajorEl.classList.remove('hidden');
             regCustomMajorEl.focus();
           }
-        } else {
-          if (regUniversityEl && regUniversityEl.value !== 'other') {
-            if (regCustomMajorEl) regCustomMajorEl.classList.add('hidden');
-          }
+        } else if (regUniversityEl?.value === 'มหาวิทยาลัยขอนแก่น') {
+          regCustomMajorEl?.classList.add('hidden');
+          if (regCustomMajorEl) regCustomMajorEl.required = false;
         }
       });
     }
@@ -377,7 +369,7 @@ function initAuthModule() {
           : (regUniversityEl?.value || 'มหาวิทยาลัยขอนแก่น');
 
         let regMajorValue = '';
-        if (regUniversityEl?.value === 'other') {
+        if (regUniversityEl?.value !== 'มหาวิทยาลัยขอนแก่น') {
           regMajorValue = regCustomMajorEl?.value.trim() || 'ไม่ระบุ';
         } else if (regMajorEl?.value === 'other') {
           regMajorValue = regCustomMajorEl?.value.trim() || 'อื่นๆ';

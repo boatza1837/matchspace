@@ -57,9 +57,11 @@
                 <h1 id="homeUserName" class="home-user-title">คุณผู้ใช้</h1>
               </div>
               <button id="homeNotificationBtn" class="home-bell-btn" type="button" aria-label="การแจ้งเตือน" title="การแจ้งเตือน">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
-                  <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+                <span class="home-bell-halo" aria-hidden="true"></span>
+                <svg class="home-bell-icon" viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M18.2 9.35c0-3.55-2.3-6.1-6.2-6.1s-6.2 2.55-6.2 6.1c0 4.35-1.7 5.68-2.35 6.55-.34.45-.02 1.1.55 1.1h16c.57 0 .89-.65.55-1.1-.65-.87-2.35-2.2-2.35-6.55Z"/>
+                  <path d="M9.45 19.25c.42.92 1.35 1.5 2.55 1.5s2.13-.58 2.55-1.5"/>
+                  <path class="home-bell-shine" d="M8.35 7.7c.48-1.22 1.42-1.9 2.55-2.1"/>
                 </svg>
                 <span id="homeBellDot" class="home-bell-dot"></span>
               </button>
@@ -823,23 +825,24 @@
 
     <!-- Home Notification Modal -->
     <div id="homeNotificationModal" class="modal hidden">
-      <div class="modal-content" style="max-width:420px; border-radius:24px; padding:22px;">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; border-bottom:1px solid var(--line); padding-bottom:12px;">
-          <h3 style="margin:0; font-size:1.15rem; color:var(--purple); display:flex; align-items:center; gap:8px;">
-            🔔 การแจ้งเตือน
+      <div class="modal-content home-notification-card">
+        <div class="home-notification-header">
+          <h3>
+            <span class="notification-title-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M18.2 9.35c0-3.55-2.3-6.1-6.2-6.1s-6.2 2.55-6.2 6.1c0 4.35-1.7 5.68-2.35 6.55-.34.45-.02 1.1.55 1.1h16c.57 0 .89-.65.55-1.1-.65-.87-2.35-2.2-2.35-6.55Z"/><path d="M9.45 19.25c.42.92 1.35 1.5 2.55 1.5s2.13-.58 2.55-1.5"/></svg></span>
+            การแจ้งเตือน
           </h3>
-          <button id="closeNotificationModal" class="modal-close-btn" type="button" style="position:static;">✕</button>
+          <button id="closeNotificationModal" class="modal-close-btn notification-close-btn" type="button" aria-label="ปิดการแจ้งเตือน">✕</button>
         </div>
-        <div id="homeNotificationList" style="display:flex; flex-direction:column; gap:10px;">
-          <div class="list-item" style="display:flex; gap:12px; align-items:flex-start;">
-            <div style="font-size:1.4rem;">✨</div>
+        <div id="homeNotificationList" class="home-notification-list">
+          <div class="list-item home-notification-item">
+            <div class="notification-item-icon discover-icon"><svg viewBox="0 0 24 24"><path d="M12 2l1.8 6.2L20 10l-6.2 1.8L12 18l-1.8-6.2L4 10l6.2-1.8L12 2Z"/><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8L19 15Z"/></svg></div>
             <div>
               <div style="font-weight:700; color:var(--text); font-size:0.92rem;">มีคนใหม่รอคุณใน Discover</div>
               <div style="font-size:0.82rem; color:var(--muted); margin-top:2px;">เข้าสำรวจโปรไฟล์คนที่สนใจเรื่องเดียวกันได้เลย</div>
             </div>
           </div>
-          <div class="list-item" style="display:flex; gap:12px; align-items:flex-start;">
-            <div style="font-size:1.4rem;">💡</div>
+          <div class="list-item home-notification-item">
+            <div class="notification-item-icon tip-icon"><svg viewBox="0 0 24 24"><path d="M9.2 17h5.6M10 20h4M8.1 14.2A6 6 0 1 1 15.9 14.2c-.8.65-1.1 1.2-1.1 1.8H9.2c0-.6-.3-1.15-1.1-1.8Z"/><path d="M12 5.5v3M9.8 9.1l2.2 1.5 2.2-1.5"/></svg></div>
             <div>
               <div style="font-weight:700; color:var(--text); font-size:0.92rem;">คำแนะนำจาก MatchSpace</div>
               <div style="font-size:0.82rem; color:var(--muted); margin-top:2px;">คุยอย่างสบายใจ เริ่มจากสิ่งที่สนใจร่วมกัน</div>
