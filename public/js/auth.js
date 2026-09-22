@@ -7,6 +7,7 @@ function initAuthModule() {
   const loginForm = document.getElementById('loginForm');
   const registerForm = document.getElementById('registerForm');
   const reportForm = document.getElementById('reportForm');
+  const GOOGLE_CLIENT_ID = '186015897078-3qtjge4dbi3e6sjvp4e4lbulolipioug.apps.googleusercontent.com';
 
   // ===================== LOGIN FORM =====================
   if (loginForm) {
@@ -52,8 +53,6 @@ function initAuthModule() {
         }
       }
     });
-
-    const GOOGLE_CLIENT_ID = '186015897078-3qtjge4dbi3e6sjvp4e4lbulolipioug.apps.googleusercontent.com';
 
     function initGoogleButton() {
       const btnContainer = document.getElementById('googleSignInButton');
@@ -145,11 +144,10 @@ function initAuthModule() {
   // ===================== REGISTER FORM =====================
   if (registerForm) {
     const urlParams = new URLSearchParams(window.location.search);
-    const googleEmail = urlParams.get('google_email');
-    const googleName = urlParams.get('google_name');
-    const googlePic = urlParams.get('google_pic');
+    let usesGoogleRegistration = false;
 
-    if (googleEmail) {
+    function applyGoogleRegistration({ email: googleEmail, name: googleName, picture: googlePic }) {
+      usesGoogleRegistration = true;
       const emailInput = document.getElementById('email');
       const nameInput = document.getElementById('name');
       const googleProfileImageInput = document.getElementById('googleProfileImage');
@@ -173,9 +171,35 @@ function initAuthModule() {
 
       if (messageEl) {
         messageEl.className = 'message success';
-        messageEl.textContent = 'ดึงข้อมูลและรูปโปรไฟล์จาก Google เรียบร้อยแล้ว กรุณากรอกข้อมูลเพิ่มเติมและยินยอมข้อตกลงเพื่อสมัครสมาชิก';
+        messageEl.textContent = 'เชื่อมต่อ Google แล้ว กรุณาตรวจชื่อและกรอกข้อมูลที่เหลือเพื่อสมัครสมาชิก';
       }
+      const passwordField = document.getElementById('password')?.closest('.auth-input-field');
+      if (passwordField) passwordField.classList.add('hidden');
+      document.getElementById('password')?.removeAttribute('required');
+      document.getElementById('googleRegisterButton')?.closest('.register-google-card')?.classList.add('hidden');
     }
+
+    if (urlParams.get('google') === '1') {
+      apiRequest('/api/auth/google/pending').then(applyGoogleRegistration).catch((error) => {
+        const messageEl = document.getElementById('registerMessage');
+        if (messageEl) { messageEl.className = 'message error'; messageEl.textContent = error.message; }
+      });
+    }
+
+    function initGoogleRegisterButton() {
+      const container = document.getElementById('googleRegisterButton');
+      const fallback = document.getElementById('btnGoogleRegister');
+      if (!container || !window.google?.accounts?.id) { fallback?.classList.remove('hidden'); return; }
+      try {
+        window.google.accounts.id.initialize({ client_id: GOOGLE_CLIENT_ID, callback: handleGoogleLoginResponse, auto_select: false });
+        container.innerHTML = '';
+        window.google.accounts.id.renderButton(container, { theme: 'outline', size: 'large', text: 'signup_with', shape: 'rectangular', logo_alignment: 'left', width: Math.min(320, container.parentElement.clientWidth) });
+        fallback?.classList.add('hidden');
+      } catch (_) { fallback?.classList.remove('hidden'); }
+    }
+    initGoogleRegisterButton();
+    setTimeout(initGoogleRegisterButton, 800);
+    document.getElementById('btnGoogleRegister')?.addEventListener('click', () => window.google?.accounts?.id?.prompt());
 
     const interestsTags = document.getElementById('interestsTags');
     if (interestsTags) {
@@ -253,11 +277,6 @@ function initAuthModule() {
     }
 
     const consentCheckbox = document.getElementById('consentCheckbox');
-    const matchingConsent = document.getElementById('matchingConsent');
-    matchingConsent?.addEventListener('change', () => {
-      const select = document.getElementById('interestedGender');
-      if (select) { select.disabled = !matchingConsent.checked; if (!matchingConsent.checked) select.value = 'ทุกเพศ'; }
-    });
     const btnAcceptConsent = document.getElementById('btnAcceptConsent');
     const btnDeclineConsent = document.getElementById('btnDeclineConsent');
     const registerSubmitBtn = document.getElementById('registerSubmitBtn');
@@ -369,14 +388,14 @@ function initAuthModule() {
         const formData = new FormData();
         formData.append('privacy_version', '2026-09-22');
         formData.append('privacy_acknowledged', String(consentCheckbox.checked));
-        formData.append('matching', String(Boolean(matchingConsent?.checked)));
-        formData.append('analytics', String(Boolean(document.getElementById('analyticsConsent')?.checked)));
+        formData.append('matching', 'false');
+        formData.append('analytics', 'false');
         formData.append('email_consent', String(Boolean(document.getElementById('emailConsent')?.checked)));
         formData.append('name', document.getElementById('name').value);
         formData.append('email', document.getElementById('email').value);
-        formData.append('password', document.getElementById('password').value);
+        formData.append('password', usesGoogleRegistration ? '' : document.getElementById('password').value);
         formData.append('gender', document.getElementById('gender')?.value || 'ชาย');
-        formData.append('interested_gender', document.getElementById('interestedGender')?.value || 'ทุกเพศ');
+        formData.append('interested_gender', 'ทุกเพศ');
         formData.append('birthdate', document.getElementById('birthdate')?.value || '');
         formData.append('university', regUniValue);
         formData.append('phone', document.getElementById('phone')?.value || '');

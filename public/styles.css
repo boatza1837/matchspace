@@ -5262,6 +5262,30 @@ body {
   background: transparent;
 }
 
+.register-google-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 22px 26px;
+  border: 1px solid #ddd6fe;
+  border-radius: 24px;
+  background: linear-gradient(135deg, #ffffff 0%, #faf5ff 100%);
+  box-shadow: 0 12px 32px -12px rgba(124, 58, 237, 0.22);
+}
+
+.register-google-kicker { color: #7c3aed; font-size: .78rem; font-weight: 800; }
+.register-google-card h2 { margin: 3px 0 4px; color: #1e1b4b; font-size: 1.22rem; }
+.register-google-card p { margin: 0; color: #64748b; font-size: .86rem; }
+.register-google-action { min-width: 240px; display: flex; justify-content: center; }
+.register-choice-divider { display: flex; align-items: center; gap: 14px; margin: 18px 0; color: #94a3b8; font-size: .8rem; font-weight: 700; }
+.register-choice-divider::before, .register-choice-divider::after { content: ''; flex: 1; height: 1px; background: #e2e8f0; }
+
+@media (max-width: 640px) {
+  .register-google-card { flex-direction: column; align-items: stretch; text-align: center; }
+  .register-google-action { min-width: 0; }
+}
+
 .form-section-block {
   background: #ffffff;
   border: 1px solid rgba(226, 232, 240, 0.95);
@@ -9957,7 +9981,6 @@ body {
     grid-template-columns: 1fr;
   }
 }
-
 
 
 

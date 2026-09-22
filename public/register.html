@@ -9,6 +9,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css" />
   <link rel="stylesheet" href="/privacy.css">
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
     <script src="/js/privacy.js" defer></script>
   </head>
   <body class="auth-page-body">
@@ -40,6 +41,19 @@
           กรอกข้อมูลตามจริงเพื่อการแนะนำเพื่อนและกิจกรรมที่ตรงกับไลฟ์สไตล์ของคุณมากที่สุด
         </p>
       </div>
+
+      <section class="register-google-card" aria-labelledby="googleRegisterTitle">
+        <div>
+          <span class="register-google-kicker">สมัครได้เร็วขึ้น</span>
+          <h2 id="googleRegisterTitle">สมัครสมาชิกด้วย Google</h2>
+          <p>ใช้ชื่อ อีเมล และรูปโปรไฟล์จาก Google แล้วกรอกข้อมูลที่เหลืออีกเล็กน้อย</p>
+        </div>
+        <div class="register-google-action">
+          <div id="googleRegisterButton" class="google-gis-container"></div>
+          <button type="button" id="btnGoogleRegister" class="auth-btn-secondary hidden">สมัครด้วย Google</button>
+        </div>
+      </section>
+      <div class="register-choice-divider"><span>หรือกรอกข้อมูลด้วยตัวเอง</span></div>
 
       <!-- Main Register Card Form -->
       <div class="register-form-card">
@@ -117,20 +131,6 @@
                   <select id="gender" name="gender" required class="auth-input select-styled">
                     <option value="ชาย">👨 ชาย</option>
                     <option value="หญิง">👩 หญิง</option>
-                    <option value="เพศหลากหลาย">🌈 เพศหลากหลาย (LGBTQ+)</option>
-                  </select>
-                </div>
-              </div>
-
-              <div class="auth-input-field">
-                <label for="interestedGender" class="auth-label">
-                  <span>สนใจเพศไหน (เลือกได้เมื่อยินยอมด้านล่าง)</span>
-                </label>
-                <div class="input-control-wrap">
-                  <select id="interestedGender" name="interested_gender" disabled class="auth-input select-styled">
-                    <option value="ทุกเพศ" selected>🌈 ทุกเพศ (All / Any)</option>
-                    <option value="หญิง">👩 หญิง</option>
-                    <option value="ชาย">👨 ชาย</option>
                     <option value="เพศหลากหลาย">🌈 เพศหลากหลาย (LGBTQ+)</option>
                   </select>
                 </div>
@@ -279,13 +279,11 @@
           </div>
 
           <div class="form-section-block consent-section">
-            <div class="form-section-header"><span class="section-step-badge">4</span><div><h3 class="form-section-title">ข้อมูลของคุณ คุณเลือกได้</h3><p class="form-section-desc">อ่านรายละเอียด แล้วเลือกเฉพาะสิ่งที่คุณต้องการ</p></div></div>
+            <div class="form-section-header"><span class="section-step-badge">4</span><div><h3 class="form-section-title">ประกาศความเป็นส่วนตัว</h3><p class="form-section-desc">อ่านรายละเอียดก่อนสร้างบัญชี</p></div></div>
             <div class="consent-box-modern"><p>เราใช้ชื่อ อีเมล รหัสผ่าน เบอร์โทร และข้อมูลโปรไฟล์เพื่อสร้างบัญชีและให้บริการ ส่วนข้อความ การจับคู่ กิจกรรม และบันทึกความปลอดภัยจะเกิดขึ้นเมื่อคุณใช้งาน</p><p>ชื่อ รูป อายุ เพศ ข้อมูลการศึกษา ความสนใจ และประวัติแนะนำตัวอาจแสดงแก่สมาชิกคนอื่น รูปที่อัปโหลดเข้าถึงได้ผ่านลิงก์ของรูป โปรดไม่ใส่ข้อมูลลับในโปรไฟล์</p><p><a href="/privacy" target="_blank" rel="noopener">อ่านประกาศฉบับเต็ม: ข้อมูล ผู้รับข้อมูล ระยะเวลา และสิทธิของคุณ ↗</a></p></div>
             <div class="consent-checkbox-wrap"><label class="consent-custom-label"><input type="checkbox" id="consentCheckbox" class="custom-checkbox" required><span class="checkbox-text">ฉันได้อ่านประกาศความเป็นส่วนตัว ฉบับ 22 กันยายน 2569 แล้ว (เป็นการรับทราบ ไม่ใช่การยินยอมทุกอย่าง)</span></label></div>
-            <div class="consent-checkbox-wrap"><label class="consent-custom-label"><input type="checkbox" id="matchingConsent" class="custom-checkbox"><span class="checkbox-text">ยินยอมให้เก็บและใช้ข้อมูล “เพศที่สนใจ” เพื่อกรองและแนะนำคนที่ตรงกับความต้องการ ข้อมูลนี้อาจบ่งชี้รสนิยมทางเพศได้ — ไม่บังคับ และถอนความยินยอมได้</span></label></div>
-            <div class="consent-checkbox-wrap"><label class="consent-custom-label"><input type="checkbox" id="analyticsConsent" class="custom-checkbox"><span class="checkbox-text">ยินยอมให้วิเคราะห์การเข้าชม อุปกรณ์ IP และพฤติกรรมการปัดเพื่อปรับปรุงบริการ — ไม่บังคับ</span></label></div>
             <div class="consent-checkbox-wrap"><label class="consent-custom-label"><input type="checkbox" id="emailConsent" class="custom-checkbox"><span class="checkbox-text">ต้องการอีเมลแจ้งเตือนเมื่อมีคู่แมตช์หรือข้อความใหม่ — ไม่บังคับ (อีเมล OTP ยังส่งเมื่อคุณขอ)</span></label></div>
-            <p class="form-section-desc">ไม่เลือกตัวเลือกเสริมก็สมัครและใช้แชทกับกิจกรรมได้ แก้ไขหรือถอนการเลือกได้ที่ “ความเป็นส่วนตัว”</p>
+            <p class="form-section-desc">ไม่เลือกรับอีเมลก็สมัครและใช้แชทกับกิจกรรมได้ แก้ไขได้ที่ “ความเป็นส่วนตัว”</p>
           </div>
 
           <!-- Submit Button & Footer -->

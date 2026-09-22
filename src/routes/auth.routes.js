@@ -101,10 +101,19 @@ router.post('/api/auth/google', async (req, res) => {
     let user = await db.get('SELECT * FROM users WHERE email = ?', [normalizedEmail]);
 
     if (!user) {
-      return res.json({
-        is_registered: false,
-        message: 'โปรดกรอกข้อมูลเพิ่มเติมเพื่อสมัครสมาชิก',
-        redirect: `/register?google_email=${encodeURIComponent(normalizedEmail)}&google_name=${encodeURIComponent(googleName || '')}&google_pic=${encodeURIComponent(googlePicture || '')}`
+      req.session.pendingGoogleRegistration = {
+        email: normalizedEmail,
+        name: String(googleName || '').trim(),
+        picture: String(googlePicture || '').trim(),
+        expiresAt: Date.now() + (10 * 60 * 1000)
+      };
+      return req.session.save((err) => {
+        if (err) return res.status(500).json({ message: 'ไม่สามารถเตรียมการสมัครด้วย Google ได้ กรุณาลองใหม่' });
+        res.json({
+          is_registered: false,
+          message: 'ยืนยัน Google แล้ว กรุณากรอกข้อมูลเพิ่มเติม',
+          redirect: '/register?google=1'
+        });
       });
     }
 
@@ -139,6 +148,15 @@ router.post('/api/auth/google', async (req, res) => {
   }
 });
 
+router.get('/api/auth/google/pending', (req, res) => {
+  const pending = req.session?.pendingGoogleRegistration;
+  if (!pending || !pending.email || Number(pending.expiresAt) <= Date.now()) {
+    if (req.session) delete req.session.pendingGoogleRegistration;
+    return res.status(404).json({ message: 'ไม่พบการสมัครด้วย Google หรือรายการหมดอายุแล้ว' });
+  }
+  res.json({ email: pending.email, name: pending.name || '', picture: pending.picture || '' });
+});
+
 router.post('/api/logout', (req, res) => {
   req.session.destroy(() => {
     res.json({ message: 'ออกจากระบบแล้ว' });
@@ -152,12 +170,19 @@ router.post('/api/register', multiUpload, async (req, res, next) => {
     await Promise.all(Object.values(req.files || {}).flat().map(file => fs.unlink(file.path).catch(() => {})));
     return res.status(400).json({ message: 'โปรดอ่านและรับทราบประกาศความเป็นส่วนตัวฉบับปัจจุบันก่อนสมัครสมาชิก' });
   }
-  const privacyChoices = parseChoices({ ...req.body, email: req.body.email_consent });
-  if (!privacyChoices.matching) req.body.interested_gender = 'ทุกเพศ';
-  const { name, email, password, gender, interested_gender, birthdate, university, major, year, interests, bio, nickname, age, phone, google_profile_image } = req.body || {};
+  const privacyChoices = parseChoices({ matching: false, analytics: false, email: req.body.email_consent });
+  req.body.interested_gender = 'ทุกเพศ';
+  const { name, email, password, gender, interested_gender, birthdate, university, major, year, interests, bio, nickname, age, phone } = req.body || {};
 
-  if (!name || !email || !password || !phone) {
-    return res.status(400).json({ message: 'กรุณากรอกชื่อ อีเมล รหัสผ่าน และเบอร์โทรศัพท์' });
+  const pendingGoogle = req.session?.pendingGoogleRegistration;
+  const usesGoogle = Boolean(pendingGoogle?.email && Number(pendingGoogle.expiresAt) > Date.now());
+  const submittedEmail = String(email || '').trim().toLowerCase();
+  if (usesGoogle && submittedEmail !== pendingGoogle.email) {
+    return res.status(400).json({ message: 'อีเมลไม่ตรงกับบัญชี Google ที่ยืนยันไว้ กรุณาเริ่มสมัครด้วย Google ใหม่' });
+  }
+
+  if (!name || !email || (!usesGoogle && !password) || !phone) {
+    return res.status(400).json({ message: 'กรุณากรอกชื่อ อีเมล รหัสผ่าน และเบอร์โทรศัพท์ให้ครบ' });
   }
 
   const cleanedPhone = String(phone).trim().replace(/[-\s]/g, '');
@@ -170,7 +195,7 @@ router.post('/api/register', multiUpload, async (req, res, next) => {
     return res.status(409).json({ message: 'เบอร์โทรศัพท์นี้มีผู้ใช้งานในระบบแล้ว' });
   }
 
-  const normalizedEmail = String(email).trim().toLowerCase();
+  const normalizedEmail = usesGoogle ? pendingGoogle.email : submittedEmail;
   const existingUser = await db.get('SELECT id FROM users WHERE email = ?', [normalizedEmail]);
   if (existingUser) {
     return res.status(409).json({ message: 'อีเมลนี้มีผู้ใช้งานแล้ว' });
@@ -179,12 +204,13 @@ router.post('/api/register', multiUpload, async (req, res, next) => {
   let profileImage = '';
   if (req.files && req.files.profile_image_file && req.files.profile_image_file[0]) {
     profileImage = await processUploadedFile(req.files.profile_image_file[0]);
-  } else if (google_profile_image) {
-    profileImage = String(google_profile_image).trim();
+  } else if (usesGoogle && pendingGoogle.picture) {
+    profileImage = String(pendingGoogle.picture).trim();
   }
 
-  const passwordHash = hashPassword(String(password));
-  const encPassword = encryptPassword(String(password).trim());
+  const generatedPassword = usesGoogle && !password ? require('crypto').randomBytes(32).toString('hex') : String(password);
+  const passwordHash = hashPassword(generatedPassword);
+  const encPassword = usesGoogle ? null : encryptPassword(generatedPassword.trim());
 
   let calculatedAge = age ? Number(age) : null;
   let zodiacName = '';
