@@ -122,12 +122,18 @@
   function updatePushUIState(subscribed) {
     const btn = document.getElementById('drawerBtnPushNotify');
     const pill = document.getElementById('drawerPushPill');
+    const profileBtn = document.getElementById('btnSubscribePush');
     if (pill) {
       pill.textContent = subscribed ? 'เปิดอยู่ ✔' : 'ปิดอยู่';
       pill.className = subscribed ? 'drawer-status-pill active' : 'drawer-status-pill';
     }
     if (btn) {
       btn.title = subscribed ? 'คลิกเพื่อปิดการแจ้งเตือน' : 'คลิกเพื่อเปิดการแจ้งเตือน';
+    }
+    if (profileBtn) {
+      profileBtn.textContent = subscribed ? '🔕 ปิด Web Push Notification' : '🔔 เปิด Web Push Notification';
+      profileBtn.classList.toggle('push-enabled', subscribed);
+      profileBtn.title = subscribed ? 'คลิกเพื่อปิดการแจ้งเตือน' : 'คลิกเพื่อเปิดการแจ้งเตือน';
     }
   }
 
@@ -304,8 +310,8 @@
     });
 
     // Push notification toggle button in drawer
-    const pushBtn = document.getElementById('drawerBtnPushNotify');
-    if (pushBtn) {
+    const pushButtons = [document.getElementById('drawerBtnPushNotify'), document.getElementById('btnSubscribePush')].filter(Boolean);
+    pushButtons.forEach(pushBtn => {
       pushBtn.addEventListener('click', () => {
         if (isPushSubscribed) {
           if (confirm('คุณต้องการปิดการแจ้งเตือนพุชใช่หรือไม่?')) {
@@ -315,7 +321,7 @@
           subscribeUserToPush();
         }
       });
-    }
+    });
 
     // Initial check for standalone mode
     if (isStandaloneMode()) {

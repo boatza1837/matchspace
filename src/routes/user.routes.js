@@ -236,7 +236,7 @@ router.get('/api/candidates', requireAuth, async (req, res) => {
     const myInterestedGender = privacy.matching ? (me?.interested_gender || 'ทุกเพศ').trim() : 'ทุกเพศ';
 
     // Allow override from ?gender= if user specifically filters in Discover, otherwise default to user's interested_gender
-    const targetGender = privacy.matching && req.query.gender !== undefined && req.query.gender !== ''
+    const targetGender = req.query.gender !== undefined && req.query.gender !== ''
       ? req.query.gender.trim()
       : myInterestedGender;
 

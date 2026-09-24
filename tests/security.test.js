@@ -177,3 +177,22 @@ test('Email notifications do not send without opt-in', async()=>{
  await mail.sendMatchEmailNotification({id:1,email:'test@example.test'},{name:'Fixture'});
  await mail.sendChatMessageEmailNotification({id:1,email:'test@example.test'},{name:'Fixture'},'test',20);
 });
+test('Direct chat can start without a match while self-chat and blocked pairs stay rejected',async()=>{
+ const r=routes();let inserted=0;const db={get:async(sql,args)=>{if(sql.includes('is_active'))return{id:2};if(sql.includes('user_blocks'))return null;if(sql.includes('SELECT * FROM chats')&&inserted)return{id:44,user_a:1,user_b:2};return null;},run:async()=>{inserted++;return{lastInsertRowid:44};}};
+ load('src/routes/chat.routes.js',{'express':r.express,'../config/db':{db},'../middlewares/auth':{},'../services/chat-access':{},'../services/websocket':{},'../services/matchmaking.service':{}});
+ const ok=response();await r.handlers['post /api/chats']({session:{user:{id:1}},body:{user_id:2}},ok);assert.equal(ok.code,201);assert.equal(ok.data.chat.id,44);assert.equal(inserted,1);
+ const self=response();await r.handlers['post /api/chats']({session:{user:{id:1}},body:{user_id:1}},self);assert.equal(self.code,400);
+});
+test('Discover gender override is honored immediately without sensitive-profile consent',async()=>{
+ const r=routes();let queryArgs;const db={get:async()=>({id:1,gender:'ชาย',interested_gender:'ทุกเพศ'}),all:async(sql,args)=>{queryArgs=args;return[];}};
+ load('src/routes/user.routes.js',{'express':r.express,'../config/db':{db},'../services/privacy':{getPreferences:async()=>({matching:false})},'../middlewares/auth':{},'../middlewares/upload':{upload:{array:()=>()=>{}},multiUpload:()=>{}},'../services/websocket':{},'../services/notification':{},'../services/cloudinary':{},'../services/astrology':{calculateSoulmateCompatibility:()=>({}),getUserAstrologyProfile:()=>null,ASTROLOGY_SOURCES_DB:[]},'../services/matchmaking.service':{}});
+ const res=response();await r.handlers['get /api/candidates']({session:{user:{id:1}},query:{gender:'หญิง'}},res);assert.equal(res.code,200);assert.equal(queryArgs.at(-1),'หญิง');
+});
+test('Activity creation rejects capacities below three before writing',async()=>{
+ const r=routes();let writes=0;load('src/routes/activity.routes.js',{'express':r.express,'../config/db':{db:{get:async()=>({id:1,name:'Alice'}),run:async()=>{writes++;}}},'../middlewares/auth':{},'./chat.routes':{},'../services/websocket':{}});
+ for(const count of [0,1,2]){const res=response();await r.handlers['post /api/activities']({session:{user:{id:1}},body:{name:'Study',member_count:count}},res);assert.equal(res.code,400);}assert.equal(writes,0);
+});
+test('Profile form has real save feedback and Web Push exposes an off state',()=>{
+ const html=fs.readFileSync(path.resolve(__dirname,'../public/app.html'),'utf8'),app=fs.readFileSync(path.resolve(__dirname,'../public/js/app.js'),'utf8'),pwa=fs.readFileSync(path.resolve(__dirname,'../public/js/pwa-push.js'),'utf8');
+ assert.match(html,/id="profileSaveBtn"/);assert.match(app,/getElementById\('profileStatus'\)/);assert.match(app,/กำลังบันทึก/);assert.match(pwa,/ปิด Web Push Notification/);assert.match(pwa,/btnSubscribePush/);
+});

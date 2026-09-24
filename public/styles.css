@@ -7547,6 +7547,15 @@ body {
   font-size: 1.15rem;
 }
 
+.btn-discover-round.chat {
+  width: 44px;
+  height: 44px;
+  background: #ecfeff;
+  border: 1.5px solid #a5f3fc;
+  color: #0891b2;
+  font-size: 1.1rem;
+}
+
 /* 7. Dedicated Mobile Phone Tuning (<= 600px) */
 @media (max-width: 600px) {
   /* Global Layout on Mobile */
@@ -7822,7 +7831,8 @@ body {
   }
 
   .btn-discover-round.rewind,
-  .btn-discover-round.starters {
+  .btn-discover-round.starters,
+  .btn-discover-round.chat {
     width: 38px !important;
     height: 38px !important;
     font-size: 1.05rem !important;

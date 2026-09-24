@@ -150,10 +150,17 @@ router.post('/api/chats', requireAuth, async (req, res) => {
       return res.status(400).json({ message: 'กรุณาเลือกผู้ใช้งานก่อนเริ่มแชท' });
     }
 
-    const target = await db.get('SELECT id FROM users WHERE id = ?', [Number(user_id)]);
+    if (Number(user_id) === Number(userId)) {
+      return res.status(400).json({ message: 'ไม่สามารถเริ่มแชทกับบัญชีของตัวเองได้' });
+    }
+
+    const target = await db.get('SELECT id FROM users WHERE id = ? AND is_active != 0', [Number(user_id)]);
     if (!target) {
       return res.status(404).json({ message: 'ไม่พบผู้ใช้งานนี้' });
     }
+
+    const block = await db.get('SELECT 1 FROM user_blocks WHERE (blocker_id = ? AND blocked_id = ?) OR (blocker_id = ? AND blocked_id = ?)', [userId, Number(user_id), Number(user_id), userId]);
+    if (block) return res.status(403).json({ message: 'ไม่สามารถเริ่มแชทกับผู้ใช้นี้ได้' });
 
     const existing = await db.get(`
       SELECT * FROM chats

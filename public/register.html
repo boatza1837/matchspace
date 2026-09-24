@@ -276,7 +276,8 @@
                     <option value="วิทยาลัยบัณฑิตศึกษาการจัดการ">วิทยาลัยบัณฑิตศึกษาการจัดการ</option>
                     <option value="other">คณะ / สาขาวิชาอื่นๆ (ระบุเอง)</option>
                   </select>
-                  <input type="text" id="customMajor" class="auth-input hidden" placeholder="พิมพ์ชื่อคณะ / สาขาวิชาของคุณ..." style="margin-top: 8px;" />
+                  <input type="text" id="customMajor" list="registerFacultyOptions" class="auth-input hidden" placeholder="เลือกหรือพิมพ์ชื่อคณะ / สาขาวิชา..." style="margin-top: 8px;" />
+                  <datalist id="registerFacultyOptions"></datalist>
                 </div>
               </div>
             </div>
@@ -350,6 +351,7 @@
     </div>
 
     <script src="js/core.js"></script>
+    <script src="js/university-data.js"></script>
     <script src="js/auth.js"></script>
   </body>
 </html>

@@ -326,6 +326,7 @@ function initAuthModule() {
     function syncUniversityFields({ focus = false } = {}) {
       const isKku = regUniversityEl?.value === 'มหาวิทยาลัยขอนแก่น';
       const isOther = regUniversityEl?.value === 'other';
+      if (!isKku && !isOther) window.MatchSpaceUniversityData?.fillDatalist('registerFacultyOptions', regUniversityEl.value);
       regCustomUniversityEl?.classList.toggle('hidden', !isOther);
       if (regCustomUniversityEl) regCustomUniversityEl.required = isOther;
       regMajorEl?.classList.toggle('hidden', !isKku);
@@ -333,6 +334,7 @@ function initAuthModule() {
       regCustomMajorEl?.classList.toggle('hidden', isKku && regMajorEl?.value !== 'other');
       if (regCustomMajorEl) regCustomMajorEl.required = !isKku || regMajorEl?.value === 'other';
       if (regMajorLabelEl) regMajorLabelEl.textContent = isKku ? 'คณะ / วิทยาลัย (ม.ขอนแก่น) *' : 'คณะ / สาขาวิชา *';
+      if (regCustomMajorEl && !isKku) regCustomMajorEl.placeholder = isOther ? 'พิมพ์ชื่อคณะ / สาขาวิชา...' : 'เลือกจากรายการหรือพิมพ์ชื่อคณะ / สาขาวิชา...';
       if (focus) (isOther ? regCustomUniversityEl : (!isKku ? regCustomMajorEl : null))?.focus();
     }
 
