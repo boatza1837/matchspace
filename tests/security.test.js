@@ -188,6 +188,14 @@ test('Discover gender override is honored immediately without sensitive-profile 
  load('src/routes/user.routes.js',{'express':r.express,'../config/db':{db},'../services/privacy':{getPreferences:async()=>({matching:false})},'../middlewares/auth':{},'../middlewares/upload':{upload:{array:()=>()=>{}},multiUpload:()=>{}},'../services/websocket':{},'../services/notification':{},'../services/cloudinary':{},'../services/astrology':{calculateSoulmateCompatibility:()=>({}),getUserAstrologyProfile:()=>null,ASTROLOGY_SOURCES_DB:[]},'../services/matchmaking.service':{}});
  const res=response();await r.handlers['get /api/candidates']({session:{user:{id:1}},query:{gender:'หญิง'}},res);assert.equal(res.code,200);assert.equal(queryArgs.at(-1),'หญิง');
 });
+test('Profile gender preference persists and reloads without legacy matching consent',async()=>{
+ const r=routes();let user={id:1,name:'Alice',gender:'ชาย',interested_gender:'ทุกเพศ',university:'มหาวิทยาลัยขอนแก่น',major:'วิทยาลัยการคอมพิวเตอร์',year:'ปี 1',interests:'',bio:'',nickname:'Alice',age:18,phone:'0931199383',profile_image:''};
+ const db={get:async(sql)=>sql.includes('SELECT * FROM users')?{...user}:null,all:async()=>[],run:async(sql,args)=>{if(sql.includes('UPDATE users'))user={...user,interested_gender:args[2]};return{};}};
+ load('src/routes/user.routes.js',{'express':r.express,'../config/db':{db},'../services/privacy':{getPreferences:async()=>({matching:false})},'../middlewares/auth':{formatUser:u=>u},'../middlewares/upload':{multiUpload:()=>{},upload:{array:()=>()=>{}}},'../services/websocket':{},'../services/notification':{},'../services/cloudinary':{processUploadedFile:async()=>''},'../services/astrology':{calculateAge:()=>18,getZodiacSign:()=>null,calculateSoulmateCompatibility:()=>({}),getUserAstrologyProfile:()=>null,ASTROLOGY_SOURCES_DB:[]},'../services/matchmaking.service':{}});
+ const req={session:{user:{...user}},body:{name:'Alice',gender:'ชาย',interested_gender:'หญิง',university:user.university,major:user.major,year:user.year},files:{}};
+ const saved=response();await r.handlers['put /api/me'](req,saved);assert.equal(saved.code,200);assert.equal(user.interested_gender,'หญิง');assert.equal(saved.data.user.interested_gender,'หญิง');
+ const reloaded=response();await r.handlers['get /api/me'](req,reloaded);assert.equal(reloaded.data.user.interested_gender,'หญิง');assert.equal(reloaded.data.user.matching_consent,false);
+});
 test('Activity creation rejects capacities below three before writing',async()=>{
  const r=routes();let writes=0;load('src/routes/activity.routes.js',{'express':r.express,'../config/db':{db:{get:async()=>({id:1,name:'Alice'}),run:async()=>{writes++;}}},'../middlewares/auth':{},'./chat.routes':{},'../services/websocket':{}});
  for(const count of [0,1,2]){const res=response();await r.handlers['post /api/activities']({session:{user:{id:1}},body:{name:'Study',member_count:count}},res);assert.equal(res.code,400);}assert.equal(writes,0);

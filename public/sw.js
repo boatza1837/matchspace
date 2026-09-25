@@ -3,7 +3,7 @@
  * Progressive Web App (PWA) & Web Push Notifications
  */
 
-const CACHE_NAME = 'matchspace-v4-profile-and-matching-fixes';
+const CACHE_NAME = 'matchspace-v5-profile-gender-preference';
 const STATIC_ASSETS = [
   '/',
   '/app.html',

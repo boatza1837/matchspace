@@ -33,12 +33,10 @@ router.get('/api/me', requireAuth, async (req, res) => {
   const user = await db.get('SELECT * FROM users WHERE id = ?', [req.session.user.id]);
   const photos = await db.all('SELECT * FROM user_photos WHERE user_id = ? ORDER BY id ASC', [req.session.user.id]);
   const privacy = await getPreferences(user.id);
-  res.json({ user: formatUser({ ...user, interested_gender: privacy.matching ? user.interested_gender : 'ทุกเพศ', matching_consent: privacy.matching }), photos });
+  res.json({ user: formatUser({ ...user, matching_consent: privacy.matching }), photos });
 });
 
 router.put('/api/me', requireAuth, multiUpload, async (req, res) => {
-  const privacy = await getPreferences(req.session.user.id);
-  if (!privacy.matching) req.body.interested_gender = 'ทุกเพศ';
   const { name, gender, interested_gender, birthdate, university, major, year, interests, bio, nickname, age, phone } = req.body || {};
   const userId = req.session.user.id;
 
@@ -105,8 +103,6 @@ router.put('/api/me', requireAuth, multiUpload, async (req, res) => {
 router.post('/api/me/complete-profile', requireAuth, async (req, res) => {
   try {
     const userId = req.session.user.id;
-    const privacy = await getPreferences(userId);
-    if (!privacy.matching) req.body.interested_gender = 'ทุกเพศ';
     const { birthdate, gender, interested_gender } = req.body || {};
 
     if (!birthdate || !gender || !interested_gender) {
