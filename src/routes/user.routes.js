@@ -1,6 +1,5 @@
 const express = require('express');
 const router = express.Router();
-const { getPreferences } = require('../services/privacy');
 const { db } = require('../config/db');
 const { requireAuth, formatUser } = require('../middlewares/auth');
 const { upload, multiUpload } = require('../middlewares/upload');
@@ -14,7 +13,6 @@ const {
   calculateSoulmateCompatibility,
   ASTROLOGY_SOURCES_DB 
 } = require('../services/astrology');
-const { logSwipe, recordMutualMatch, recordUnmatch } = require('../services/matchmaking.service');
 
 const STUDENT_BADGES = {
   punctual: { key: 'punctual', label: 'ตรงต่อเวลา', icon: '⏰', desc: 'นัดหมายตรงเวลา ไม่ปล่อยให้รอ' },
@@ -32,8 +30,7 @@ router.get('/api/astrology/sources', (req, res) => {
 router.get('/api/me', requireAuth, async (req, res) => {
   const user = await db.get('SELECT * FROM users WHERE id = ?', [req.session.user.id]);
   const photos = await db.all('SELECT * FROM user_photos WHERE user_id = ? ORDER BY id ASC', [req.session.user.id]);
-  const privacy = await getPreferences(user.id);
-  res.json({ user: formatUser({ ...user, matching_consent: privacy.matching }), photos });
+  res.json({ user: formatUser(user), photos });
 });
 
 router.put('/api/me', requireAuth, multiUpload, async (req, res) => {
@@ -173,8 +170,6 @@ router.get('/api/users/:id/profile', requireAuth, async (req, res) => {
   res.json({ 
     user: {
       ...user,
-      birthdate: undefined,
-      interested_gender: undefined,
       zodiac: user.zodiac || targetAstro?.zodiacName || 'ไม่ระบุราศี',
       element: targetAstro?.element || 'ไม่ระบุ',
       elementColor: targetAstro?.elementColor || '#6366f1',
@@ -227,9 +222,8 @@ router.get('/api/candidates', requireAuth, async (req, res) => {
   try {
     const myId = req.session.user.id;
     // Query current user from DB to always have the latest preferences
-    const me = await db.get('SELECT id, gender, interested_gender, birthdate FROM users WHERE id = ?', [myId]);
-    const privacy = await getPreferences(myId);
-    const myInterestedGender = privacy.matching ? (me?.interested_gender || 'ทุกเพศ').trim() : 'ทุกเพศ';
+    const me = await db.get('SELECT id, gender, interested_gender FROM users WHERE id = ?', [myId]);
+    const myInterestedGender = (me?.interested_gender || req.session.user?.interested_gender || 'ทุกเพศ').trim();
 
     // Allow override from ?gender= if user specifically filters in Discover, otherwise default to user's interested_gender
     const targetGender = req.query.gender !== undefined && req.query.gender !== ''
@@ -268,9 +262,6 @@ router.get('/api/candidates', requireAuth, async (req, res) => {
       const candAstro = getUserAstrologyProfile(cand.birthdate);
       return {
         ...cand,
-        birthdate: undefined,
-        email: undefined,
-        interested_gender: undefined,
         zodiac: cand.zodiac || candAstro?.zodiacName || 'ไม่ระบุราศี',
         element: candAstro?.element || 'ไม่ระบุ',
         elementColor: candAstro?.elementColor || '#6366f1',
@@ -315,7 +306,7 @@ router.get('/api/matches', requireAuth, async (req, res) => {
 
 router.post('/api/matches', requireAuth, async (req, res) => {
   try {
-    const { matched_user_id, note, status, dwell_time_ms } = req.body || {};
+    const { matched_user_id, note, status } = req.body || {};
     const userId = req.session.user.id;
 
     if (!matched_user_id) {
@@ -344,8 +335,6 @@ router.post('/api/matches', requireAuth, async (req, res) => {
         mutualMatch = true;
         await db.run('UPDATE matches SET status = ? WHERE id = ?', ['matched', matchId]);
         await db.run('UPDATE matches SET status = ? WHERE id = ?', ['matched', reverse.id]);
-
-        await recordMutualMatch(matchId, userId, Number(matched_user_id));
 
         const existingChat = await db.get(`
           SELECT * FROM chats
@@ -409,16 +398,6 @@ router.post('/api/matches', requireAuth, async (req, res) => {
       }
     }
 
-    // Log swipe event asynchronously with Tinder-grade metadata
-    logSwipe({
-      swiperId: userId,
-      targetId: Number(matched_user_id),
-      action: status === 'liked' ? 'like' : (status === 'skipped' ? 'pass' : (status || 'like')),
-      dwellTimeMs: dwell_time_ms || 0,
-      req,
-      isMutual: mutualMatch ? 1 : 0
-    }).catch(e => console.error('[Log Swipe Error]', e.message));
-
     const updatedMatch = await db.get('SELECT * FROM matches WHERE id = ?', [matchId]);
     res.status(existing ? 200 : 201).json({
       message: mutualMatch ? '🎉 แมตช์สำเร็จ! ระบบสร้างแชทให้แล้ว' : (status === 'liked' ? 'บันทึกความสนใจแล้ว' : 'บันทึกการปัดผ่านแล้ว'),
@@ -435,7 +414,7 @@ router.get('/api/skipped', requireAuth, async (req, res) => {
   try {
     const rows = await db.all(`
       SELECT m.id AS match_id, m.created_at AS skipped_at, m.note,
-             u.id, u.name, u.nickname, u.email, u.gender, 'ไม่ระบุ' AS interested_gender, u.university, u.age, u.major, u.year,
+             u.id, u.name, u.nickname, u.email, u.gender, u.interested_gender, u.university, u.age, u.major, u.year, 
              u.interests, u.bio, u.profile_image, u.is_student_verified
       FROM matches m
       JOIN users u ON u.id = m.matched_user_id
@@ -462,7 +441,6 @@ router.delete('/api/matches/:id', requireAuth, async (req, res) => {
 
     if (match.status === 'matched') {
       await db.run("UPDATE matches SET status = 'liked' WHERE user_id = ? AND matched_user_id = ?", [match.matched_user_id, userId]);
-      recordUnmatch(userId, match.matched_user_id, req.body?.reason || 'ผู้ใช้ยกเลิกการแมตช์').catch(() => {});
     }
 
     await db.run('DELETE FROM matches WHERE id = ?', [matchId]);
@@ -489,7 +467,7 @@ router.get('/api/liked', requireAuth, async (req, res) => {
     const userId = req.session.user.id;
     const rows = await db.all(`
       SELECT m.id AS match_id, m.created_at AS liked_at, m.status, m.note,
-             u.id, u.name, u.nickname, u.email, u.gender, 'ไม่ระบุ' AS interested_gender, u.university, u.age, u.major, u.year,
+             u.id, u.name, u.nickname, u.email, u.gender, u.interested_gender, u.university, u.age, u.major, u.year, 
              u.interests, u.bio, u.profile_image, u.is_student_verified,
              (
                SELECT c.id FROM chats c 

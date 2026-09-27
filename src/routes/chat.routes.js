@@ -1,10 +1,8 @@
 const express = require('express');
 const router = express.Router();
-const { getChatAccess } = require('../services/chat-access');
 const { db } = require('../config/db');
 const { requireAuth } = require('../middlewares/auth');
 const { broadcastToChat, sendToUser } = require('../services/websocket');
-const { recordChatActivity } = require('../services/matchmaking.service');
 
 async function getOrCreateActivityChat(activityId) {
   try {
@@ -150,17 +148,10 @@ router.post('/api/chats', requireAuth, async (req, res) => {
       return res.status(400).json({ message: 'กรุณาเลือกผู้ใช้งานก่อนเริ่มแชท' });
     }
 
-    if (Number(user_id) === Number(userId)) {
-      return res.status(400).json({ message: 'ไม่สามารถเริ่มแชทกับบัญชีของตัวเองได้' });
-    }
-
-    const target = await db.get('SELECT id FROM users WHERE id = ? AND is_active != 0', [Number(user_id)]);
+    const target = await db.get('SELECT id FROM users WHERE id = ?', [Number(user_id)]);
     if (!target) {
       return res.status(404).json({ message: 'ไม่พบผู้ใช้งานนี้' });
     }
-
-    const block = await db.get('SELECT 1 FROM user_blocks WHERE (blocker_id = ? AND blocked_id = ?) OR (blocker_id = ? AND blocked_id = ?)', [userId, Number(user_id), Number(user_id), userId]);
-    if (block) return res.status(403).json({ message: 'ไม่สามารถเริ่มแชทกับผู้ใช้นี้ได้' });
 
     const existing = await db.get(`
       SELECT * FROM chats
@@ -202,8 +193,18 @@ router.get('/api/chats/:id/messages', requireAuth, async (req, res) => {
       return res.status(404).json({ message: 'ไม่พบแชทนี้' });
     }
 
-    const hasAccess = await getChatAccess(userId, chatId);
-    if (!hasAccess) return res.status(403).json({ message: 'คุณไม่มีสิทธิ์เข้าถึงแชทนี้' });
+    let hasAccess = isOwner;
+    if (!hasAccess) {
+      if (chat.activity_id || chat.type === 'group') {
+        const isCreator = Number(chat.creator_id) === Number(userId);
+        const isMember = await db.get('SELECT 1 FROM activity_members WHERE activity_id = ? AND user_id = ?', [chat.activity_id, userId]);
+        if (isCreator || isMember) hasAccess = true;
+      } else {
+        if (Number(chat.user_a) === Number(userId) || Number(chat.user_b) === Number(userId)) {
+          hasAccess = true;
+        }
+      }
+    }
 
     let partnerId = null;
     if (chat.type !== 'group' && !chat.activity_id) {
@@ -259,7 +260,6 @@ router.post('/api/chats/:id/read', requireAuth, async (req, res) => {
   try {
     const userId = req.session.user.id;
     const chatId = Number(req.params.id);
-    if (!await getChatAccess(userId, chatId)) return res.status(403).json({ message: 'คุณไม่มีสิทธิ์เข้าถึงแชทนี้' });
     const now = new Date().toISOString();
 
     await db.run(`
@@ -298,9 +298,22 @@ router.post('/api/chats/:id/messages', requireAuth, async (req, res) => {
       return res.status(404).json({ message: 'ไม่พบแชทนี้' });
     }
 
-    const hasAccess = await getChatAccess(userId, chatId);
-    if (!hasAccess) return res.status(403).json({ message: 'คุณไม่มีสิทธิ์เข้าถึงแชทนี้' });
+    let hasAccess = isOwner;
+    if (!hasAccess) {
+      if (chat.activity_id || chat.type === 'group') {
+        const isCreator = Number(chat.creator_id) === Number(userId);
+        const isMember = await db.get('SELECT 1 FROM activity_members WHERE activity_id = ? AND user_id = ?', [chat.activity_id, userId]);
+        if (isCreator || isMember) hasAccess = true;
+      } else {
+        if (Number(chat.user_a) === Number(userId) || Number(chat.user_b) === Number(userId)) {
+          hasAccess = true;
+        }
+      }
+    }
 
+    if (!hasAccess) {
+      return res.status(403).json({ message: 'คุณไม่มีสิทธิ์ส่งข้อความในแชทนี้' });
+    }
 
     // Check if blocked in direct chat
     if (chat.type !== 'group' && !chat.activity_id) {
@@ -323,9 +336,6 @@ router.post('/api/chats/:id/messages', requireAuth, async (req, res) => {
     const result = await db.run('INSERT INTO chat_messages (chat_id, sender_id, content) VALUES (?, ?, ?)', [
       chatId, userId, String(content).trim()
     ]);
-
-    // Track chat activity for match lifecycle
-    recordChatActivity(chatId, userId).catch(() => {});
 
     const message = await db.get(`
       SELECT m.*, u.name AS sender_name, u.profile_image AS sender_profile_image, u.role AS sender_role
