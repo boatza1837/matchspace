@@ -1,5 +1,7 @@
 const express = require('express');
 const router = express.Router();
+const { PRIVACY_VERSION, parseChoices, savePreferences, getPreferences } = require('../services/privacy');
+const { verifyGoogleCredential } = require('../services/google-auth');
 const { db } = require('../config/db');
 const { formatUser } = require('../middlewares/auth');
 const { multiUpload } = require('../middlewares/upload');
@@ -19,12 +21,13 @@ router.get('/api/session', async (req, res) => {
     });
     return;
   }
-  res.json({ user: req.session.user });
+  const privacy = await getPreferences(req.session.user.id);
+  res.json({ user: { ...req.session.user, interested_gender: privacy.matching ? req.session.user.interested_gender : 'ทุกเพศ', matching_consent: privacy.matching } });
 });
 
 router.get('/api/public/users', async (req, res) => {
   const users = await db.all(`
-    SELECT id, name, email, major
+    SELECT id, name, major
     FROM users
     WHERE is_active != 0 
       AND (is_admin IS NULL OR is_admin = 0)
@@ -59,8 +62,10 @@ router.post('/api/login', async (req, res) => {
       return res.status(403).json({ message: 'บัญชีนี้ถูกปิดใช้งาน กรุณาติดต่อผู้ดูแล' });
     }
 
-    const safeUser = formatUser(user);
+    const privacy = await getPreferences(user.id);
+    const safeUser = formatUser({ ...user, interested_gender: privacy.matching ? user.interested_gender : 'ทุกเพศ', matching_consent: privacy.matching });
     const isAdmin = Boolean(user.is_admin || user.role === 'admin' || user.role === 'owner');
+    await new Promise((resolve, reject) => req.session.regenerate(err => err ? reject(err) : resolve()));
     req.session.user = { ...safeUser, is_admin: isAdmin };
 
     const actionName = isAdmin ? 'Admin Login' : 'Email Login';
@@ -82,37 +87,33 @@ router.post('/api/login', async (req, res) => {
 
 router.post('/api/auth/google', async (req, res) => {
   try {
-    const { credential, email, name, picture } = req.body || {};
-
-    let googleEmail = email;
-    let googleName = name;
-    let googlePicture = picture;
-
-    if (credential) {
-      try {
-        const payloadBase64 = credential.split('.')[1];
-        const decodedJson = Buffer.from(payloadBase64, 'base64').toString('utf8');
-        const payload = JSON.parse(decodedJson);
-        googleEmail = payload.email;
-        googleName = payload.name || payload.email.split('@')[0];
-        googlePicture = payload.picture || '';
-      } catch (e) {
-        return res.status(400).json({ message: 'Token Google ไม่ถูกต้อง' });
-      }
+    let payload;
+    try {
+      payload = await verifyGoogleCredential(req.body?.credential);
+    } catch (err) {
+      return res.status(401).json({ message: 'ยืนยันบัญชี Google ไม่สำเร็จ กรุณาลองอีกครั้งหรือเข้าสู่ระบบด้วยรหัสผ่าน' });
     }
-
-    if (!googleEmail) {
-      return res.status(400).json({ message: 'ไม่พบข้อมูลอีเมลจาก Google' });
-    }
+    const googleEmail = payload.email;
+    const googleName = payload.name || payload.email.split('@')[0];
+    const googlePicture = payload.picture || '';
 
     const normalizedEmail = String(googleEmail).trim().toLowerCase();
     let user = await db.get('SELECT * FROM users WHERE email = ?', [normalizedEmail]);
 
     if (!user) {
-      return res.json({
-        is_registered: false,
-        message: 'โปรดกรอกข้อมูลเพิ่มเติมเพื่อสมัครสมาชิก',
-        redirect: `/register?google_email=${encodeURIComponent(normalizedEmail)}&google_name=${encodeURIComponent(googleName || '')}&google_pic=${encodeURIComponent(googlePicture || '')}`
+      req.session.pendingGoogleRegistration = {
+        email: normalizedEmail,
+        name: String(googleName || '').trim(),
+        picture: String(googlePicture || '').trim(),
+        expiresAt: Date.now() + (10 * 60 * 1000)
+      };
+      return req.session.save((err) => {
+        if (err) return res.status(500).json({ message: 'ไม่สามารถเตรียมการสมัครด้วย Google ได้ กรุณาลองใหม่' });
+        res.json({
+          is_registered: false,
+          message: 'ยืนยัน Google แล้ว กรุณากรอกข้อมูลเพิ่มเติม',
+          redirect: '/register?google=1'
+        });
       });
     }
 
@@ -121,8 +122,10 @@ router.post('/api/auth/google', async (req, res) => {
       return res.status(403).json({ message: 'บัญชีนี้ถูกปิดใช้งาน กรุณาติดต่อผู้ดูแล', banned: true });
     }
 
-    const safeUser = formatUser(user);
+    const privacy = await getPreferences(user.id);
+    const safeUser = formatUser({ ...user, interested_gender: privacy.matching ? user.interested_gender : 'ทุกเพศ', matching_consent: privacy.matching });
     const isAdmin = Boolean(user.is_admin || user.role === 'admin' || user.role === 'owner');
+    await new Promise((resolve, reject) => req.session.regenerate(err => err ? reject(err) : resolve()));
     req.session.user = { ...safeUser, is_admin: isAdmin };
 
     await logLogin(req, normalizedEmail, user.id, 'success', 'Google OAuth', 'เข้าสู่ระบบด้วย Google');
@@ -145,17 +148,41 @@ router.post('/api/auth/google', async (req, res) => {
   }
 });
 
+router.get('/api/auth/google/pending', (req, res) => {
+  const pending = req.session?.pendingGoogleRegistration;
+  if (!pending || !pending.email || Number(pending.expiresAt) <= Date.now()) {
+    if (req.session) delete req.session.pendingGoogleRegistration;
+    return res.status(404).json({ message: 'ไม่พบการสมัครด้วย Google หรือรายการหมดอายุแล้ว' });
+  }
+  res.json({ email: pending.email, name: pending.name || '', picture: pending.picture || '' });
+});
+
 router.post('/api/logout', (req, res) => {
   req.session.destroy(() => {
     res.json({ message: 'ออกจากระบบแล้ว' });
   });
 });
 
-router.post('/api/register', multiUpload, async (req, res) => {
-  const { name, email, password, gender, interested_gender, birthdate, university, major, year, interests, bio, nickname, age, phone, google_profile_image } = req.body || {};
+router.post('/api/register', multiUpload, async (req, res, next) => {
+  try {
+  if (req.body?.privacy_version !== PRIVACY_VERSION || req.body?.privacy_acknowledged !== 'true') {
+    const fs = require('fs/promises');
+    await Promise.all(Object.values(req.files || {}).flat().map(file => fs.unlink(file.path).catch(() => {})));
+    return res.status(400).json({ message: 'โปรดอ่านและรับทราบประกาศความเป็นส่วนตัวฉบับปัจจุบันก่อนสมัครสมาชิก' });
+  }
+  const privacyChoices = parseChoices({ matching: false, analytics: false, email: req.body.email_consent });
+  req.body.interested_gender = 'ทุกเพศ';
+  const { name, email, password, gender, interested_gender, birthdate, university, major, year, interests, bio, nickname, age, phone } = req.body || {};
 
-  if (!name || !email || !password || !phone) {
-    return res.status(400).json({ message: 'กรุณากรอกชื่อ อีเมล รหัสผ่าน และเบอร์โทรศัพท์' });
+  const pendingGoogle = req.session?.pendingGoogleRegistration;
+  const usesGoogle = Boolean(pendingGoogle?.email && Number(pendingGoogle.expiresAt) > Date.now());
+  const submittedEmail = String(email || '').trim().toLowerCase();
+  if (usesGoogle && submittedEmail !== pendingGoogle.email) {
+    return res.status(400).json({ message: 'อีเมลไม่ตรงกับบัญชี Google ที่ยืนยันไว้ กรุณาเริ่มสมัครด้วย Google ใหม่' });
+  }
+
+  if (!name || !email || (!usesGoogle && !password) || !phone) {
+    return res.status(400).json({ message: 'กรุณากรอกชื่อ อีเมล รหัสผ่าน และเบอร์โทรศัพท์ให้ครบ' });
   }
 
   const cleanedPhone = String(phone).trim().replace(/[-\s]/g, '');
@@ -168,7 +195,7 @@ router.post('/api/register', multiUpload, async (req, res) => {
     return res.status(409).json({ message: 'เบอร์โทรศัพท์นี้มีผู้ใช้งานในระบบแล้ว' });
   }
 
-  const normalizedEmail = String(email).trim().toLowerCase();
+  const normalizedEmail = usesGoogle ? pendingGoogle.email : submittedEmail;
   const existingUser = await db.get('SELECT id FROM users WHERE email = ?', [normalizedEmail]);
   if (existingUser) {
     return res.status(409).json({ message: 'อีเมลนี้มีผู้ใช้งานแล้ว' });
@@ -177,12 +204,13 @@ router.post('/api/register', multiUpload, async (req, res) => {
   let profileImage = '';
   if (req.files && req.files.profile_image_file && req.files.profile_image_file[0]) {
     profileImage = await processUploadedFile(req.files.profile_image_file[0]);
-  } else if (google_profile_image) {
-    profileImage = String(google_profile_image).trim();
+  } else if (usesGoogle && pendingGoogle.picture) {
+    profileImage = String(pendingGoogle.picture).trim();
   }
 
-  const passwordHash = hashPassword(String(password));
-  const encPassword = encryptPassword(String(password).trim());
+  const generatedPassword = usesGoogle && !password ? require('crypto').randomBytes(32).toString('hex') : String(password);
+  const passwordHash = hashPassword(generatedPassword);
+  const encPassword = usesGoogle ? null : encryptPassword(generatedPassword.trim());
 
   let calculatedAge = age ? Number(age) : null;
   let zodiacName = '';
@@ -216,7 +244,8 @@ router.post('/api/register', multiUpload, async (req, res) => {
     profileImage
   ]);
 
-  const userId = result.lastInsertRowid;
+  const userId = Number(result.lastInsertRowid);
+  await savePreferences(userId, privacyChoices, 'registration');
 
   if (profileImage) {
     await db.run('INSERT INTO user_photos (user_id, photo_url) VALUES (?, ?)', [userId, profileImage]);
@@ -230,9 +259,12 @@ router.post('/api/register', multiUpload, async (req, res) => {
   }
 
   const user = await db.get('SELECT * FROM users WHERE id = ?', [userId]);
-  const safeUser = formatUser(user);
+  const privacy = await getPreferences(user.id);
+    const safeUser = formatUser({ ...user, interested_gender: privacy.matching ? user.interested_gender : 'ทุกเพศ', matching_consent: privacy.matching });
+  await new Promise((resolve, reject) => req.session.regenerate(err => err ? reject(err) : resolve()));
   req.session.user = safeUser;
-  res.status(201).json({ message: 'สมัครสมาชิกสำเร็จ', user: safeUser });
+  req.session.save(err => err ? next(err) : res.status(201).json({ message: 'สมัครสมาชิกสำเร็จ', user: safeUser }));
+  } catch (err) { next(err); }
 });
 
 module.exports = router;

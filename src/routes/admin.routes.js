@@ -5,6 +5,89 @@ const { db, useTurso } = require('../config/db');
 const { requireAdmin, requireOwner } = require('../middlewares/auth');
 const { encryptPassword, decryptPassword, hashPassword } = require('../config/security');
 const { logAudit } = require('../services/logger');
+const {
+  getAnalyticsOverview,
+  getDailyVisitors,
+  getHourlyDistribution,
+  getDeviceAndBrowserStats,
+  getTopPages,
+  getPeakInsights,
+  getRecentVisits
+} = require('../services/analytics.service');
+const {
+  getMatchmakingOverview,
+  getSwipeTrends,
+  getMatchFactorsBreakdown,
+  getSwipeLogs,
+  getMatchOpportunities,
+  simulateUserOpportunities,
+  getPairDeepAnalysis,
+  exportSwipeLogsCSV
+} = require('../services/matchmaking.service');
+
+// ===================== ANALYTICS ENDPOINTS =====================
+router.get('/api/admin/analytics/overview', requireAdmin, async (req, res) => {
+  try {
+    const overview = await getAnalyticsOverview();
+    res.json(overview);
+  } catch (err) {
+    console.error('[Analytics Overview Route Error]', err);
+    res.status(500).json({ message: 'ไม่สามารถดึงข้อมูลสรุปภาพรวมได้' });
+  }
+});
+
+router.get('/api/admin/analytics/daily', requireAdmin, async (req, res) => {
+  try {
+    const days = parseInt(req.query.days || req.query.range || '7', 10);
+    const data = await getDailyVisitors(days);
+    res.json(data);
+  } catch (err) {
+    console.error('[Analytics Daily Route Error]', err);
+    res.status(500).json({ message: 'ไม่สามารถดึงข้อมูลสถิติรายวันได้' });
+  }
+});
+
+router.get('/api/admin/analytics/hourly', requireAdmin, async (req, res) => {
+  try {
+    const data = await getHourlyDistribution();
+    res.json(data);
+  } catch (err) {
+    console.error('[Analytics Hourly Route Error]', err);
+    res.status(500).json({ message: 'ไม่สามารถดึงข้อมูลสถิติรายชั่วโมงได้' });
+  }
+});
+
+router.get('/api/admin/analytics/devices', requireAdmin, async (req, res) => {
+  try {
+    const data = await getDeviceAndBrowserStats();
+    res.json(data);
+  } catch (err) {
+    console.error('[Analytics Devices Route Error]', err);
+    res.status(500).json({ message: 'ไม่สามารถดึงข้อมูลอุปกรณ์ได้' });
+  }
+});
+
+router.get('/api/admin/analytics/top-pages', requireAdmin, async (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit || '8', 10);
+    const data = await getTopPages(limit);
+    res.json(data);
+  } catch (err) {
+    console.error('[Analytics Top Pages Route Error]', err);
+    res.status(500).json({ message: 'ไม่สามารถดึงข้อมูลหน้ายอดนิยมได้' });
+  }
+});
+
+router.get('/api/admin/analytics/recent', requireAdmin, async (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit || '40', 10);
+    const data = await getRecentVisits(limit);
+    res.json(data);
+  } catch (err) {
+    console.error('[Analytics Recent Route Error]', err);
+    res.status(500).json({ message: 'ไม่สามารถดึงข้อมูลการเข้าชมล่าสุดได้' });
+  }
+});
 
 router.get('/api/admin/summary', requireAdmin, async (req, res) => {
   try {
@@ -200,6 +283,97 @@ router.patch('/api/users/:id/enable', requireAdmin, async (req, res) => {
 
   await db.run('UPDATE users SET is_active = 1 WHERE id = ?', [Number(id)]);
   res.json({ message: 'เปิดการใช้งานผู้ใช้งานสำเร็จ', user: { ...user, is_active: 1 } });
+});
+
+// ===================== MATCHMAKING INTELLIGENCE & SWIPE ANALYTICS =====================
+router.get('/api/admin/matchmaking/overview', requireAdmin, async (req, res) => {
+  try {
+    const overview = await getMatchmakingOverview();
+    res.json(overview);
+  } catch (err) {
+    console.error('[Admin Matchmaking Overview Error]', err);
+    res.status(500).json({ message: 'เกิดข้อผิดพลาดในการดึงข้อมูลภาพรวมการจับคู่' });
+  }
+});
+
+router.get('/api/admin/matchmaking/trends', requireAdmin, async (req, res) => {
+  try {
+    const days = parseInt(req.query.days || '14', 10);
+    const trends = await getSwipeTrends(days);
+    res.json(trends);
+  } catch (err) {
+    console.error('[Admin Matchmaking Trends Error]', err);
+    res.status(500).json({ message: 'เกิดข้อผิดพลาดในการดึงข้อมูลแนวโน้มการปัด' });
+  }
+});
+
+router.get('/api/admin/matchmaking/factors', requireAdmin, async (req, res) => {
+  try {
+    const factors = await getMatchFactorsBreakdown();
+    res.json(factors);
+  } catch (err) {
+    console.error('[Admin Matchmaking Factors Error]', err);
+    res.status(500).json({ message: 'เกิดข้อผิดพลาดในการดึงข้อมูลปัจจัยการจับคู่' });
+  }
+});
+
+router.get('/api/admin/matchmaking/logs', requireAdmin, async (req, res) => {
+  try {
+    const { page, limit, action, search, minScore } = req.query;
+    const data = await getSwipeLogs({ page, limit, action, search, minScore });
+    res.json(data);
+  } catch (err) {
+    console.error('[Admin Swipe Logs Error]', err);
+    res.status(500).json({ message: 'เกิดข้อผิดพลาดในการดึงข้อมูลประวัติการปัด' });
+  }
+});
+
+router.get('/api/admin/matchmaking/opportunities', requireAdmin, async (req, res) => {
+  try {
+    const { limit, minScore, genderFilter, search } = req.query;
+    const data = await getMatchOpportunities({ limit, minScore, genderFilter, search });
+    res.json(data);
+  } catch (err) {
+    console.error('[Admin Match Opportunities Error]', err);
+    res.status(500).json({ message: 'เกิดข้อผิดพลาดในการคำนวณโอกาสการจับคู่' });
+  }
+});
+
+router.get('/api/admin/matchmaking/simulate/:userId', requireAdmin, async (req, res) => {
+  try {
+    const userId = Number(req.params.userId);
+    const data = await simulateUserOpportunities(userId);
+    res.json(data);
+  } catch (err) {
+    console.error('[Admin Simulate Opportunities Error]', err);
+    res.status(500).json({ message: err.message || 'เกิดข้อผิดพลาดในการจำลองคู่สมพงษ์' });
+  }
+});
+
+router.get('/api/admin/matchmaking/pair-analysis', requireAdmin, async (req, res) => {
+  try {
+    const { user_a, user_b } = req.query;
+    if (!user_a || !user_b) {
+      return res.status(400).json({ message: 'กรุณาระบุ user_a และ user_b' });
+    }
+    const data = await getPairDeepAnalysis(user_a, user_b);
+    res.json(data);
+  } catch (err) {
+    console.error('[Admin Pair Analysis Error]', err);
+    res.status(500).json({ message: err.message || 'เกิดข้อผิดพลาดในการวิเคราะห์คู่ผู้ใช้' });
+  }
+});
+
+router.get('/api/admin/matchmaking/export', requireAdmin, async (req, res) => {
+  try {
+    const csv = await exportSwipeLogsCSV();
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', 'attachment; filename="matchspace_swipe_intelligence_logs.csv"');
+    res.send('\uFEFF' + csv);
+  } catch (err) {
+    console.error('[Admin Export Logs Error]', err);
+    res.status(500).json({ message: 'เกิดข้อผิดพลาดในการส่งออกข้อมูล' });
+  }
 });
 
 module.exports = router;

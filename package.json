@@ -5,7 +5,8 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "dev": "node server.js"
+    "dev": "node server.js",
+    "test": "node --test tests/*.test.js"
   },
   "engines": {
     "node": ">=20.0.0"
@@ -24,6 +25,7 @@
     "cloudinary": "^2.11.0",
     "express": "^4.22.2",
     "express-session": "^1.19.0",
+    "google-auth-library": "^11.1.0",
     "multer": "^2.2.0",
     "nodemailer": "^9.0.5",
     "web-push": "^3.6.7",

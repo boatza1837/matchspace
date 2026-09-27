@@ -1,3 +1,4 @@
+const { getPreferences } = require('./privacy');
 const dns = require('dns');
 if (dns && dns.setDefaultResultOrder) {
   dns.setDefaultResultOrder('ipv4first');
@@ -328,6 +329,7 @@ async function sendOtpEmail(arg1, arg2) {
  */
 async function sendMatchEmailNotification(recipientUser, partnerUser) {
   try {
+    if (!recipientUser?.id || !(await getPreferences(recipientUser.id)).email) return;
     const targetEmail = recipientUser?.student_email || recipientUser?.email;
     if (!targetEmail || !targetEmail.includes('@')) return;
 
@@ -389,6 +391,7 @@ async function sendMatchEmailNotification(recipientUser, partnerUser) {
  */
 async function sendChatMessageEmailNotification(recipientUser, senderUser, messageSnippet, chatId) {
   try {
+    if (!recipientUser?.id || !(await getPreferences(recipientUser.id)).email) return;
     const targetEmail = recipientUser?.student_email || recipientUser?.email;
     if (!targetEmail || !targetEmail.includes('@')) return;
 
