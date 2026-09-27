@@ -54,11 +54,6 @@ router.post('/api/activities', requireAuth, async (req, res) => {
       return res.status(400).json({ message: 'กรุณากรอกชื่อกิจกรรม' });
     }
 
-    const requestedMembers = Number(member_count);
-    if (!Number.isInteger(requestedMembers) || requestedMembers < 3) {
-      return res.status(400).json({ message: 'กิจกรรมต้องเปิดรับผู้เข้าร่วมอย่างน้อย 3 คน' });
-    }
-
     if (!location || !String(location).trim()) {
       return res.status(400).json({ message: 'กรุณากรอกสถานที่จัดกิจกรรม' });
     }
@@ -103,7 +98,7 @@ router.post('/api/activities', requireAuth, async (req, res) => {
       user.id,
       user.name || 'ไม่ระบุ',
       user.major || '-',
-      requestedMembers
+      Number(member_count || 0)
     ]);
 
     const activity = await db.get('SELECT * FROM activities WHERE id = ?', [result.lastInsertRowid]);

@@ -8,9 +8,6 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css" />
-  <link rel="stylesheet" href="/privacy.css">
-    <script src="https://accounts.google.com/gsi/client" async defer></script>
-    <script src="/js/privacy.js" defer></script>
   </head>
   <body class="auth-page-body">
     <!-- Ambient Background Glows -->
@@ -41,19 +38,6 @@
           กรอกข้อมูลตามจริงเพื่อการแนะนำเพื่อนและกิจกรรมที่ตรงกับไลฟ์สไตล์ของคุณมากที่สุด
         </p>
       </div>
-
-      <section class="register-google-card" aria-labelledby="googleRegisterTitle">
-        <div>
-          <span class="register-google-kicker">สมัครได้เร็วขึ้น</span>
-          <h2 id="googleRegisterTitle">สมัครสมาชิกด้วย Google</h2>
-          <p>ใช้ชื่อ อีเมล และรูปโปรไฟล์จาก Google แล้วกรอกข้อมูลที่เหลืออีกเล็กน้อย</p>
-        </div>
-        <div class="register-google-action">
-          <div id="googleRegisterButton" class="google-gis-container"></div>
-          <button type="button" id="btnGoogleRegister" class="auth-btn-secondary hidden">สมัครด้วย Google</button>
-        </div>
-      </section>
-      <div class="register-choice-divider"><span>หรือกรอกข้อมูลด้วยตัวเอง</span></div>
 
       <!-- Main Register Card Form -->
       <div class="register-form-card">
@@ -137,6 +121,20 @@
               </div>
 
               <div class="auth-input-field">
+                <label for="interestedGender" class="auth-label">
+                  <span>สนใจเพศไหน (Looking for) *</span>
+                </label>
+                <div class="input-control-wrap">
+                  <select id="interestedGender" name="interested_gender" required class="auth-input select-styled">
+                    <option value="ทุกเพศ" selected>🌈 ทุกเพศ (All / Any)</option>
+                    <option value="หญิง">👩 หญิง</option>
+                    <option value="ชาย">👨 ชาย</option>
+                    <option value="เพศหลากหลาย">🌈 เพศหลากหลาย (LGBTQ+)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="auth-input-field">
                 <label for="birthdate" class="auth-label">
                   <span>วัน/เดือน/ปีเกิด (ใช้ทำนายดวงเนื้อคู่) *</span>
                 </label>
@@ -177,51 +175,6 @@
                 <div class="input-control-wrap">
                   <select id="university" name="university" required class="auth-input select-styled">
                     <option value="มหาวิทยาลัยขอนแก่น" selected>🏫 มหาวิทยาลัยขอนแก่น (KKU)</option>
-                    <optgroup label="กรุงเทพฯ และภาคกลาง">
-                      <option value="จุฬาลงกรณ์มหาวิทยาลัย">จุฬาลงกรณ์มหาวิทยาลัย (CU)</option>
-                      <option value="มหาวิทยาลัยมหิดล">มหาวิทยาลัยมหิดล (MU)</option>
-                      <option value="มหาวิทยาลัยธรรมศาสตร์">มหาวิทยาลัยธรรมศาสตร์ (TU)</option>
-                      <option value="มหาวิทยาลัยเกษตรศาสตร์">มหาวิทยาลัยเกษตรศาสตร์ (KU)</option>
-                      <option value="มหาวิทยาลัยศรีนครินทรวิโรฒ">มหาวิทยาลัยศรีนครินทรวิโรฒ (SWU)</option>
-                      <option value="มหาวิทยาลัยศิลปากร">มหาวิทยาลัยศิลปากร (SU)</option>
-                      <option value="มหาวิทยาลัยสวนดุสิต">มหาวิทยาลัยสวนดุสิต (SDU)</option>
-                      <option value="มหาวิทยาลัยรามคำแหง">มหาวิทยาลัยรามคำแหง (RU)</option>
-                      <option value="มหาวิทยาลัยสุโขทัยธรรมาธิราช">มหาวิทยาลัยสุโขทัยธรรมาธิราช (STOU)</option>
-                      <option value="สถาบันเทคโนโลยีพระจอมเกล้าเจ้าคุณทหารลาดกระบัง">สจล. (KMITL)</option>
-                      <option value="มหาวิทยาลัยเทคโนโลยีพระจอมเกล้าธนบุรี">มจธ. (KMUTT)</option>
-                      <option value="มหาวิทยาลัยเทคโนโลยีพระจอมเกล้าพระนครเหนือ">มจพ. (KMUTNB)</option>
-                      <option value="มหาวิทยาลัยเทคโนโลยีราชมงคลธัญบุรี">มทร.ธัญบุรี (RMUTT)</option>
-                    </optgroup>
-                    <optgroup label="ภาคเหนือ">
-                      <option value="มหาวิทยาลัยเชียงใหม่">มหาวิทยาลัยเชียงใหม่ (CMU)</option>
-                      <option value="มหาวิทยาลัยแม่ฟ้าหลวง">มหาวิทยาลัยแม่ฟ้าหลวง (MFU)</option>
-                      <option value="มหาวิทยาลัยนเรศวร">มหาวิทยาลัยนเรศวร (NU)</option>
-                      <option value="มหาวิทยาลัยพะเยา">มหาวิทยาลัยพะเยา (UP)</option>
-                      <option value="มหาวิทยาลัยแม่โจ้">มหาวิทยาลัยแม่โจ้ (MJU)</option>
-                    </optgroup>
-                    <optgroup label="ภาคตะวันออกเฉียงเหนือ">
-                      <option value="มหาวิทยาลัยมหาสารคาม">มหาวิทยาลัยมหาสารคาม (MSU)</option>
-                      <option value="มหาวิทยาลัยเทคโนโลยีสุรนารี">มหาวิทยาลัยเทคโนโลยีสุรนารี (SUT)</option>
-                      <option value="มหาวิทยาลัยอุบลราชธานี">มหาวิทยาลัยอุบลราชธานี (UBU)</option>
-                      <option value="มหาวิทยาลัยนครพนม">มหาวิทยาลัยนครพนม (NPU)</option>
-                    </optgroup>
-                    <optgroup label="ภาคตะวันออก">
-                      <option value="มหาวิทยาลัยบูรพา">มหาวิทยาลัยบูรพา (BUU)</option>
-                    </optgroup>
-                    <optgroup label="ภาคใต้">
-                      <option value="มหาวิทยาลัยสงขลานครินทร์">มหาวิทยาลัยสงขลานครินทร์ (PSU)</option>
-                      <option value="มหาวิทยาลัยวลัยลักษณ์">มหาวิทยาลัยวลัยลักษณ์ (WU)</option>
-                      <option value="มหาวิทยาลัยทักษิณ">มหาวิทยาลัยทักษิณ (TSU)</option>
-                    </optgroup>
-                    <optgroup label="มหาวิทยาลัยเอกชนยอดนิยม">
-                      <option value="มหาวิทยาลัยกรุงเทพ">มหาวิทยาลัยกรุงเทพ (BU)</option>
-                      <option value="มหาวิทยาลัยรังสิต">มหาวิทยาลัยรังสิต (RSU)</option>
-                      <option value="มหาวิทยาลัยอัสสัมชัญ">มหาวิทยาลัยอัสสัมชัญ (ABAC)</option>
-                      <option value="มหาวิทยาลัยศรีปทุม">มหาวิทยาลัยศรีปทุม (SPU)</option>
-                      <option value="มหาวิทยาลัยหอการค้าไทย">มหาวิทยาลัยหอการค้าไทย (UTCC)</option>
-                      <option value="มหาวิทยาลัยธุรกิจบัณฑิตย์">มหาวิทยาลัยธุรกิจบัณฑิตย์ (DPU)</option>
-                      <option value="มหาวิทยาลัยหัวเฉียวเฉลิมพระเกียรติ">มหาวิทยาลัยหัวเฉียวเฉลิมพระเกียรติ (HCU)</option>
-                    </optgroup>
                     <option value="other">🏛️ อื่นๆ (ระบุชื่อมหาวิทยาลัยเอง)</option>
                   </select>
                   <input type="text" id="customUniversity" class="auth-input hidden" placeholder="พิมพ์ชื่อมหาวิทยาลัยของคุณ..." style="margin-top: 8px;" />
@@ -249,7 +202,7 @@
                   <span>คณะ / วิทยาลัย (ม.ขอนแก่น) *</span>
                 </label>
                 <div class="input-control-wrap">
-                  <select id="major" name="major" required class="auth-input select-styled">
+                  <select id="major" name="major" class="auth-input select-styled">
                     <option value="">-- กรุณาเลือกคณะ / วิทยาลัย --</option>
                     <option value="คณะแพทยศาสตร์">คณะแพทยศาสตร์</option>
                     <option value="คณะพยาบาลศาสตร์">คณะพยาบาลศาสตร์</option>
@@ -276,8 +229,7 @@
                     <option value="วิทยาลัยบัณฑิตศึกษาการจัดการ">วิทยาลัยบัณฑิตศึกษาการจัดการ</option>
                     <option value="other">คณะ / สาขาวิชาอื่นๆ (ระบุเอง)</option>
                   </select>
-                  <input type="text" id="customMajor" list="registerFacultyOptions" class="auth-input hidden" placeholder="เลือกหรือพิมพ์ชื่อคณะ / สาขาวิชา..." style="margin-top: 8px;" />
-                  <datalist id="registerFacultyOptions"></datalist>
+                  <input type="text" id="customMajor" class="auth-input hidden" placeholder="พิมพ์ชื่อคณะ / สาขาวิชาของคุณ..." style="margin-top: 8px;" />
                 </div>
               </div>
             </div>
@@ -324,12 +276,46 @@
             </div>
           </div>
 
+          <!-- SECTION 4: นโยบายและความยินยอมข้อมูลส่วนบุคคล (PDPA) -->
           <div class="form-section-block consent-section">
-            <div class="form-section-header"><span class="section-step-badge">4</span><div><h3 class="form-section-title">ประกาศความเป็นส่วนตัว</h3><p class="form-section-desc">อ่านรายละเอียดก่อนสร้างบัญชี</p></div></div>
-            <div class="consent-box-modern"><p>เราใช้ชื่อ อีเมล รหัสผ่าน เบอร์โทร และข้อมูลโปรไฟล์เพื่อสร้างบัญชีและให้บริการ ส่วนข้อความ การจับคู่ กิจกรรม และบันทึกความปลอดภัยจะเกิดขึ้นเมื่อคุณใช้งาน</p><p>ชื่อ รูป อายุ เพศ ข้อมูลการศึกษา ความสนใจ และประวัติแนะนำตัวอาจแสดงแก่สมาชิกคนอื่น รูปที่อัปโหลดเข้าถึงได้ผ่านลิงก์ของรูป โปรดไม่ใส่ข้อมูลลับในโปรไฟล์</p><p><a href="/privacy" target="_blank" rel="noopener">อ่านประกาศฉบับเต็ม: ข้อมูล ผู้รับข้อมูล ระยะเวลา และสิทธิของคุณ ↗</a></p></div>
-            <div class="consent-checkbox-wrap"><label class="consent-custom-label"><input type="checkbox" id="consentCheckbox" class="custom-checkbox" required><span class="checkbox-text">ฉันได้อ่านประกาศความเป็นส่วนตัว ฉบับ 22 กันยายน 2569 แล้ว (เป็นการรับทราบ ไม่ใช่การยินยอมทุกอย่าง)</span></label></div>
-            <div class="consent-checkbox-wrap"><label class="consent-custom-label"><input type="checkbox" id="emailConsent" class="custom-checkbox"><span class="checkbox-text">ต้องการอีเมลแจ้งเตือนเมื่อมีคู่แมตช์หรือข้อความใหม่ — ไม่บังคับ (อีเมล OTP ยังส่งเมื่อคุณขอ)</span></label></div>
-            <p class="form-section-desc">ไม่เลือกรับอีเมลก็สมัครและใช้แชทกับกิจกรรมได้ แก้ไขได้ที่ “ความเป็นส่วนตัว”</p>
+            <div class="form-section-header">
+              <span class="section-step-badge">4</span>
+              <div>
+                <h3 class="form-section-title">ความยินยอมในการใช้ข้อมูลส่วนบุคคล (PDPA)</h3>
+                <p class="form-section-desc">โปรดอ่านและให้ความยินยอมตาม พ.ร.บ. คุ้มครองข้อมูลส่วนบุคคล</p>
+              </div>
+            </div>
+
+            <div class="consent-box-modern">
+              <p>เว็บไซต์ <strong>MatchSpace</strong> ขอความยินยอมจากท่านในการเก็บรวบรวม ใช้ และประมวลผลข้อมูลส่วนบุคคล เพื่อให้บริการจับคู่และแนะนำผู้ใช้งานที่มีความสนใจหรือมีกิจกรรมที่เหมาะสมร่วมกัน</p>
+              
+              <h4>ข้อมูลส่วนบุคคลที่เก็บรวบรวม</h4>
+              <ul>
+                <li>รูปภาพหรือรูปโปรไฟล์</li>
+                <li>ชั้นปี คณะ และสถาบันการศึกษา</li>
+                <li>ความสนใจและงานอดิเรก</li>
+                <li>เบอร์โทรศัพท์และอีเมลสำหรับติดต่อ</li>
+              </ul>
+
+              <h4>วัตถุประสงค์ในการเก็บและใช้ข้อมูล</h4>
+              <p>เพื่อสร้างโปรไฟล์ผู้ใช้งาน แนะนำเพื่อนที่เข้ากัน แนะนำกิจกรรม และเพื่อปรับปรุงประสบการณ์การใช้งาน โดยจะเก็บรักษาข้อมูลอย่างปลอดภัยตามมาตรฐานความมั่นคงปลอดภัย</p>
+            </div>
+
+            <div class="consent-checkbox-wrap">
+              <label class="consent-custom-label" for="consentCheckbox">
+                <input type="checkbox" id="consentCheckbox" class="custom-checkbox" />
+                <span class="checkbox-text">ข้าพเจ้าได้อ่านและเข้าใจรายละเอียดการเก็บรวบรวมและใช้ข้อมูลส่วนบุคคลแล้ว และยินยอมให้ MatchSpace ดำเนินการตามวัตถุประสงค์ที่ระบุไว้</span>
+              </label>
+            </div>
+
+            <div class="consent-quick-buttons">
+              <button type="button" id="btnAcceptConsent" class="btn-consent-quick accept">
+                ✓ กดเพื่อยินยอมข้อตกลง
+              </button>
+              <button type="button" id="btnDeclineConsent" class="btn-consent-quick decline">
+                ✕ ไม่ยินยอม
+              </button>
+            </div>
           </div>
 
           <!-- Submit Button & Footer -->
@@ -351,7 +337,6 @@
     </div>
 
     <script src="js/core.js"></script>
-    <script src="js/university-data.js"></script>
     <script src="js/auth.js"></script>
   </body>
 </html>

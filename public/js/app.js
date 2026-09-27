@@ -138,33 +138,6 @@ window.matchSpaceApp = (function () {
       }
     });
 
-    // Quick Navigation Items
-    document.getElementById('drawerBtnHome')?.addEventListener('click', () => {
-      closeDrawer();
-      switchTab('home');
-    });
-
-    document.getElementById('drawerBtnDiscover')?.addEventListener('click', () => {
-      closeDrawer();
-      switchTab('discover');
-    });
-
-    document.getElementById('drawerBtnChat')?.addEventListener('click', () => {
-      closeDrawer();
-      switchTab('chat');
-    });
-
-    document.getElementById('drawerBtnActivity')?.addEventListener('click', () => {
-      closeDrawer();
-      switchTab('activity');
-    });
-
-    document.getElementById('drawerBtnProfile')?.addEventListener('click', () => {
-      closeDrawer();
-      switchTab('profile');
-    });
-
-    // History items
     document.getElementById('drawerBtnLiked')?.addEventListener('click', () => {
       closeDrawer();
       switchTab('liked');
@@ -175,40 +148,10 @@ window.matchSpaceApp = (function () {
       switchTab('skipped');
     });
 
-    // Astrology & Icebreaker tools
-    document.getElementById('drawerBtnAstrology')?.addEventListener('click', () => {
+    document.getElementById('drawerBtnInstallPwa')?.addEventListener('click', () => {
       closeDrawer();
-      const modal = document.getElementById('incompleteProfileModal');
-      if (modal) modal.classList.remove('hidden');
-    });
-
-    document.getElementById('drawerBtnIcebreaker')?.addEventListener('click', () => {
-      closeDrawer();
-      const modal = document.getElementById('conversationStarterModal');
-      if (modal) modal.classList.remove('hidden');
-    });
-
-    // Safety & Verification
-    document.getElementById('drawerBtnVerify')?.addEventListener('click', () => {
-      closeDrawer();
-      document.getElementById('btnOpenStudentVerify')?.click() || document.getElementById('btnOpenStudentVerifyHome')?.click();
-    });
-
-    document.getElementById('drawerBtnBlocked')?.addEventListener('click', () => {
-      closeDrawer();
-      document.getElementById('btnOpenBlockedUsers')?.click();
-    });
-
-    document.getElementById('drawerBtnSafetyTips')?.addEventListener('click', () => {
-      closeDrawer();
-      alert('🛡️ กฎชุมชน & คำแนะนำความปลอดภัย MatchSpace มข.:\n\n1. คุยอย่างสุภาพและให้เกียรติซึ่งกันและกัน\n2. ระวังการเปิดเผยข้อมูลส่วนตัวทางการเงินหรือรหัสผ่าน\n3. นัดพบในที่สาธารณะ เช่น คาเฟ่หรือห้องสมุดมหาวิทยาลัย\n4. สามารถกด "รายงานปัญหา" หรือ "บล็อก" ได้ทันทีหากพบพฤติกรรมไม่เหมาะสม');
-    });
-
-    // PWA Install Guide & Push Notify
-    document.getElementById('drawerBtnInstallGuide')?.addEventListener('click', () => {
-      closeDrawer();
-      if (window.matchSpacePWA?.openInstallModal) {
-        window.matchSpacePWA.openInstallModal();
+      if (window.matchSpacePWA?.promptInstall) {
+        window.matchSpacePWA.promptInstall();
       }
     });
 
@@ -219,6 +162,16 @@ window.matchSpaceApp = (function () {
       } else {
         document.getElementById('btnSubscribePush')?.click();
       }
+    });
+
+    document.getElementById('drawerBtnVerify')?.addEventListener('click', () => {
+      closeDrawer();
+      document.getElementById('btnOpenStudentVerify')?.click();
+    });
+
+    document.getElementById('drawerBtnBlocked')?.addEventListener('click', () => {
+      closeDrawer();
+      document.getElementById('btnOpenBlockedUsers')?.click();
     });
 
     document.getElementById('drawerLogoutBtn')?.addEventListener('click', () => {
@@ -233,7 +186,6 @@ window.matchSpaceApp = (function () {
     const majorEl = document.getElementById('drawerUserMajor');
     const avatarEl = document.getElementById('drawerAvatar');
     const verifyPill = document.getElementById('drawerVerifyPill');
-    const adminSection = document.getElementById('drawerAdminSection');
 
     if (nameEl) nameEl.textContent = user.nickname || user.name || 'ผู้ใช้งาน';
     if (majorEl) majorEl.textContent = `${user.year ? user.year + ' · ' : ''}${user.major || 'มหาวิทยาลัยขอนแก่น'}`;
@@ -246,9 +198,6 @@ window.matchSpaceApp = (function () {
         verifyPill.textContent = 'รอยืนยัน';
         verifyPill.className = 'drawer-status-pill';
       }
-    }
-    if (adminSection) {
-      adminSection.style.display = (user.role === 'admin') ? 'block' : 'none';
     }
   }
 
@@ -323,25 +272,16 @@ window.matchSpaceApp = (function () {
     if (homeUserNameEl && sessionUser) {
       homeUserNameEl.textContent = sessionUser.nickname || sessionUser.name || 'คุณผู้ใช้';
     }
-    const animateNumber = (element, value) => {
-      if (!element) return;
-      const target = Math.max(0, Number.parseInt(value, 10) || 0);
-      if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-        element.textContent = target;
-        return;
-      }
-      const started = performance.now();
-      const tick = (now) => {
-        const progress = Math.min(1, (now - started) / 650);
-        element.textContent = Math.round(target * (1 - Math.pow(1 - progress, 3)));
-        if (progress < 1) requestAnimationFrame(tick);
-      };
-      requestAnimationFrame(tick);
-    };
-    animateNumber(homeCompatibleCountEl, discoverUsers ? discoverUsers.length : 0);
-    animateNumber(homeActivitiesCountEl, latestActivitiesList ? latestActivitiesList.length : 0);
-    const countEl = document.getElementById('chatTotalCountBadge');
-    animateNumber(homeNewMessagesCountEl, countEl ? countEl.textContent : 0);
+    if (homeCompatibleCountEl) {
+      homeCompatibleCountEl.textContent = discoverUsers ? discoverUsers.length : 0;
+    }
+    if (homeActivitiesCountEl) {
+      homeActivitiesCountEl.textContent = latestActivitiesList ? latestActivitiesList.length : 0;
+    }
+    if (homeNewMessagesCountEl) {
+      const countEl = document.getElementById('chatTotalCountBadge');
+      homeNewMessagesCountEl.textContent = countEl ? countEl.textContent : 0;
+    }
   }
 
   function loadHomeScreen() {
@@ -379,18 +319,6 @@ window.matchSpaceApp = (function () {
   }
 
   // ===================== PROFILE SUBSYSTEM =====================
-  async function startDirectChat(userId) {
-    const result = await apiRequest('/api/chats', {
-      method: 'POST',
-      body: JSON.stringify({ user_id: Number(userId) })
-    });
-    const chatId = Number(result.chat?.id);
-    if (!chatId) throw new Error('ไม่สามารถเปิดห้องแชทได้');
-    document.getElementById('profileModal')?.classList.add('hidden');
-    await window.matchSpaceChat?.loadChats();
-    await window.matchSpaceChat?.openChatTabAndLoad(chatId);
-  }
-
   function setupProfile() {
     const profileForm = document.getElementById('profileForm');
     const addPhotosBtn = document.getElementById('addPhotosBtn');
@@ -425,22 +353,28 @@ window.matchSpaceApp = (function () {
       const profileMajorEl = document.getElementById('profileMajor');
       const profileCustomMajorEl = document.getElementById('profileCustomMajor');
       const profileMajorLabelEl = document.getElementById('profileMajorLabel');
-      window.MatchSpaceUniversityData?.fillUniversitySelect('profileUniversity');
-
-      function syncProfileUniversityFields({ focus = false } = {}) {
-        const isKku = profileUniEl?.value === 'มหาวิทยาลัยขอนแก่น';
-        const isOther = profileUniEl?.value === 'other';
-        if (!isKku && !isOther) window.MatchSpaceUniversityData?.fillDatalist('profileFacultyOptions', profileUniEl.value);
-        profileCustomUniEl?.classList.toggle('hidden', !isOther);
-        profileMajorEl?.classList.toggle('hidden', !isKku);
-        profileCustomMajorEl?.classList.toggle('hidden', isKku && profileMajorEl?.value !== 'other');
-        if (profileMajorLabelEl) profileMajorLabelEl.textContent = isKku ? 'คณะ / วิทยาลัย (ม.ขอนแก่น)' : 'คณะ / สาขาวิชา';
-        if (profileCustomMajorEl && !isKku) profileCustomMajorEl.placeholder = isOther ? 'พิมพ์ชื่อคณะ / สาขาวิชา...' : 'เลือกจากรายการหรือพิมพ์ชื่อคณะ / สาขาวิชา...';
-        if (focus) (isOther ? profileCustomUniEl : (!isKku ? profileCustomMajorEl : null))?.focus();
-      }
 
       if (profileUniEl) {
-        profileUniEl.addEventListener('change', () => syncProfileUniversityFields({ focus: true }));
+        profileUniEl.addEventListener('change', () => {
+          if (profileUniEl.value === 'other') {
+            if (profileCustomUniEl) {
+              profileCustomUniEl.classList.remove('hidden');
+              profileCustomUniEl.focus();
+            }
+            if (profileMajorEl) profileMajorEl.classList.add('hidden');
+            if (profileCustomMajorEl) profileCustomMajorEl.classList.remove('hidden');
+            if (profileMajorLabelEl) profileMajorLabelEl.textContent = 'คณะ / สาขาวิชา (ระบุเอง)';
+          } else {
+            if (profileCustomUniEl) profileCustomUniEl.classList.add('hidden');
+            if (profileMajorEl) profileMajorEl.classList.remove('hidden');
+            if (profileMajorLabelEl) profileMajorLabelEl.textContent = 'คณะ / วิทยาลัย (ม.ขอนแก่น)';
+            if (profileMajorEl && profileMajorEl.value === 'other') {
+              if (profileCustomMajorEl) profileCustomMajorEl.classList.remove('hidden');
+            } else {
+              if (profileCustomMajorEl) profileCustomMajorEl.classList.add('hidden');
+            }
+          }
+        });
       }
 
       if (profileMajorEl) {
@@ -483,17 +417,15 @@ window.matchSpaceApp = (function () {
 
       profileForm.addEventListener('submit', async (event) => {
         event.preventDefault();
-        const messageEl = document.getElementById('profileStatus');
-        const saveBtn = document.getElementById('profileSaveBtn');
+        const messageEl = document.getElementById('profileMessage');
 
         try {
-          if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = '⏳ กำลังบันทึก...'; }
           const uniValue = (profileUniEl?.value === 'other')
             ? (profileCustomUniEl?.value.trim() || 'อื่นๆ')
             : (profileUniEl?.value || 'มหาวิทยาลัยขอนแก่น');
 
           let majorValue = '';
-          if (profileUniEl?.value !== 'มหาวิทยาลัยขอนแก่น') {
+          if (profileUniEl?.value === 'other') {
             majorValue = profileCustomMajorEl?.value.trim() || 'ไม่ระบุ';
           } else if (profileMajorEl?.value === 'other') {
             majorValue = profileCustomMajorEl?.value.trim() || 'อื่นๆ';
@@ -527,7 +459,6 @@ window.matchSpaceApp = (function () {
 
           if (messageEl) {
             messageEl.className = 'message success';
-            messageEl.style.display = 'block';
             messageEl.textContent = result.message || 'บันทึกโปรไฟล์สำเร็จ';
           }
           await loadProfile();
@@ -535,11 +466,8 @@ window.matchSpaceApp = (function () {
         } catch (error) {
           if (messageEl) {
             messageEl.className = 'message error';
-            messageEl.style.display = 'block';
             messageEl.textContent = error.message;
           }
-        } finally {
-          if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = 'บันทึกโปรไฟล์'; }
         }
       });
     }
@@ -590,7 +518,7 @@ window.matchSpaceApp = (function () {
   }
 
   function checkIncompleteProfile(user) {
-    if (!user || !user.matching_consent) return;
+    if (!user) return;
 
     // Check if user snoozed the reminder for 7 days or dismissed for this session
     try {
@@ -905,13 +833,11 @@ window.matchSpaceApp = (function () {
     const majorLabelEl = document.getElementById('profileMajorLabel');
 
     if (user.university && user.university !== 'มหาวิทยาลัยขอนแก่น') {
-      const hasUniversityOption = universityEl && Array.from(universityEl.options).some(option => option.value === user.university);
-      if (universityEl) universityEl.value = hasUniversityOption ? user.university : 'other';
+      if (universityEl) universityEl.value = 'other';
       if (customUniversityEl) {
-        customUniversityEl.value = hasUniversityOption ? '' : user.university;
-        customUniversityEl.classList.toggle('hidden', Boolean(hasUniversityOption));
+        customUniversityEl.value = user.university;
+        customUniversityEl.classList.remove('hidden');
       }
-      window.MatchSpaceUniversityData?.fillDatalist('profileFacultyOptions', user.university);
       if (majorEl) majorEl.classList.add('hidden');
       if (customMajorEl) {
         customMajorEl.value = user.major || '';
@@ -1240,22 +1166,6 @@ window.matchSpaceApp = (function () {
         };
       }
 
-      const chatBtn = document.getElementById('modalChatBtn');
-      if (chatBtn) {
-        chatBtn.onclick = async () => {
-          try {
-            chatBtn.disabled = true;
-            chatBtn.textContent = '⏳ กำลังเปิดแชท...';
-            await startDirectChat(user.id);
-          } catch (error) {
-            alert(error.message || 'ไม่สามารถเริ่มแชทได้');
-          } finally {
-            chatBtn.disabled = false;
-            chatBtn.textContent = '💬 เริ่มแชท';
-          }
-        };
-      }
-
       const blockBtn = document.getElementById('modalBlockBtn');
       if (blockBtn) {
         blockBtn.onclick = async () => {
@@ -1406,7 +1316,22 @@ window.matchSpaceApp = (function () {
       }
 
       try {
-        currentDiscoverIndex = 0;
+        // Persist to user profile
+        const formData = new FormData();
+        formData.append('interested_gender', chosenGender);
+        await apiRequest('/api/users/me', {
+          method: 'PUT',
+          body: formData
+        });
+
+        if (sessionUser) {
+          sessionUser.interested_gender = chosenGender;
+        }
+        const profileInterestedGender = document.getElementById('profileInterestedGender');
+        if (profileInterestedGender) {
+          profileInterestedGender.value = chosenGender;
+        }
+
         await loadDiscoverUsers(chosenGender);
 
         if (hint) {
@@ -1416,7 +1341,7 @@ window.matchSpaceApp = (function () {
         }
       } catch (err) {
         console.error('Error updating gender preference:', err);
-        if (hint) hint.textContent = err.message || 'โหลดผลการค้นหาไม่สำเร็จ กรุณาลองอีกครั้ง';
+        await loadDiscoverUsers(chosenGender);
       }
     });
   }
@@ -1826,8 +1751,6 @@ window.matchSpaceApp = (function () {
     }
 
     const user = filteredUsers[currentDiscoverIndex];
-    let discoverCardDisplayedAt = Date.now();
-    window._lastDiscoverCardDisplayedAt = discoverCardDisplayedAt;
     const tags = (user.interests || '').split(',').map((tag) => tag.trim()).filter(Boolean);
     const avatarSrc = user.profile_image || '';
 
@@ -1966,9 +1889,6 @@ window.matchSpaceApp = (function () {
           <button class="btn-discover-round starters" id="btnOpenIcebreakerFromCard" type="button" title="ดูคำแนะนำเริ่มต้นคุยกับคนนี้" aria-label="ไอเดียคุย">
             💡
           </button>
-          <button class="btn-discover-round chat" id="btnStartChatFromCard" type="button" title="เริ่มแชทได้ทันที" aria-label="เริ่มแชท">
-            💬
-          </button>
           <button class="btn-discover-round like" data-discover-action="like" type="button" title="ส่งความสนใจ (หรือปัดขวา)" aria-label="สนใจ">
             💕
           </button>
@@ -2031,10 +1951,6 @@ window.matchSpaceApp = (function () {
     // Quick icebreaker trigger button from card
     discoverUserCard.querySelector('#btnOpenIcebreakerFromCard')?.addEventListener('click', () => {
       openIcebreakerModal(user.id);
-    });
-    discoverUserCard.querySelector('#btnStartChatFromCard')?.addEventListener('click', async () => {
-      try { await startDirectChat(user.id); }
-      catch (error) { alert(error.message || 'ไม่สามารถเริ่มแชทได้'); }
     });
 
     // Prompt cards click to copy with visual feedback
@@ -2221,13 +2137,11 @@ window.matchSpaceApp = (function () {
       }
     }
 
-    const dwellTimeMs = Math.max(200, Date.now() - (window._lastDiscoverCardDisplayedAt || Date.now()));
-
     if (action === 'like') {
       try {
         const matchResult = await apiRequest('/api/matches', {
           method: 'POST',
-          body: JSON.stringify({ matched_user_id: user.id, note: 'Interested', status: 'liked', dwell_time_ms: dwellTimeMs })
+          body: JSON.stringify({ matched_user_id: user.id, note: 'Interested', status: 'liked' })
         });
         if (matchResult.mutual) {
           showMatchToast(matchResult.message);
@@ -2240,7 +2154,7 @@ window.matchSpaceApp = (function () {
       try {
         await apiRequest('/api/matches', {
           method: 'POST',
-          body: JSON.stringify({ matched_user_id: user.id, note: 'Skipped', status: 'skipped', dwell_time_ms: dwellTimeMs })
+          body: JSON.stringify({ matched_user_id: user.id, note: 'Skipped', status: 'skipped' })
         });
         await loadSkippedUsers();
       } catch(e) { /* ignore */ }
@@ -3336,9 +3250,6 @@ window.matchSpaceApp = (function () {
   function setupWebPushNotifications() {
     const btnSubscribePush = document.getElementById('btnSubscribePush');
     if (!btnSubscribePush) return;
-
-    // pwa-push.js owns the shared on/off state for both profile and drawer controls.
-    if (window.matchSpacePWA) return;
 
     if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
       btnSubscribePush.disabled = true;

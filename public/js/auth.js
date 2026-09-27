@@ -7,7 +7,6 @@ function initAuthModule() {
   const loginForm = document.getElementById('loginForm');
   const registerForm = document.getElementById('registerForm');
   const reportForm = document.getElementById('reportForm');
-  const GOOGLE_CLIENT_ID = '186015897078-3qtjge4dbi3e6sjvp4e4lbulolipioug.apps.googleusercontent.com';
 
   // ===================== LOGIN FORM =====================
   if (loginForm) {
@@ -54,6 +53,8 @@ function initAuthModule() {
       }
     });
 
+    const GOOGLE_CLIENT_ID = '186015897078-3qtjge4dbi3e6sjvp4e4lbulolipioug.apps.googleusercontent.com';
+
     function initGoogleButton() {
       const btnContainer = document.getElementById('googleSignInButton');
       const fallbackContainer = document.getElementById('googleFallbackContainer');
@@ -70,7 +71,7 @@ function initAuthModule() {
           google.accounts.id.renderButton(btnContainer, {
             theme: 'outline',
             size: 'large',
-            width: Math.min(340, btnContainer.parentElement.clientWidth),
+            width: 340,
             text: 'signin_with',
             shape: 'rectangular',
             logo_alignment: 'left'
@@ -98,15 +99,83 @@ function initAuthModule() {
     }
   }
 
+  function processGoogleAuth(email, name, picture) {
+    const cleanEmail = String(email || '').trim().toLowerCase();
+    if (!cleanEmail) return;
+
+    const messageEl = document.getElementById('loginMessage');
+    if (messageEl) {
+      messageEl.className = 'message success';
+      messageEl.textContent = '⏳ กำลังตรวจสอบข้อมูลบัญชี Google...';
+    }
+
+    apiRequest('/api/auth/google', {
+      method: 'POST',
+      body: JSON.stringify({ email: cleanEmail, name: name || cleanEmail.split('@')[0], picture: picture || '' })
+    }).then((result) => {
+      if (messageEl) {
+        messageEl.className = 'message success';
+        messageEl.textContent = result.message || 'กำลังนำคุณไปดำเนินการต่อ...';
+      }
+      window.location.href = result.redirect || '/app';
+    }).catch((err) => {
+      if (messageEl) {
+        messageEl.className = 'message error';
+        messageEl.textContent = err.message;
+      }
+    });
+  }
+
   function showGoogleLoginModal() {
-    if (window.google?.accounts?.id) {
-      window.google.accounts.id.prompt();
-    }
-    const message = document.getElementById('loginMessage');
-    if (message) {
-      message.className = 'message';
-      message.textContent = 'เลือกบัญชีจากปุ่ม Google ด้านบน หากเปิดไม่ได้ กรุณาเข้าสู่ระบบด้วยอีเมลและรหัสผ่าน';
-    }
+    const existingModal = document.getElementById('googleAuthModal');
+    if (existingModal) existingModal.remove();
+
+    const overlay = document.createElement('div');
+    overlay.id = 'googleAuthModal';
+    overlay.className = 'google-modal-overlay';
+
+    overlay.innerHTML = `
+      <div class="google-modal-card">
+        <div class="google-modal-header">
+          <svg width="36" height="36" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/></svg>
+          <h3>ลงชื่อเข้าใช้ด้วย Google</h3>
+          <p>กรอกหรือเลือกอีเมล Gmail ของคุณเพื่อดำเนินการต่อ</p>
+        </div>
+
+        <div style="margin-bottom:16px;">
+          <input id="modalGoogleEmail" type="email" placeholder="name@gmail.com" style="width:100%; padding:12px 14px; border:1.5px solid var(--line); border-radius:12px; font-size:0.95rem; outline:none;" />
+        </div>
+
+        <div style="display:flex; gap:10px;">
+          <button type="button" id="btnCancelGoogleModal" class="button secondary" style="flex:1;">ยกเลิก</button>
+          <button type="button" id="btnSubmitGoogleModal" class="button primary" style="flex:1;">ดำเนินการต่อ</button>
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(overlay);
+
+    const emailInput = overlay.querySelector('#modalGoogleEmail');
+    const submitBtn = overlay.querySelector('#btnSubmitGoogleModal');
+    const cancelBtn = overlay.querySelector('#btnCancelGoogleModal');
+
+    setTimeout(() => emailInput?.focus(), 100);
+
+    const submitAuth = () => {
+      const emailVal = emailInput?.value.trim();
+      if (!emailVal || !emailVal.includes('@')) {
+        alert('กรุณากรอกอีเมลให้ถูกต้อง');
+        return;
+      }
+      overlay.remove();
+      processGoogleAuth(emailVal, emailVal.split('@')[0], '');
+    };
+
+    submitBtn?.addEventListener('click', submitAuth);
+    cancelBtn?.addEventListener('click', () => overlay.remove());
+    emailInput?.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') submitAuth();
+    });
   }
 
   // Handle official Google One-Tap / GIS callback
@@ -144,10 +213,11 @@ function initAuthModule() {
   // ===================== REGISTER FORM =====================
   if (registerForm) {
     const urlParams = new URLSearchParams(window.location.search);
-    let usesGoogleRegistration = false;
+    const googleEmail = urlParams.get('google_email');
+    const googleName = urlParams.get('google_name');
+    const googlePic = urlParams.get('google_pic');
 
-    function applyGoogleRegistration({ email: googleEmail, name: googleName, picture: googlePic }) {
-      usesGoogleRegistration = true;
+    if (googleEmail) {
       const emailInput = document.getElementById('email');
       const nameInput = document.getElementById('name');
       const googleProfileImageInput = document.getElementById('googleProfileImage');
@@ -171,35 +241,9 @@ function initAuthModule() {
 
       if (messageEl) {
         messageEl.className = 'message success';
-        messageEl.textContent = 'เชื่อมต่อ Google แล้ว กรุณาตรวจชื่อและกรอกข้อมูลที่เหลือเพื่อสมัครสมาชิก';
+        messageEl.textContent = 'ดึงข้อมูลและรูปโปรไฟล์จาก Google เรียบร้อยแล้ว กรุณากรอกข้อมูลเพิ่มเติมและยินยอมข้อตกลงเพื่อสมัครสมาชิก';
       }
-      const passwordField = document.getElementById('password')?.closest('.auth-input-field');
-      if (passwordField) passwordField.classList.add('hidden');
-      document.getElementById('password')?.removeAttribute('required');
-      document.getElementById('googleRegisterButton')?.closest('.register-google-card')?.classList.add('hidden');
     }
-
-    if (urlParams.get('google') === '1') {
-      apiRequest('/api/auth/google/pending').then(applyGoogleRegistration).catch((error) => {
-        const messageEl = document.getElementById('registerMessage');
-        if (messageEl) { messageEl.className = 'message error'; messageEl.textContent = error.message; }
-      });
-    }
-
-    function initGoogleRegisterButton() {
-      const container = document.getElementById('googleRegisterButton');
-      const fallback = document.getElementById('btnGoogleRegister');
-      if (!container || !window.google?.accounts?.id) { fallback?.classList.remove('hidden'); return; }
-      try {
-        window.google.accounts.id.initialize({ client_id: GOOGLE_CLIENT_ID, callback: handleGoogleLoginResponse, auto_select: false });
-        container.innerHTML = '';
-        window.google.accounts.id.renderButton(container, { theme: 'outline', size: 'large', text: 'signup_with', shape: 'rectangular', logo_alignment: 'left', width: Math.min(320, container.parentElement.clientWidth) });
-        fallback?.classList.add('hidden');
-      } catch (_) { fallback?.classList.remove('hidden'); }
-    }
-    initGoogleRegisterButton();
-    setTimeout(initGoogleRegisterButton, 800);
-    document.getElementById('btnGoogleRegister')?.addEventListener('click', () => window.google?.accounts?.id?.prompt());
 
     const interestsTags = document.getElementById('interestsTags');
     if (interestsTags) {
@@ -310,7 +354,7 @@ function initAuthModule() {
         const messageEl = document.getElementById('registerMessage');
         if (messageEl) {
           messageEl.className = 'message error';
-          messageEl.textContent = 'โปรดอ่านและรับทราบประกาศความเป็นส่วนตัวก่อนสมัครสมาชิก';
+          messageEl.textContent = 'ท่านต้องยอมรับข้อตกลงความยินยอมข้อมูลส่วนบุคคลเพื่อสมัครสมาชิก';
         }
       });
     }
@@ -323,23 +367,28 @@ function initAuthModule() {
     const regCustomMajorEl = document.getElementById('customMajor');
     const regMajorLabelEl = document.getElementById('majorLabel');
 
-    function syncUniversityFields({ focus = false } = {}) {
-      const isKku = regUniversityEl?.value === 'มหาวิทยาลัยขอนแก่น';
-      const isOther = regUniversityEl?.value === 'other';
-      if (!isKku && !isOther) window.MatchSpaceUniversityData?.fillDatalist('registerFacultyOptions', regUniversityEl.value);
-      regCustomUniversityEl?.classList.toggle('hidden', !isOther);
-      if (regCustomUniversityEl) regCustomUniversityEl.required = isOther;
-      regMajorEl?.classList.toggle('hidden', !isKku);
-      if (regMajorEl) regMajorEl.required = isKku;
-      regCustomMajorEl?.classList.toggle('hidden', isKku && regMajorEl?.value !== 'other');
-      if (regCustomMajorEl) regCustomMajorEl.required = !isKku || regMajorEl?.value === 'other';
-      if (regMajorLabelEl) regMajorLabelEl.textContent = isKku ? 'คณะ / วิทยาลัย (ม.ขอนแก่น) *' : 'คณะ / สาขาวิชา *';
-      if (regCustomMajorEl && !isKku) regCustomMajorEl.placeholder = isOther ? 'พิมพ์ชื่อคณะ / สาขาวิชา...' : 'เลือกจากรายการหรือพิมพ์ชื่อคณะ / สาขาวิชา...';
-      if (focus) (isOther ? regCustomUniversityEl : (!isKku ? regCustomMajorEl : null))?.focus();
+    if (regUniversityEl) {
+      regUniversityEl.addEventListener('change', () => {
+        if (regUniversityEl.value === 'other') {
+          if (regCustomUniversityEl) {
+            regCustomUniversityEl.classList.remove('hidden');
+            regCustomUniversityEl.focus();
+          }
+          if (regMajorEl) regMajorEl.classList.add('hidden');
+          if (regCustomMajorEl) regCustomMajorEl.classList.remove('hidden');
+          if (regMajorLabelEl) regMajorLabelEl.textContent = 'คณะ / สาขาวิชา (ระบุเอง)';
+        } else {
+          if (regCustomUniversityEl) regCustomUniversityEl.classList.add('hidden');
+          if (regMajorEl) regMajorEl.classList.remove('hidden');
+          if (regMajorLabelEl) regMajorLabelEl.textContent = 'คณะ / วิทยาลัย (ม.ขอนแก่น)';
+          if (regMajorEl && regMajorEl.value === 'other') {
+            if (regCustomMajorEl) regCustomMajorEl.classList.remove('hidden');
+          } else {
+            if (regCustomMajorEl) regCustomMajorEl.classList.add('hidden');
+          }
+        }
+      });
     }
-
-    regUniversityEl?.addEventListener('change', () => syncUniversityFields({ focus: true }));
-    syncUniversityFields();
 
     if (regMajorEl) {
       regMajorEl.addEventListener('change', () => {
@@ -348,9 +397,10 @@ function initAuthModule() {
             regCustomMajorEl.classList.remove('hidden');
             regCustomMajorEl.focus();
           }
-        } else if (regUniversityEl?.value === 'มหาวิทยาลัยขอนแก่น') {
-          regCustomMajorEl?.classList.add('hidden');
-          if (regCustomMajorEl) regCustomMajorEl.required = false;
+        } else {
+          if (regUniversityEl && regUniversityEl.value !== 'other') {
+            if (regCustomMajorEl) regCustomMajorEl.classList.add('hidden');
+          }
         }
       });
     }
@@ -361,7 +411,7 @@ function initAuthModule() {
 
       if (!consentCheckbox || !consentCheckbox.checked) {
         messageEl.className = 'message error';
-        messageEl.textContent = 'โปรดอ่านและรับทราบประกาศความเป็นส่วนตัวก่อนสมัครสมาชิก';
+        messageEl.textContent = 'ท่านต้องยอมรับข้อตกลงความยินยอมข้อมูลส่วนบุคคลเพื่อสมัครสมาชิก';
         return;
       }
 
@@ -371,7 +421,7 @@ function initAuthModule() {
           : (regUniversityEl?.value || 'มหาวิทยาลัยขอนแก่น');
 
         let regMajorValue = '';
-        if (regUniversityEl?.value !== 'มหาวิทยาลัยขอนแก่น') {
+        if (regUniversityEl?.value === 'other') {
           regMajorValue = regCustomMajorEl?.value.trim() || 'ไม่ระบุ';
         } else if (regMajorEl?.value === 'other') {
           regMajorValue = regCustomMajorEl?.value.trim() || 'อื่นๆ';
@@ -380,16 +430,11 @@ function initAuthModule() {
         }
 
         const formData = new FormData();
-        formData.append('privacy_version', '2026-09-22');
-        formData.append('privacy_acknowledged', String(consentCheckbox.checked));
-        formData.append('matching', 'false');
-        formData.append('analytics', 'false');
-        formData.append('email_consent', String(Boolean(document.getElementById('emailConsent')?.checked)));
         formData.append('name', document.getElementById('name').value);
         formData.append('email', document.getElementById('email').value);
-        formData.append('password', usesGoogleRegistration ? '' : document.getElementById('password').value);
+        formData.append('password', document.getElementById('password').value);
         formData.append('gender', document.getElementById('gender')?.value || 'ชาย');
-        formData.append('interested_gender', 'ทุกเพศ');
+        formData.append('interested_gender', document.getElementById('interestedGender')?.value || 'ทุกเพศ');
         formData.append('birthdate', document.getElementById('birthdate')?.value || '');
         formData.append('university', regUniValue);
         formData.append('phone', document.getElementById('phone')?.value || '');
@@ -429,7 +474,7 @@ function initAuthModule() {
         const select = document.getElementById('reportedUser');
         if (select) {
           select.innerHTML = '<option value="">-- เลือกผู้ใช้งานที่ต้องการรายงาน --</option>' + 
-            users.map(u => `<option value="${Number(u.id)}">${escapeHtml(u.name)}${u.major ? ' - ' + escapeHtml(u.major) : ''}</option>`).join('');
+            users.map(u => `<option value="${u.id}">${u.name} (${u.email})${u.major ? ' - ' + u.major : ''}</option>`).join('');
         }
       } catch (e) {
         console.error('Failed to load report users:', e);
