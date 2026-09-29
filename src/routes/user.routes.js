@@ -37,7 +37,7 @@ router.get('/api/me', requireAuth, async (req, res) => {
 });
 
 router.put('/api/me', requireAuth, multiUpload, async (req, res) => {
-  const { name, gender, interested_gender, birthdate, university, major, year, interests, bio, nickname, age, phone } = req.body || {};
+  const { name, gender, interested_gender, birthdate, university, major, year, interests, bio, nickname, phone } = req.body || {};
   const userId = req.session.user.id;
 
   let cleanedPhone = req.session.user.phone || '';
@@ -63,7 +63,7 @@ router.put('/api/me', requireAuth, multiUpload, async (req, res) => {
     }
   }
 
-  let calculatedAge = age ? Number(age) : (req.session.user.age || null);
+  let calculatedAge = req.session.user.age || null;
   let zodiacName = req.session.user.zodiac || null;
   if (birthdate) {
     const ageFromBirth = calculateAge(birthdate);

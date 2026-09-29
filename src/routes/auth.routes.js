@@ -172,7 +172,7 @@ router.post('/api/register', multiUpload, async (req, res, next) => {
   }
   const privacyChoices = parseChoices({ matching: false, analytics: false, email: req.body.email_consent });
   req.body.interested_gender = 'ทุกเพศ';
-  const { name, email, password, gender, interested_gender, birthdate, university, major, year, interests, bio, nickname, age, phone } = req.body || {};
+  const { name, email, password, gender, interested_gender, birthdate, university, major, year, interests, bio, nickname, phone } = req.body || {};
 
   const pendingGoogle = req.session?.pendingGoogleRegistration;
   const usesGoogle = Boolean(pendingGoogle?.email && Number(pendingGoogle.expiresAt) > Date.now());
@@ -181,8 +181,8 @@ router.post('/api/register', multiUpload, async (req, res, next) => {
     return res.status(400).json({ message: 'อีเมลไม่ตรงกับบัญชี Google ที่ยืนยันไว้ กรุณาเริ่มสมัครด้วย Google ใหม่' });
   }
 
-  if (!name || !email || (!usesGoogle && !password) || !phone) {
-    return res.status(400).json({ message: 'กรุณากรอกชื่อ อีเมล รหัสผ่าน และเบอร์โทรศัพท์ให้ครบ' });
+  if (!name || !email || (!usesGoogle && !password) || !phone || !birthdate) {
+    return res.status(400).json({ message: 'กรุณากรอกชื่อ อีเมล รหัสผ่าน เบอร์โทรศัพท์ และวันเดือนปีเกิดให้ครบ' });
   }
 
   const cleanedPhone = String(phone).trim().replace(/[-\s]/g, '');
@@ -212,13 +212,16 @@ router.post('/api/register', multiUpload, async (req, res, next) => {
   const passwordHash = hashPassword(generatedPassword);
   const encPassword = usesGoogle ? null : encryptPassword(generatedPassword.trim());
 
-  let calculatedAge = age ? Number(age) : null;
+  let calculatedAge = null;
   let zodiacName = '';
   if (birthdate) {
     const ageFromBirth = calculateAge(birthdate);
     if (ageFromBirth !== null) calculatedAge = ageFromBirth;
     const z = getZodiacSign(birthdate);
     if (z) zodiacName = z.name;
+  }
+  if (calculatedAge === null) {
+    return res.status(400).json({ message: 'กรุณากรอกวันเดือนปีเกิดให้ถูกต้อง' });
   }
 
   const result = await db.run(`

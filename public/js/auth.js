@@ -211,7 +211,6 @@ function initAuthModule() {
     const zodiacBadge = document.getElementById('registerZodiacBadge');
     const elementBadge = document.getElementById('registerElementBadge');
     const agePreview = document.getElementById('registerAgePreview');
-    const ageInput = document.getElementById('age');
 
     function getZodiacInfo(dateStr) {
       if (!dateStr) return null;
@@ -254,10 +253,6 @@ function initAuthModule() {
         const birthYear = new Date(val).getFullYear();
         const curYear = new Date().getFullYear();
         const calcAge = Math.max(16, curYear - birthYear);
-
-        if (ageInput && (!ageInput.value || Number(ageInput.value) <= 0)) {
-          ageInput.value = calcAge;
-        }
 
         if (zodiacWrap && info) {
           zodiacWrap.style.display = 'flex';
@@ -394,7 +389,6 @@ function initAuthModule() {
         formData.append('university', regUniValue);
         formData.append('phone', document.getElementById('phone')?.value || '');
         formData.append('nickname', document.getElementById('nickname')?.value || '');
-        formData.append('age', document.getElementById('age')?.value || '');
         formData.append('major', regMajorValue);
         formData.append('year', document.getElementById('year')?.value || '');
         formData.append('interests', document.getElementById('interests')?.value || '');

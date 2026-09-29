@@ -179,7 +179,13 @@ window.matchSpaceApp = (function () {
     document.getElementById('drawerBtnAstrology')?.addEventListener('click', () => {
       closeDrawer();
       const modal = document.getElementById('incompleteProfileModal');
-      if (modal) modal.classList.remove('hidden');
+      if (modal) {
+        modal.dataset.required = 'false';
+        document.getElementById('closeIncompleteProfileModal')?.classList.remove('hidden');
+        document.getElementById('incompleteProfileSnooze')?.classList.remove('hidden');
+        document.getElementById('btnSkipToProfile')?.classList.remove('hidden');
+        modal.classList.remove('hidden');
+      }
     });
 
     document.getElementById('drawerBtnIcebreaker')?.addEventListener('click', () => {
@@ -468,13 +474,6 @@ window.matchSpaceApp = (function () {
             return;
           }
           const info = window.getZodiacInfo ? window.getZodiacInfo(val) : null;
-          const birthYear = new Date(val).getFullYear();
-          const curYear = new Date().getFullYear();
-          const age = Math.max(16, curYear - birthYear);
-          const ageInput = document.getElementById('profileAge');
-          if (ageInput && (!ageInput.value || Number(ageInput.value) <= 0)) {
-            ageInput.value = age;
-          }
           if (profileZodiacBadge && info) {
             profileZodiacBadge.textContent = `🔮 ${info.name} (${info.element})`;
           }
@@ -511,7 +510,6 @@ window.matchSpaceApp = (function () {
           formData.append('phone', document.getElementById('profilePhone')?.value || '');
           formData.append('nickname', document.getElementById('profileNickname')?.value || '');
           formData.append('birthdate', document.getElementById('profileBirthdate')?.value || '');
-          formData.append('age', document.getElementById('profileAge')?.value || '');
           formData.append('interests', document.getElementById('profileInterests')?.value || '');
           formData.append('bio', document.getElementById('profileBio')?.value || '');
 
@@ -590,27 +588,39 @@ window.matchSpaceApp = (function () {
   }
 
   function checkIncompleteProfile(user) {
-    if (!user || !user.matching_consent) return;
-
-    // Check if user snoozed the reminder for 7 days or dismissed for this session
-    try {
-      const snoozeUntil = localStorage.getItem('ms_astrology_snooze_until');
-      if (snoozeUntil && Number(snoozeUntil) > Date.now()) {
-        return; // Snoozed for 7 days
-      }
-      const sessionDismissed = sessionStorage.getItem('ms_astrology_session_dismissed');
-      if (sessionDismissed === 'true') {
-        return; // Dismissed during this session
-      }
-    } catch (e) {}
+    if (!user) return;
 
     const isBirthdateMissing = !user.birthdate || user.birthdate === '' || user.birthdate === 'null';
     const isInterestedGenderMissing = !user.interested_gender || user.interested_gender === '' || user.interested_gender === 'null';
     const isGenderMissing = !user.gender || user.gender === 'ไม่ระบุ' || user.gender === '';
 
+    // Older accounts created before birthdate was required must complete it before continuing.
+    const mustCompleteBirthdate = isBirthdateMissing;
+    if (!mustCompleteBirthdate && !user.matching_consent) return;
+
+    // Check if user snoozed the reminder for 7 days or dismissed for this session
+    try {
+      if (mustCompleteBirthdate) {
+        localStorage.removeItem('ms_astrology_snooze_until');
+        sessionStorage.removeItem('ms_astrology_session_dismissed');
+      }
+      const snoozeUntil = localStorage.getItem('ms_astrology_snooze_until');
+      if (!mustCompleteBirthdate && snoozeUntil && Number(snoozeUntil) > Date.now()) {
+        return; // Snoozed for 7 days
+      }
+      const sessionDismissed = sessionStorage.getItem('ms_astrology_session_dismissed');
+      if (!mustCompleteBirthdate && sessionDismissed === 'true') {
+        return; // Dismissed during this session
+      }
+    } catch (e) {}
+
     if (isBirthdateMissing || isInterestedGenderMissing || isGenderMissing) {
       const modal = document.getElementById('incompleteProfileModal');
       if (modal) {
+        modal.dataset.required = mustCompleteBirthdate ? 'true' : 'false';
+        document.getElementById('closeIncompleteProfileModal')?.classList.toggle('hidden', mustCompleteBirthdate);
+        document.getElementById('incompleteProfileSnooze')?.classList.toggle('hidden', mustCompleteBirthdate);
+        document.getElementById('btnSkipToProfile')?.classList.toggle('hidden', mustCompleteBirthdate);
         modal.classList.remove('hidden');
 
         const inputBirthdate = document.getElementById('promptBirthdate');
@@ -641,6 +651,7 @@ window.matchSpaceApp = (function () {
     const snoozeCheckbox = document.getElementById('promptSnooze7Days');
 
     function closeAstroModal(snooze7Days = false) {
+      if (modal?.dataset.required === 'true') return;
       try {
         if (snooze7Days) {
           const sevenDaysMs = 7 * 24 * 60 * 60 * 1000;
@@ -736,6 +747,7 @@ window.matchSpaceApp = (function () {
           if (res.user) {
             sessionUser = { ...sessionUser, ...res.user };
           }
+          if (modal) modal.dataset.required = 'false';
 
           setTimeout(async () => {
             const cardEl = modal?.querySelector('.astrology-modal-card');
@@ -879,7 +891,6 @@ window.matchSpaceApp = (function () {
     const bioEl = document.getElementById('profileBio');
     const emailEl = document.getElementById('profileEmail');
     const nicknameEl = document.getElementById('profileNickname');
-    const ageEl = document.getElementById('profileAge');
     const preview = document.getElementById('profileImagePreview');
 
     if (nameEl) nameEl.value = user.name || '';
@@ -954,7 +965,6 @@ window.matchSpaceApp = (function () {
     if (bioEl) bioEl.value = user.bio || '';
     if (emailEl) emailEl.textContent = user.email || '';
     if (nicknameEl) nicknameEl.value = user.nickname || '';
-    if (ageEl) ageEl.value = user.age || '';
     const birthdateEl = document.getElementById('profileBirthdate');
     const zodiacBadgeEl = document.getElementById('profileZodiacBadge');
     if (birthdateEl) {
